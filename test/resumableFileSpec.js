@@ -12,7 +12,7 @@ describe('ResumableFile functions', function() {
   beforeEach(function () {
     resumable = new Resumable({
     });
-    file = new resumable.ResumableFile(resumable, {
+    file = new Resumable.ResumableFile(resumable, {
       name: 'image.jpg',
       type: 'image/png'
     });
