@@ -72,7 +72,7 @@ After this is done and `testChunks` enabled, an upload can quickly catch up even
 ### Resumable
 #### Configuration
 
-The object is loaded with a configuation hash:
+The object is loaded with a configuration options:
 
     var r = new Resumable({opt1:'val', ...});
     
@@ -147,6 +147,7 @@ added.
 * `.catchAll(event, ...)` Listen to all the events listed above with the same callback function.
 
 ### ResumableFile
+ResumableFile constructor can be accessed in `Resumable.ResumableFile`.
 #### Properties
 
 * `.resumableObj` A back-reference to the parent `Resumable` object.
@@ -183,12 +184,7 @@ To ensure consistency throughout the source code, keep these rules in mind as yo
 
 * All features or bug fixes must be tested by one or more specs.
 
-* With the exceptions listed below, we follow the rules contained in [Google's JavaScript Style Guide](http://google-styleguide.googlecode.com/svn/trunk/javascriptguide.xml):
-
-  * Wrap all code at 100 characters.
-
-  * Instead of complex inheritance hierarchies, we prefer simple objects. We use prototypical
-inheritance only when absolutely necessary.
+* We follow the rules contained in [Google's JavaScript Style Guide](http://google-styleguide.googlecode.com/svn/trunk/javascriptguide.xml) with an exception we wrap all code at 100 characters.
 
 
 ## Installation Dependencies
@@ -219,7 +215,7 @@ Browsers should be comma separated and case sensitive.
 
 To re-run tests just change any source or test file.
 
-Automated tests is running after every commit at travis-ci, current build status: [![Build Status](https://travis-ci.org/AidasK/resumable.js.png?branch=Next)](https://travis-ci.org/AidasK/resumable.js)
+Automated tests is running after every commit at travis-ci, current build status: [![Build Status](https://travis-ci.org/resumable2/resumable.js.png?branch=Next)](https://travis-ci.org/resumable2/resumable.js)
 
 ### Running test on sauceLabs
 
@@ -227,9 +223,3 @@ Automated tests is running after every commit at travis-ci, current build status
 2. `grunt  test --sauce-local=true --sauce-username=**** --sauce-access-key=***`
 
 other browsers can be used with `--browsers` flag, available browsers: sl_opera,sl_iphone,sl_safari,sl_ie10,sl_chorme,sl_firefox
-
-## Alternatives
-
-This library is explicitly designed for modern browsers supporting advanced HTML5 file features, and the motivation has been to provide stable and resumable support for large files (allowing uploads of several GB files through HTTP in a predictable fashion). 
-
-If your aim is just to support progress indications during upload/uploading multiple files at once, Resumable.js isn't for you. In those cases, [SWFUpload](http://swfupload.org/) and [Plupload](http://plupload.com/) provides the same features with wider browser support.
