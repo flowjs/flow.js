@@ -114,11 +114,11 @@
     };
 
     /**
-     * On drag over event
+     * Prevent default
      * @function
      * @param {MouseEvent} event
      */
-    this.onDragOver = function (event) {
+    this.preventEvent = function (event) {
       event.preventDefault();
     };
 
@@ -328,7 +328,8 @@
         domNodes = [domNodes];
       }
       each(domNodes, function (domNode) {
-        domNode.addEventListener('dragover', this.onDragOver, false);
+        domNode.addEventListener('dragover', this.preventEvent, false);
+        domNode.addEventListener('dragenter', this.preventEvent, false);
         domNode.addEventListener('drop', this.onDrop, false);
       }, this);
     },
@@ -343,7 +344,8 @@
         domNodes = [domNodes];
       }
       each(domNodes, function (domNode) {
-        domNode.removeEventListener('dragover', this.onDragOver);
+        domNode.removeEventListener('dragover', this.preventEvent);
+        domNode.removeEventListener('dragenter', this.preventEvent);
         domNode.removeEventListener('drop', this.onDrop);
       }, this);
     },
