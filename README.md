@@ -1,4 +1,5 @@
-## Resumable.js v2
+## Resumable.js v2 [![Build Status](https://travis-ci.org/resumable2/resumable.js.png)](https://travis-ci.org/resumable2/resumable.js)
+
 
 Resumable.js is a JavaScript library providing multiple simultaneous, stable and resumable uploads via the HTML5 File API. 
 
@@ -215,7 +216,7 @@ Browsers should be comma separated and case sensitive.
 
 To re-run tests just change any source or test file.
 
-Automated tests is running after every commit at travis-ci, current build status: [![Build Status](https://travis-ci.org/resumable2/resumable.js.png?branch=Next)](https://travis-ci.org/resumable2/resumable.js)
+Automated tests is running after every commit at travis-ci.
 
 ### Running test on sauceLabs
 
