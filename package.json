@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/AidasK/resumable.js.git"
+    "url": "git://github.com/resumable2/resumable.js.git"
   },
   "keywords": [
     "resumable.js",
@@ -24,7 +24,7 @@
   "gitHead": "75d9526a46767454ca304ad257d0cef448815f1a",
   "readmeFilename": "README.md",
   "bugs": {
-    "url": "https://github.com/AidasK/resumable.js/issues"
+    "url": "https://github.com/resumable2/resumable.js/issues"
   },
   "devDependencies": {
     "grunt": "~0.4.1",
