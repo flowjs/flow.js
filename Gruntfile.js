@@ -12,6 +12,11 @@ module.exports = function(grunt) {
         dest: 'build/resumable.min.js'
       }
     },
+    coveralls: {
+      options: {
+        coverage_dir: 'coverage/'
+      }
+    },
     karma: {
       options: {
         configFile: 'karma.conf.js',
@@ -29,10 +34,22 @@ module.exports = function(grunt) {
         reporters: ['progress', 'coverage'],
         preprocessors: {
           'src/*.js': 'coverage'
+        },
+        coverageReporter: {
+          type: "lcov",
+          dir: "coverage/"
         }
       },
       travis: {
         singleRun: true,
+        reporters: ['progress', 'coverage'],
+        preprocessors: {
+          'src/*.js': 'coverage'
+        },
+        coverageReporter: {
+          type: "lcov",
+          dir: "coverage/"
+        },
         // Buggiest browser
         browsers: browsers || ['sl_chorme'],
         // global config for SauceLabs
@@ -56,5 +73,5 @@ module.exports = function(grunt) {
   // Release tasks
   grunt.registerTask('min', ['uglify']);
   // Development
-  grunt.registerTask('test', ["karma:travis"]);
+  grunt.registerTask('test', ["karma:travis","coveralls"]);
 };
