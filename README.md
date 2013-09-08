@@ -1,4 +1,4 @@
-## Resumable.js v2 [![Build Status](https://travis-ci.org/resumable2/resumable.js.png)](https://travis-ci.org/resumable2/resumable.js)
+## Resumable.js v2 [![Build Status](https://travis-ci.org/resumable2/resumable.js.png)](https://travis-ci.org/resumable2/resumable.js) [![Coverage Status](https://coveralls.io/repos/resumable2/resumable.js/badge.png?branch=master)](https://coveralls.io/r/resumable2/resumable.js?branch=master)
 
 
 Resumable.js is a JavaScript library providing multiple simultaneous, stable and resumable uploads via the HTML5 File API. 
