@@ -1005,7 +1005,9 @@
         $.retries++;
         var retryInterval = $.resumableObj.opts.chunkRetryInterval;
         if (retryInterval !== null) {
-          setTimeout($.send, retryInterval);
+          setTimeout(function () {
+            $.send();
+          }, retryInterval);
         } else {
           $.send();
         }

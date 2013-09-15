@@ -241,4 +241,37 @@ describe('upload file', function() {
     expect(file.isUploading()).toBeFalsy();
     expect(file.progress()).toBe(1);
   });
+
+  it('should retry file with timeout', function () {
+    jasmine.Clock.useMock();
+    resumable.opts.testChunks = false;
+    resumable.opts.maxChunkRetries = 1;
+    resumable.opts.chunkRetryInterval = 100;
+
+    var error = jasmine.createSpy('error');
+    var success = jasmine.createSpy('success');
+    var retry = jasmine.createSpy('retry');
+    resumable.on('fileError', error);
+    resumable.on('fileSuccess', success);
+    resumable.on('fileRetry', retry);
+
+    resumable.addFile(new Blob(['12']));
+    var file = resumable.files[0];
+    resumable.upload();
+    expect(requests.length).toBe(1);
+
+    requests[0].respond(400);
+    expect(requests.length).toBe(1);
+    expect(error).not.toHaveBeenCalled();
+    expect(success).not.toHaveBeenCalled();
+    expect(retry).toHaveBeenCalled();
+    expect(file.chunks[0].status()).toBe('uploading');
+
+    jasmine.Clock.tick(100);
+    expect(requests.length).toBe(2);
+    requests[1].respond(200);
+    expect(error).not.toHaveBeenCalled();
+    expect(success).toHaveBeenCalled();
+    expect(retry).toHaveBeenCalled();
+  });
 });
