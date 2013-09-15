@@ -31,22 +31,37 @@ describe('upload file', function() {
     xhr.restore();
   });
 
-  it('should test simple file upload with testing', function() {
-    resumable.addFile(new Blob(['file part']));
-    var file = resumable.files[0];
-    expect(file.isComplete()).toBeFalsy();
-    expect(file.isUploading()).toBeFalsy();
-    expect(file.chunks.length).toBe(1);
-    expect(file.progress()).toBe(0);
+  it('should pass query params', function() {
+    resumable.opts.query = {};
+    resumable.opts.target = 'file';
+    resumable.addFile(new Blob(['123']));
     resumable.upload();
     expect(requests.length).toBe(1);
-    expect(file.isComplete()).toBeFalsy();
-    expect(file.isUploading()).toBeTruthy();
-    requests[0].respond(200);
-    expect(file.isComplete()).toBeTruthy();
-    expect(file.isUploading()).toBeFalsy();
-    expect(file.progress()).toBe(1);
-    expect(resumable.progress()).toBe(1);
+    expect(requests[0].url).toContain('file');
+
+    resumable.opts.query = {a:1};
+    resumable.files[0].retry();
+    expect(requests.length).toBe(2);
+    expect(requests[1].url).toContain('file');
+    expect(requests[1].url).toContain('a=1');
+
+    resumable.opts.query = function (file, chunk) {
+      expect(file).toBe(resumable.files[0]);
+      expect(chunk).toBe(resumable.files[0].chunks[0]);
+      return {b:2};
+    };
+    resumable.files[0].retry();
+    expect(requests.length).toBe(3);
+    expect(requests[2].url).toContain('file');
+    expect(requests[2].url).toContain('b=2');
+    expect(requests[2].url).not.toContain('a=1');
+
+    resumable.opts.query = undefined;
+    resumable.files[0].retry();
+    expect(requests.length).toBe(4);
+    expect(requests[3].url).toContain('file');
+    expect(requests[3].url).not.toContain('a=1');
+    expect(requests[3].url).not.toContain('b=2');
   });
 
   it('should track file upload status with lots of chunks', function() {

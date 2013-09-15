@@ -699,10 +699,14 @@
      * Abort current upload
      * @function
      */
-    abort: function () {
+    abort: function (reset) {
       this.currentSpeed = 0;
       this.averageSpeed = 0;
-      each(this.chunks, function (c) {
+      var chunks = this.chunks;
+      if (reset) {
+        this.chunks = [];
+      }
+      each(chunks, function (c) {
         if (c.status() === 'uploading') {
           c.abort();
           this.resumableObj.uploadNextChunk();
@@ -732,10 +736,9 @@
      * @function
      */
     bootstrap: function () {
-      this.abort();
+      this.abort(true);
       this.error = false;
       // Rebuild stack of chunks from file
-      this.chunks = [];
       this._prevProgress = 0;
       var round = this.resumableObj.opts.forceChunkSize ? Math.ceil : Math.floor;
       var chunks = Math.max(
@@ -1267,18 +1270,21 @@
    * @param {Object=} context Object to become context (`this`) for the iterator function.
    */
   function each(obj, callback, context) {
+    if (!obj) {
+      return ;
+    }
     var key;
     // Is Array?
     if (typeof(obj.length) !== 'undefined') {
       for (key = 0; key < obj.length; key++) {
         if (callback.call(context, obj[key], key) === false) {
-          return;
+          return ;
         }
       }
     } else {
       for (key in obj) {
         if (obj.hasOwnProperty(key) && callback.call(context, obj[key], key) === false) {
-          return;
+          return ;
         }
       }
     }
