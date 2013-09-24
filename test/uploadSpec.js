@@ -290,6 +290,32 @@ describe('upload file', function() {
     expect(retry).toHaveBeenCalled();
   });
 
+  it('should fail on permanent error', function () {
+    resumable.opts.testChunks = false;
+    resumable.opts.chunkSize = 1;
+    resumable.opts.simultaneousUploads = 2;
+    resumable.opts.maxChunkRetries = 1;
+    resumable.opts.permanentErrors = [500];
+
+    var error = jasmine.createSpy('error');
+    var success = jasmine.createSpy('success');
+    var retry = jasmine.createSpy('retry');
+    resumable.on('fileError', error);
+    resumable.on('fileSuccess', success);
+    resumable.on('fileRetry', retry);
+
+    resumable.addFile(new Blob(['abc']));
+    var file = resumable.files[0];
+    expect(file.chunks.length).toBe(3);
+    resumable.upload();
+    expect(requests.length).toBe(2);
+    requests[0].respond(500);
+    expect(requests.length).toBe(2);
+    expect(error).toHaveBeenCalled();
+    expect(retry).not.toHaveBeenCalled();
+    expect(success).not.toHaveBeenCalled();
+  });
+
   it('should upload empty file', function () {
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');

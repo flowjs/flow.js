@@ -656,8 +656,7 @@
           break;
         case 'error':
           this.error = true;
-          this.abort();
-          this.chunks = [];
+          this.abort(true);
           this.resumableObj.fire('fileError', this, message);
           this.resumableObj.fire('error', message, this);
           break;
