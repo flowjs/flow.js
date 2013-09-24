@@ -451,7 +451,7 @@
       each(fileList, function (file) {
         // Directories have size `0` and name `.`
         // Ignore already added files
-        if (!(!file.size && (file.name === '.' || file.fileName === '.')) &&
+        if (!(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.')) &&
           !this.getFromUniqueIdentifier(this.generateUniqueIdentifier(file))) {
           var f = new ResumableFile(this, file);
           if (this.fire('fileAdded', f, event)) {

@@ -335,4 +335,23 @@ describe('upload file', function() {
     expect(file.isUploading()).toBe(false);
     expect(file.isComplete()).toBe(true);
   });
+
+  it('should not upload folder', function () {
+    // http://stackoverflow.com/questions/8856628/detecting-folders-directories-in-javascript-filelist-objects
+    resumable.addFile({
+      name: '.',
+      size: 0
+    });
+    expect(resumable.files.length).toBe(0);
+    resumable.addFile({
+      name: '.',
+      size: 4096
+    });
+    expect(resumable.files.length).toBe(0);
+    resumable.addFile({
+      name: '.',
+      size: 4096 * 2
+    });
+    expect(resumable.files.length).toBe(0);
+  });
 });
