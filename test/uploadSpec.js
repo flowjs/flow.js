@@ -289,4 +289,24 @@ describe('upload file', function() {
     expect(success).toHaveBeenCalled();
     expect(retry).toHaveBeenCalled();
   });
+
+  it('should upload empty file', function () {
+    var error = jasmine.createSpy('error');
+    var success = jasmine.createSpy('success');
+    resumable.on('fileError', error);
+    resumable.on('fileSuccess', success);
+
+    resumable.addFile(new Blob([]));
+    var file = resumable.files[0];
+    resumable.upload();
+    expect(requests.length).toBe(1);
+    expect(file.progress()).toBe(0);
+    requests[0].respond(200);
+    expect(requests.length).toBe(1);
+    expect(error).not.toHaveBeenCalled();
+    expect(success).toHaveBeenCalled();
+    expect(file.progress()).toBe(1);
+    expect(file.isUploading()).toBe(false);
+    expect(file.isComplete()).toBe(true);
+  });
 });

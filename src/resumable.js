@@ -760,6 +760,10 @@
       if (this.error) {
         return 1;
       }
+      if (this.chunks.length === 1) {
+        this._prevProgress = Math.max(this._prevProgress, this.chunks[0].progress());
+        return this._prevProgress;
+      }
       // Sum up progress across everything
       var bytesLoaded = 0;
       each(this.chunks, function (c) {
