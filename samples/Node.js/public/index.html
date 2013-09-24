@@ -26,7 +26,7 @@
       </div>
 
       <div class="resumable-drop" ondragenter="jQuery(this).addClass('resumable-dragover');" ondragend="jQuery(this).removeClass('resumable-dragover');" ondrop="jQuery(this).removeClass('resumable-dragover');">
-        Drop video files here to upload or <a class="resumable-browse"><u>select from your computer</u></a>
+        Drop files here to upload or <a class="resumable-browse-folder"><u>select folder</u> or <a class="resumable-browse"><u>select from your computer</u></a>
       </div>
       
       <div class="resumable-progress">
@@ -61,6 +61,7 @@
           $('.resumable-drop').show();
           r.assignDrop($('.resumable-drop')[0]);
           r.assignBrowse($('.resumable-browse')[0]);
+          r.assignBrowse($('.resumable-browse-folder')[0], true);
 
           // Handle file add event
           r.on('fileAdded', function(file){
