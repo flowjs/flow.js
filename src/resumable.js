@@ -110,7 +110,12 @@
     this.onDrop = function (event) {
       event.stopPropagation();
       event.preventDefault();
-      $.addFiles(event.dataTransfer.files, event);
+      var dataTransfer = event.dataTransfer;
+      if (dataTransfer.items && dataTransfer.items[0].webkitGetAsEntry) {
+        $.webkitReadDataTransfer(event);
+      } else {
+        $.addFiles(dataTransfer.files, event);
+      }
     };
 
     /**
@@ -169,6 +174,45 @@
       return !preventDefault;
     },
 
+    /**
+     * Read webkit dataTransfer object
+     * @param event
+     */
+    webkitReadDataTransfer: function (event) {
+      var $ = this;
+      each(event.dataTransfer.items, function (item) {
+        var entry = item.webkitGetAsEntry();
+        if (!entry) {
+          return ;
+        }
+        if (entry.isFile) {
+          // due to a bug in Chrome's File System API impl - #149735
+          fileReadSuccess(item.getAsFile(), entry.fullPath);
+        } else {
+          entry.createReader().readEntries(readSuccess, readError);
+        }
+      });
+      function readSuccess(entries) {
+        each(entries, function(entry) {
+          if (entry.isFile) {
+            var fullPath = entry.fullPath;
+            entry.file(function (file) {
+              fileReadSuccess(file, fullPath);
+            }, readError);
+          } else if (entry.isDirectory) {
+            entry.createReader().readEntries(readSuccess, readError);
+          }
+        });
+      }
+      function fileReadSuccess(file, fullPath) {
+        // relative path should not start with "/"
+        file.relativePath = fullPath.substring(1);
+        $.addFile(file, event);
+      }
+      function readError(fileError) {
+        throw fileError;
+      }
+    },
 
     /**
      * Generate unique identifier for a file
@@ -182,9 +226,8 @@
         return custom(file);
       }
       // Some confusion in different versions of Firefox
-      var relativePath = file.webkitRelativePath || file.fileName || file.name;
-      var size = file.size;
-      return size + '-' + relativePath.replace(/[^0-9a-zA-Z_-]/img, '');
+      var relativePath = file.relativePath || file.webkitRelativePath || file.fileName || file.name;
+      return file.size + '-' + relativePath.replace(/[^0-9a-zA-Z_-]/img, '');
     },
 
     /**
@@ -557,7 +600,7 @@
      * Relative file path
      * @type {string}
      */
-    this.relativePath = file.webkitRelativePath || this.name;
+    this.relativePath = file.relativePath || file.webkitRelativePath || this.name;
 
     /**
      * File unique identifier
