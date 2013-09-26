@@ -9,6 +9,21 @@ Resumable.js does not have any external dependencies other than the `HTML5 File 
 
 Samples and examples are available in the `samples/` folder. Please push your own as Markdown to help document the project.
 
+## Can i see a demo?
+[Resumable.js + angular.js file upload demo](http://resumable2.github.io/ng-resumable/) - ng-resumable extension page https://github.com/resumable2/ng-resumable
+
+JQuery and node.js backend demo https://github.com/resumable2/resumable.js/tree/master/samples/Node.js
+
+## How can I install it?
+use bower:
+
+        bower install resumable.js
+use cdn, look for available packages at http://www.jsdelivr.com/#!resumable.js
+        
+or use git clone
+
+        git clone https://github.com/resumable2/resumable.js
+
 ## How can I use it?
 
 A new `Resumable` object is created with information of what and where to post:
