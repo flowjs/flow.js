@@ -17,7 +17,7 @@ JQuery and node.js backend demo https://github.com/resumable2/resumable.js/tree/
 ## How can I install it?
 use bower:
 
-        bower install resumable.js
+        bower install resumable.js#~2
 use cdn, look for available packages at http://www.jsdelivr.com/#!resumable.js
         
 or use git clone
