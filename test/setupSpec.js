@@ -47,7 +47,9 @@ describe('setup', function() {
       resumable.assignBrowse(input);
       expect(input.hasAttribute('multiple')).toBeTruthy();
       expect(addFiles).not.toHaveBeenCalled();
-      input.dispatchEvent(new Event('change'));
+      var event = document.createEvent('MouseEvents');
+      event.initEvent('change', true, true);
+      input.dispatchEvent(event);
       expect(addFiles).toHaveBeenCalled();
     });
 
@@ -59,7 +61,9 @@ describe('setup', function() {
       expect(div.children.length).toBe(1);
       var input = div.children[0];
       expect(addFiles).not.toHaveBeenCalled();
-      input.dispatchEvent(new Event('change'));
+      var event = document.createEvent('MouseEvents');
+      event.initEvent('change', true, true);
+      input.dispatchEvent(event);
       expect(addFiles).toHaveBeenCalled();
     });
 
@@ -81,18 +85,19 @@ describe('setup', function() {
   describe('assignDrop', function() {
     it('assign to div', function() {
       var div = document.createElement('div');
-      var addFiles = jasmine.createSpy('addFiles');
-      resumable.addFiles = addFiles;
+      var onDrop = jasmine.createSpy('onDrop');
+      resumable.onDrop = onDrop;
       resumable.assignDrop(div);
-      var event = new Event('drop');
+      var event = document.createEvent('MouseEvents');
+      event.initEvent('drop', true, true);
       event.dataTransfer = {files: []};
       div.dispatchEvent(event);
-      expect(addFiles).toHaveBeenCalled();
-      expect(addFiles.callCount).toBe(1);
+      expect(onDrop).toHaveBeenCalled();
+      expect(onDrop.callCount).toBe(1);
 
       resumable.unAssignDrop(div);
       div.dispatchEvent(event);
-      expect(addFiles.callCount).toBe(1);
+      expect(onDrop.callCount).toBe(1);
     });
   });
 
