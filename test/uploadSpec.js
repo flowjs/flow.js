@@ -56,10 +56,11 @@ describe('upload file', function() {
     expect(requests[2].url).toContain('b=2');
     expect(requests[2].url).not.toContain('a=1');
 
+    resumable.opts.target = 'file?w=w';
     resumable.opts.query = undefined;
     resumable.files[0].retry();
     expect(requests.length).toBe(4);
-    expect(requests[3].url).toContain('file');
+    expect(requests[3].url).toContain('file?w=w&');
     expect(requests[3].url).not.toContain('a=1');
     expect(requests[3].url).not.toContain('b=2');
   });
