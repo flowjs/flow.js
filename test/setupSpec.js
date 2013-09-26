@@ -38,4 +38,62 @@ describe('setup', function() {
     expect(resumable.uploadNextChunk()).toBe(false);
   });
 
+  describe('assignBrowse', function() {
+    it('assign to input', function() {
+      var input = document.createElement('input');
+      var addFiles = jasmine.createSpy('addFiles');
+      resumable.addFiles = addFiles;
+      input.type = 'file';
+      resumable.assignBrowse(input);
+      expect(input.hasAttribute('multiple')).toBeTruthy();
+      expect(addFiles).not.toHaveBeenCalled();
+      input.dispatchEvent(new Event('change'));
+      expect(addFiles).toHaveBeenCalled();
+    });
+
+    it('assign to div', function() {
+      var div = document.createElement('div');
+      var addFiles = jasmine.createSpy('addFiles');
+      resumable.addFiles = addFiles;
+      resumable.assignBrowse(div);
+      expect(div.children.length).toBe(1);
+      var input = div.children[0];
+      expect(addFiles).not.toHaveBeenCalled();
+      input.dispatchEvent(new Event('change'));
+      expect(addFiles).toHaveBeenCalled();
+    });
+
+    it('single file', function() {
+      var input = document.createElement('input');
+      input.type = 'file';
+      resumable.assignBrowse(input, false, true);
+      expect(input.hasAttribute('multiple')).toBeFalsy();
+    });
+
+    it('directory', function() {
+      var input = document.createElement('input');
+      input.type = 'file';
+      resumable.assignBrowse(input, true);
+      expect(input.hasAttribute('webkitdirectory')).toBeTruthy();
+    });
+  });
+
+  describe('assignDrop', function() {
+    it('assign to div', function() {
+      var div = document.createElement('div');
+      var addFiles = jasmine.createSpy('addFiles');
+      resumable.addFiles = addFiles;
+      resumable.assignDrop(div);
+      var event = new Event('drop');
+      event.dataTransfer = {files: []};
+      div.dispatchEvent(event);
+      expect(addFiles).toHaveBeenCalled();
+      expect(addFiles.callCount).toBe(1);
+
+      resumable.unAssignDrop(div);
+      div.dispatchEvent(event);
+      expect(addFiles.callCount).toBe(1);
+    });
+  });
+
 });
