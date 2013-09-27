@@ -360,4 +360,24 @@ describe('upload file', function() {
     });
     expect(resumable.files.length).toBe(0);
   });
+
+  it('should preprocess chunks', function () {
+    var preprocess = jasmine.createSpy('preprocess');
+    var error = jasmine.createSpy('error');
+    var success = jasmine.createSpy('success');
+    resumable.on('fileError', error);
+    resumable.on('fileSuccess', success);
+    resumable.opts.preprocess = preprocess;
+    resumable.addFile(new Blob(['abc']));
+    var file = resumable.files[0];
+    resumable.upload();
+    expect(requests.length).toBe(0);
+    expect(preprocess).wasCalledWith(file.chunks[0]);
+    expect(file.chunks[0].preprocessState).toBe(1);
+    file.chunks[0].preprocessFinished();
+    expect(requests.length).toBe(1);
+    requests[0].respond(200, [], "response");
+    expect(success).wasCalledWith(file, "response");
+    expect(error).not.toHaveBeenCalled();
+  });
 });
