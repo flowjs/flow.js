@@ -1,6 +1,6 @@
 {
   "name": "resumable.js",
-  "version": "2.0.0",
+  "version": "2.0.0-beta",
   "main": "src/resumable.js",
   "ignore": [
     "**/.*",

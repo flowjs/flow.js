@@ -1,6 +1,6 @@
 {
   "name": "resumable.js",
-  "version": "2.0.0",
+  "version": "2.0.0-beta",
   "description": "Resumable.js is a JavaScript library providing multiple simultaneous, stable and resumable uploads via the HTML5 File API",
   "main": "resumable.js",
   "scripts": {
