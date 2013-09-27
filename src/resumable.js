@@ -236,7 +236,7 @@
      * @returns {boolean}
      * @private
      */
-    uploadNextChunk: function () {
+    uploadNextChunk: function (preventEvents) {
       // In some cases (such as videos) it's really handy to upload the first
       // and last chunk of a file quickly; this let's the server check the file's
       // metadata and determine if there's even a point in continuing.
@@ -290,7 +290,7 @@
           return false;
         }
       });
-      if (!outstanding) {
+      if (!outstanding && !preventEvents) {
         // All chunks have been uploaded, complete
         this.fire('complete');
       }
@@ -421,8 +421,12 @@
       }
       // Kick off the queue
       this.fire('uploadStart');
+      var started = false;
       for (var num = 1; num <= this.opts.simultaneousUploads; num++) {
-        this.uploadNextChunk();
+        started = this.uploadNextChunk(true) || started;
+      }
+      if (!started) {
+        this.fire('complete');
       }
     },
 

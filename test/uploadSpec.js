@@ -125,6 +125,11 @@ describe('upload file', function() {
     expect(events[10]).toBe('fileSuccess');
     // Can be sync and async
     expect(events[11]).toBe('complete');
+
+    resumable.upload();
+    expect(events.length).toBe(14);
+    expect(events[12]).toBe('uploadStart');
+    expect(events[13]).toBe('complete');
   });
 
   it('should pause and resume file', function () {
