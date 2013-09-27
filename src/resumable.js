@@ -180,6 +180,8 @@
      */
     webkitReadDataTransfer: function (event) {
       var $ = this;
+      var queue = event.dataTransfer.items.length;
+      var files = [];
       each(event.dataTransfer.items, function (item) {
         var entry = item.webkitGetAsEntry();
         if (!entry) {
@@ -193,6 +195,7 @@
         }
       });
       function readSuccess(entries) {
+        queue += entries.length;
         each(entries, function(entry) {
           if (entry.isFile) {
             var fullPath = entry.fullPath;
@@ -203,14 +206,21 @@
             entry.createReader().readEntries(readSuccess, readError);
           }
         });
+        decrement();
       }
       function fileReadSuccess(file, fullPath) {
         // relative path should not start with "/"
         file.relativePath = fullPath.substring(1);
-        $.addFile(file, event);
+        files.push(file);
+        decrement();
       }
       function readError(fileError) {
         throw fileError;
+      }
+      function decrement() {
+        if (--queue == 0) {
+          $.addFiles(files, event);
+        }
       }
     },
 
