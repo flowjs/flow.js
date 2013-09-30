@@ -1,3 +1,6 @@
+# Lets rename this library! [Click to vote](https://docs.google.com/forms/d/1k_xUuXWbWbFZlCJDb43vAltcrJzighrdpk8-z8KU2ys/viewform)
+
+
 ## Resumable.js v2 [![Build Status](https://travis-ci.org/resumable2/resumable.js.png)](https://travis-ci.org/resumable2/resumable.js) [![Coverage Status](https://coveralls.io/repos/resumable2/resumable.js/badge.png?branch=master)](https://coveralls.io/r/resumable2/resumable.js?branch=master)
 
 
