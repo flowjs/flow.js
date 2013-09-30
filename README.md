@@ -15,14 +15,20 @@ Samples and examples are available in the `samples/` folder. Please push your ow
 JQuery and node.js backend demo https://github.com/resumable2/resumable.js/tree/master/samples/Node.js
 
 ## How can I install it?
-use bower:
+1. Get the library:
 
-        bower install resumable.js#~2
-use cdn, look for available packages at http://www.jsdelivr.com/#!resumable.js
+        use bower:
         
-or use git clone
+                bower install resumable.js#~2
+        use cdn, look for available packages at http://www.jsdelivr.com/#!resumable.js
+                
+        or use git clone
+        
+                git clone https://github.com/resumable2/resumable.js
+        
+2. Add the module to your app as a dependency:
 
-        git clone https://github.com/resumable2/resumable.js
+        angular.module('app', ['ngResumable'])
 
 ## How can I use it?
 
