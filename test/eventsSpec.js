@@ -1,29 +1,29 @@
 describe('events', function() {
   /**
-   * @type {Resumable}
+   * @type {Flow}
    */
-  var resumable;
+  var flow;
 
   beforeEach(function () {
-    resumable = new Resumable();
+    flow = new Flow();
   });
 
   it('should catch all events', function() {
     var valid = false;
-    resumable.on('catchall', function (event) {
+    flow.on('catchall', function (event) {
       expect(event).toBe('test');
       valid = true;
     });
-    resumable.fire('test');
+    flow.fire('test');
     expect(valid).toBeTruthy();
   });
 
   it('should catch an event', function() {
     var valid = false;
-    resumable.on('test', function () {
+    flow.on('test', function () {
       valid = true;
     });
-    resumable.fire('test');
+    flow.fire('test');
     expect(valid).toBeTruthy();
   });
 
@@ -31,44 +31,44 @@ describe('events', function() {
     var valid = false;
     var argumentOne = 123;
     var argumentTwo = "dqw";
-    resumable.on('test', function () {
+    flow.on('test', function () {
       expect(arguments.length).toBe(2);
       expect(arguments[0]).toBe(argumentOne);
       expect(arguments[1]).toBe(argumentTwo);
       expect(arguments[2]).toBeUndefined();
       valid = true;
     });
-    resumable.fire('test', argumentOne, argumentTwo);
+    flow.fire('test', argumentOne, argumentTwo);
     expect(valid).toBeTruthy();
   });
 
   it('should return event value', function() {
-    resumable.on('false', function () {
+    flow.on('false', function () {
       return false;
     });
-    resumable.on('true', function () {
+    flow.on('true', function () {
 
     });
-    expect(resumable.fire('true')).toBeTruthy();
-    expect(resumable.fire('not existant')).toBeTruthy();
-    expect(resumable.fire('false')).toBeFalsy();
+    expect(flow.fire('true')).toBeTruthy();
+    expect(flow.fire('not existant')).toBeTruthy();
+    expect(flow.fire('false')).toBeFalsy();
   });
 
   it('should return multiple event value', function() {
-    resumable.on('maybe', function () {
+    flow.on('maybe', function () {
       return false;
     });
-    resumable.on('maybe', function () {
+    flow.on('maybe', function () {
 
     });
-    expect(resumable.fire('maybe')).toBeFalsy();
+    expect(flow.fire('maybe')).toBeFalsy();
 
-    resumable.on('maybe2', function () {
+    flow.on('maybe2', function () {
 
     });
-    resumable.on('maybe2', function () {
+    flow.on('maybe2', function () {
       return false;
     });
-    expect(resumable.fire('maybe2')).toBeFalsy();
+    expect(flow.fire('maybe2')).toBeFalsy();
   });
 });

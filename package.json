@@ -1,16 +1,18 @@
 {
-  "name": "resumable.js",
+  "name": "flow.js",
   "version": "2.0.0-beta",
-  "description": "Resumable.js is a JavaScript library providing multiple simultaneous, stable and resumable uploads via the HTML5 File API",
-  "main": "resumable.js",
+  "description": "Flow.js library implements html5 file upload and provides multiple simultaneous, stable, fault tolerant and resumable uploads.",
+  "main": "src/flow.js",
   "scripts": {
     "test": "grunt test"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/resumable2/resumable.js.git"
+    "url": "git://github.com/flowjs/flow.js.git"
   },
   "keywords": [
+    "flow.js",
+    "flow",
     "resumable.js",
     "file upload",
     "resumable upload",
@@ -19,12 +21,11 @@
     "javascript upload",
     "upload"
   ],
-  "author": "",
+  "author": "Aidas Klimas",
   "license": "MIT",
-  "gitHead": "75d9526a46767454ca304ad257d0cef448815f1a",
   "readmeFilename": "README.md",
   "bugs": {
-    "url": "https://github.com/resumable2/resumable.js/issues"
+    "url": "https://github.com/flowjs/flow.js/issues"
   },
   "devDependencies": {
     "grunt": "~0.4.1",

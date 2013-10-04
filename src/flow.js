@@ -1,13 +1,12 @@
-/*
- * MIT Licensed
- * @author Steffen Tiedemann Christensen, steffen@23company.com
+/**
+ * @license MIT
  */
 (function(window, document, undefined) {'use strict';
 
   /**
-   * Resumable is a library providing multiple simultaneous, stable and
+   * Flow.js is a library providing multiple simultaneous, stable and
    * resumable uploads via the HTML5 File API.
-   * @name Resumable
+   * @name
    * @param [opts]
    * @param {number} [opts.chunkSize]
    * @param {bool} [opts.forceChunkSize]
@@ -29,7 +28,7 @@
    * @param {Function} [opts.generateUniqueIdentifier]
    * @constructor
    */
-  function Resumable(opts) {
+  function Flow(opts) {
     /**
      * Library version
      * @type {string}
@@ -55,13 +54,13 @@
     }
 
     /**
-     * List of ResumableFile objects
-     * @type {Array.<ResumableFile>}
+     * List of FlowFile objects
+     * @type {Array.<FlowFile>}
      */
     this.files = [];
 
     /**
-     * Default options for resumable.js
+     * Default options for flow.js
      * @type {Object}
      */
     this.defaults = {
@@ -132,10 +131,10 @@
      * Current options
      * @type {Object}
      */
-    this.opts = Resumable.extend({}, this.defaults, opts || {});
+    this.opts = Flow.extend({}, this.defaults, opts || {});
   }
 
-  Resumable.prototype = {
+  Flow.prototype = {
     /**
      * Set a callback for an event, possible events:
      * fileSuccess(file), fileProgress(file), fileAdded(file, event),
@@ -227,7 +226,7 @@
     /**
      * Generate unique identifier for a file
      * @function
-     * @param {ResumableFile} file
+     * @param {FlowFile} file
      * @returns {string}
      */
     generateUniqueIdentifier: function (file) {
@@ -461,7 +460,7 @@
     },
 
     /**
-     * Cancel upload of all ResumableFile objects and remove them from the list.
+     * Cancel upload of all FlowFile objects and remove them from the list.
      * @function
      */
     cancel: function () {
@@ -510,7 +509,7 @@
         // Ignore already added files
         if (!(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.')) &&
           !this.getFromUniqueIdentifier(this.generateUniqueIdentifier(file))) {
-          var f = new ResumableFile(this, file);
+          var f = new FlowFile(this, file);
           if (this.fire('fileAdded', f, event)) {
             files.push(f);
           }
@@ -529,9 +528,9 @@
 
 
     /**
-     * Cancel upload of a specific ResumableFile object from the list.
+     * Cancel upload of a specific FlowFile object from the list.
      * @function
-     * @param {ResumableFile} file
+     * @param {FlowFile} file
      */
     removeFile: function (file) {
       for (var i = this.files.length - 1; i >= 0; i--) {
@@ -543,10 +542,10 @@
     },
 
     /**
-     * Look up a ResumableFile object by its unique identifier.
+     * Look up a FlowFile object by its unique identifier.
      * @function
      * @param {string} uniqueIdentifier
-     * @returns {boolean|ResumableFile} false if file was not found
+     * @returns {boolean|FlowFile} false if file was not found
      */
     getFromUniqueIdentifier: function (uniqueIdentifier) {
       var ret = false;
@@ -578,19 +577,19 @@
 
 
   /**
-   * ResumableFile class
-   * @name ResumableFile
-   * @param {Resumable} resumableObj
+   * FlowFile class
+   * @name FlowFile
+   * @param {Flow} flowObj
    * @param {File} file
    * @constructor
    */
-  function ResumableFile(resumableObj, file) {
+  function FlowFile(flowObj, file) {
 
     /**
-     * Reference to parent Resumable instance
-     * @type {Resumable}
+     * Reference to parent Flow instance
+     * @type {Flow}
      */
-    this.resumableObj = resumableObj;
+    this.flowObj = flowObj;
 
     /**
      * Reference to file
@@ -620,11 +619,11 @@
      * File unique identifier
      * @type {string}
      */
-    this.uniqueIdentifier = resumableObj.generateUniqueIdentifier(file);
+    this.uniqueIdentifier = flowObj.generateUniqueIdentifier(file);
 
     /**
      * List of chunks
-     * @type {Array.<ResumableChunk>}
+     * @type {Array.<FlowChunk>}
      */
     this.chunks = [];
 
@@ -676,14 +675,14 @@
     this.bootstrap();
   }
 
-  ResumableFile.prototype = {
+  FlowFile.prototype = {
     /**
      * Update speed parameters
      * @link http://stackoverflow.com/questions/2779600/how-to-estimate-download-time-remaining-accurately
      * @function
      */
     measureSpeed: function () {
-      var smoothingFactor = this.resumableObj.opts.speedSmoothingFactor;
+      var smoothingFactor = this.flowObj.opts.speedSmoothingFactor;
       var timeSpan = Date.now() - this._lastProgressCallback;
       var uploaded = this.sizeUploaded();
       // Prevent negative upload speed after file upload resume
@@ -703,32 +702,32 @@
       switch (event) {
         case 'progress':
           if (Date.now() - this._lastProgressCallback <
-            this.resumableObj.opts.progressCallbacksInterval) {
+            this.flowObj.opts.progressCallbacksInterval) {
             break;
           }
           this.measureSpeed();
-          this.resumableObj.fire('fileProgress', this);
-          this.resumableObj.fire('progress');
+          this.flowObj.fire('fileProgress', this);
+          this.flowObj.fire('progress');
           this._lastProgressCallback = Date.now();
           break;
         case 'error':
           this.error = true;
           this.abort(true);
-          this.resumableObj.fire('fileError', this, message);
-          this.resumableObj.fire('error', message, this);
+          this.flowObj.fire('fileError', this, message);
+          this.flowObj.fire('error', message, this);
           break;
         case 'success':
           if (this.error) {
             return;
           }
-          this.resumableObj.fire('fileProgress', this);
-          this.resumableObj.fire('progress');
+          this.flowObj.fire('fileProgress', this);
+          this.flowObj.fire('progress');
           if (this.isComplete()) {
-            this.resumableObj.fire('fileSuccess', this, message);
+            this.flowObj.fire('fileSuccess', this, message);
           }
           break;
         case 'retry':
-          this.resumableObj.fire('fileRetry', this);
+          this.flowObj.fire('fileRetry', this);
           break;
       }
     },
@@ -748,7 +747,7 @@
      */
     resume: function() {
       this.paused = false;
-      this.resumableObj.upload();
+      this.flowObj.upload();
     },
 
     /**
@@ -765,7 +764,7 @@
       each(chunks, function (c) {
         if (c.status() === 'uploading') {
           c.abort();
-          this.resumableObj.uploadNextChunk();
+          this.flowObj.uploadNextChunk();
         }
       }, this);
     },
@@ -775,7 +774,7 @@
      * @function
      */
     cancel: function () {
-      this.resumableObj.removeFile(this);
+      this.flowObj.removeFile(this);
     },
 
     /**
@@ -784,7 +783,7 @@
      */
     retry: function () {
       this.bootstrap();
-      this.resumableObj.upload();
+      this.flowObj.upload();
     },
 
     /**
@@ -796,13 +795,13 @@
       this.error = false;
       // Rebuild stack of chunks from file
       this._prevProgress = 0;
-      var round = this.resumableObj.opts.forceChunkSize ? Math.ceil : Math.floor;
+      var round = this.flowObj.opts.forceChunkSize ? Math.ceil : Math.floor;
       var chunks = Math.max(
-        round(this.file.size / this.resumableObj.opts.chunkSize), 1
+        round(this.file.size / this.flowObj.opts.chunkSize), 1
       );
       for (var offset = 0; offset < chunks; offset++) {
         this.chunks.push(
-          new ResumableChunk(this.resumableObj, this, offset)
+          new FlowChunk(this.flowObj, this, offset)
         );
       }
     },
@@ -923,23 +922,23 @@
 
   /**
    * Class for storing a single chunk
-   * @name ResumableChunk
-   * @param {Resumable} resumableObj
-   * @param {ResumableFile} fileObj
+   * @name FlowChunk
+   * @param {Flow} flowObj
+   * @param {FlowFile} fileObj
    * @param {number} offset
    * @constructor
    */
-  function ResumableChunk(resumableObj, fileObj, offset) {
+  function FlowChunk(flowObj, fileObj, offset) {
 
     /**
-     * Reference to parent resumable object
-     * @type {Resumable}
+     * Reference to parent flow object
+     * @type {Flow}
      */
-    this.resumableObj = resumableObj;
+    this.flowObj = flowObj;
 
     /**
-     * Reference to parent ResumableFile object
-     * @type {ResumableFile}
+     * Reference to parent FlowFile object
+     * @type {FlowFile}
      */
     this.fileObj = fileObj;
 
@@ -995,7 +994,7 @@
      * Size of a chunk
      * @type {number}
      */
-    var chunkSize = this.resumableObj.opts.chunkSize;
+    var chunkSize = this.flowObj.opts.chunkSize;
 
     /**
      * Chunk start byte in a file
@@ -1016,7 +1015,7 @@
     this.xhr = null;
 
     if (this.fileObjSize - this.endByte < chunkSize &&
-        !this.resumableObj.opts.forceChunkSize) {
+        !this.flowObj.opts.forceChunkSize) {
       // The last chunk will be bigger than the chunk size,
       // but less than 2*chunkSize
       this.endByte = this.fileObjSize;
@@ -1045,7 +1044,7 @@
       if (status === 'success') {
         $.tested = true;
         $.fileObj.chunkEvent(status, $.message());
-        $.resumableObj.uploadNextChunk();
+        $.flowObj.uploadNextChunk();
       } else if (!$.fileObj.paused) {// Error might be caused by file pause method
         $.tested = true;
         $.send();
@@ -1060,13 +1059,13 @@
       var status = $.status();
       if (status === 'success' || status === 'error') {
         $.fileObj.chunkEvent(status, $.message());
-        $.resumableObj.uploadNextChunk();
+        $.flowObj.uploadNextChunk();
       } else {
         $.fileObj.chunkEvent('retry', $.message());
         $.pendingRetry = true;
         $.abort();
         $.retries++;
-        var retryInterval = $.resumableObj.opts.chunkRetryInterval;
+        var retryInterval = $.flowObj.opts.chunkRetryInterval;
         if (retryInterval !== null) {
           setTimeout(function () {
             $.send();
@@ -1078,21 +1077,21 @@
     };
   }
 
-  ResumableChunk.prototype = {
+  FlowChunk.prototype = {
     /**
      * Get params for a request
      * @function
      */
     getParams: function () {
       return {
-        resumableChunkNumber: this.offset + 1,
-        resumableChunkSize: this.resumableObj.opts.chunkSize,
-        resumableCurrentChunkSize: this.endByte - this.startByte,
-        resumableTotalSize: this.fileObjSize,
-        resumableIdentifier: this.fileObj.uniqueIdentifier,
-        resumableFilename: this.fileObj.name,
-        resumableRelativePath: this.fileObj.relativePath,
-        resumableTotalChunks: this.fileObj.chunks.length
+        flowChunkNumber: this.offset + 1,
+        flowChunkSize: this.flowObj.opts.chunkSize,
+        flowCurrentChunkSize: this.endByte - this.startByte,
+        flowTotalSize: this.fileObjSize,
+        flowIdentifier: this.fileObj.uniqueIdentifier,
+        flowFilename: this.fileObj.name,
+        flowRelativePath: this.fileObj.relativePath,
+        flowTotalChunks: this.fileObj.chunks.length
       };
     },
 
@@ -1103,7 +1102,7 @@
      * @returns {string}
      */
     getTarget: function(params){
-      var target = this.resumableObj.opts.target;
+      var target = this.flowObj.opts.target;
       if(target.indexOf('?') < 0) {
         target += '?';
       } else {
@@ -1140,7 +1139,7 @@
      * @function
      */
     send: function () {
-      var preprocess = this.resumableObj.opts.preprocess;
+      var preprocess = this.flowObj.opts.preprocess;
       if (typeof preprocess === 'function') {
         switch (this.preprocessState) {
           case 0:
@@ -1153,7 +1152,7 @@
             break;
         }
       }
-      if (this.resumableObj.opts.testChunks && !this.tested) {
+      if (this.flowObj.opts.testChunks && !this.tested) {
         this.test();
         return;
       }
@@ -1174,7 +1173,7 @@
       this.xhr.addEventListener("load", this.doneHandler, false);
       this.xhr.addEventListener("error", this.doneHandler, false);
 
-      var data = this.prepareXhrRequest('POST', this.resumableObj.opts.method, bytes);
+      var data = this.prepareXhrRequest('POST', this.flowObj.opts.method, bytes);
 
       this.xhr.send(data);
     },
@@ -1212,8 +1211,8 @@
         if (this.xhr.status == 200) {
           // HTTP 200, perfect
           return 'success';
-        } else if (this.resumableObj.opts.permanentErrors.indexOf(this.xhr.status) > -1 ||
-            this.retries >= this.resumableObj.opts.maxChunkRetries) {
+        } else if (this.flowObj.opts.permanentErrors.indexOf(this.xhr.status) > -1 ||
+            this.retries >= this.flowObj.opts.maxChunkRetries) {
           // HTTP 415/500/501, permanent error
           return 'error';
         } else {
@@ -1262,13 +1261,13 @@
      */
     prepareXhrRequest: function(method, paramsMethod, blob) {
       // Add data from the query options
-      var query = this.resumableObj.opts.query;
+      var query = this.flowObj.opts.query;
       if (typeof query === "function") {
         query = query(this.fileObj, this);
       }
       query = extend(this.getParams(), query);
 
-      var target = this.resumableObj.opts.target;
+      var target = this.flowObj.opts.target;
       var data = null;
       if (method === 'GET' || paramsMethod === 'octet') {
         // Add data from the query options
@@ -1284,14 +1283,14 @@
         each(query, function (v, k) {
           data.append(k, v);
         });
-        data.append(this.resumableObj.opts.fileParameterName, blob);
+        data.append(this.flowObj.opts.fileParameterName, blob);
       }
 
       this.xhr.open(method, target);
-      this.xhr.withCredentials = this.resumableObj.opts.withCredentials;
+      this.xhr.withCredentials = this.flowObj.opts.withCredentials;
 
       // Add data from header options
-      each(this.resumableObj.opts.headers, function (v, k) {
+      each(this.flowObj.opts.headers, function (v, k) {
         this.xhr.setRequestHeader(k, v);
       }, this);
 
@@ -1320,7 +1319,7 @@
     });
     return dst;
   }
-  Resumable.extend = extend;
+  Flow.extend = extend;
 
   /**
    * Iterate each element of an object
@@ -1349,25 +1348,25 @@
       }
     }
   }
-  Resumable.each = each;
+  Flow.each = each;
 
   /**
-   * ResumableFile constructor
-   * @type {ResumableFile}
+   * FlowFile constructor
+   * @type {FlowFile}
    */
-  Resumable.ResumableFile = ResumableFile;
+  Flow.FlowFile = FlowFile;
 
   /**
-   * ResumableFile constructor
-   * @type {ResumableChunk}
+   * FlowFile constructor
+   * @type {FlowChunk}
    */
-  Resumable.ResumableChunk = ResumableChunk;
+  Flow.FlowChunk = FlowChunk;
 
-  window.Resumable = Resumable;
+  window.Flow = Flow;
 
 })(window, document);
 
 // Node.js-style export for Node and Component
 if (typeof module !== 'undefined') {
-  module.exports = window.Resumable;
+  module.exports = window.Flow;
 }

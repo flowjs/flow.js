@@ -8,8 +8,8 @@ module.exports = function(grunt) {
         banner: '/*! <%= pkg.name %> <%= pkg.version %> */\n'
       },
       build: {
-        src: 'src/resumable.js',
-        dest: 'build/resumable.min.js'
+        src: 'src/flow.js',
+        dest: 'build/flow.min.js'
       }
     },
     coveralls: {

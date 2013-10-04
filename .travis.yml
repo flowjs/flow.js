@@ -3,8 +3,8 @@ node_js:
   - 0.1
 env:
   global:
-  - secure: QnbopydTyvqD3CmNZa6Ppu68m7ug+HKXYOvWhcdbqWQryDHGzoMk/ehQjrFszAAO0s+4a//aMzlNJnZQW8wYxtXyA5RlPGl4Vbr9uhSeHNEgxBzgeqSD8+3ZjgE/ORmuds7jjPDStG50uotD+DubQKLiMe/vn9Ej9bArpZ2pGKk=
-  - secure: GkU6vcxcmPtVo3nnMj+HGX+Hde1jU/ad/Un2Sexx0nBZzYd3d/A2HGdbd4NAtjioyucUCyHSYaG2n3yE+u16ucFDYBB9Wu1zlXynku39pSiDcz/pjh9mR7VBHg4VNGKqe5ZtU5udohFsOZMYTegqk5nw9yW6VgZzRa/1mWsg2YY=
+  - SAUCE_USERNAME=aidaskk
+  - SAUCE_ACCESS_KEY=6e96b47e-6665-4f69-beaa-085e5d5b6b9b
 before_script:
   - sh -e /etc/init.d/xvfb start
   - npm install --quiet -g grunt-cli karma

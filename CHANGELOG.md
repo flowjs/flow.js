@@ -22,7 +22,7 @@
  - **singleFile** parameter added. Then enabled, uploaded file will replace current one.
 
 ## Breaking Changes
-
+ - **Resumable** was renamed to **Flow**
  - **ResumableFile.fileName** parameter renamed to **ResumableFile.name**
  - **Resumable.getOpt** method dropped, use Resumable.opts parameter instead if needed.
  - **Resumable.maxFiles**, **Resumable.minFileSize**, **Resumable.maxFileSize**,

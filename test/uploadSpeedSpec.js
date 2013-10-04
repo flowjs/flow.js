@@ -1,8 +1,8 @@
 describe('calculate upload speed', function() {
   /**
-   * @type {Resumable}
+   * @type {Flow}
    */
-  var resumable;
+  var flow;
   /**
    * @type {FakeXMLHttpRequest}
    */
@@ -13,7 +13,7 @@ describe('calculate upload speed', function() {
   var requests = [];
 
   beforeEach(function () {
-    resumable = new Resumable({
+    flow = new Flow({
       generateUniqueIdentifier: function (file) {
         return file.size;
       },
@@ -31,8 +31,8 @@ describe('calculate upload speed', function() {
   });
 
   it('should have upload speed', function() {
-    resumable.addFile(new Blob(['0123456789']));
-    var file = resumable.files[0];
+    flow.addFile(new Blob(['0123456789']));
+    var file = flow.files[0];
     expect(file.currentSpeed).toBe(0);
     expect(file.averageSpeed).toBe(0);
     /*

@@ -1,8 +1,8 @@
 describe('upload file', function() {
   /**
-   * @type {Resumable}
+   * @type {Flow}
    */
-  var resumable;
+  var flow;
   /**
    * @type {FakeXMLHttpRequest}
    */
@@ -13,7 +13,7 @@ describe('upload file', function() {
   var requests = [];
 
   beforeEach(function () {
-    resumable = new Resumable({
+    flow = new Flow({
       progressCallbacksInterval: 0,
       generateUniqueIdentifier: function (file) {
         return file.size;
@@ -32,33 +32,33 @@ describe('upload file', function() {
   });
 
   it('should pass query params', function() {
-    resumable.opts.query = {};
-    resumable.opts.target = 'file';
-    resumable.addFile(new Blob(['123']));
-    resumable.upload();
+    flow.opts.query = {};
+    flow.opts.target = 'file';
+    flow.addFile(new Blob(['123']));
+    flow.upload();
     expect(requests.length).toBe(1);
     expect(requests[0].url).toContain('file');
 
-    resumable.opts.query = {a:1};
-    resumable.files[0].retry();
+    flow.opts.query = {a:1};
+    flow.files[0].retry();
     expect(requests.length).toBe(2);
     expect(requests[1].url).toContain('file');
     expect(requests[1].url).toContain('a=1');
 
-    resumable.opts.query = function (file, chunk) {
-      expect(file).toBe(resumable.files[0]);
-      expect(chunk).toBe(resumable.files[0].chunks[0]);
+    flow.opts.query = function (file, chunk) {
+      expect(file).toBe(flow.files[0]);
+      expect(chunk).toBe(flow.files[0].chunks[0]);
       return {b:2};
     };
-    resumable.files[0].retry();
+    flow.files[0].retry();
     expect(requests.length).toBe(3);
     expect(requests[2].url).toContain('file');
     expect(requests[2].url).toContain('b=2');
     expect(requests[2].url).not.toContain('a=1');
 
-    resumable.opts.target = 'file?w=w';
-    resumable.opts.query = undefined;
-    resumable.files[0].retry();
+    flow.opts.target = 'file?w=w';
+    flow.opts.query = undefined;
+    flow.files[0].retry();
     expect(requests.length).toBe(4);
     expect(requests[3].url).toContain('file?w=w&');
     expect(requests[3].url).not.toContain('a=1');
@@ -66,11 +66,11 @@ describe('upload file', function() {
   });
 
   it('should track file upload status with lots of chunks', function() {
-    resumable.opts.chunkSize = 1;
-    resumable.addFile(new Blob(['IIIIIIIIII']));
-    var file = resumable.files[0];
+    flow.opts.chunkSize = 1;
+    flow.addFile(new Blob(['IIIIIIIIII']));
+    var file = flow.files[0];
     expect(file.chunks.length).toBe(10);
-    resumable.upload();
+    flow.upload();
     expect(file.progress()).toBe(0);
     for (var i = 0; i < 9; i++) {
       expect(requests[i]).toBeDefined();
@@ -89,19 +89,19 @@ describe('upload file', function() {
     expect(file.isComplete()).toBeTruthy();
     expect(file.isUploading()).toBeFalsy();
     expect(file.progress()).toBe(1);
-    expect(resumable.progress()).toBe(1);
+    expect(flow.progress()).toBe(1);
   });
 
   it('should throw expected events', function () {
     var events = [];
-    resumable.on('catchAll', function (event) {
+    flow.on('catchAll', function (event) {
       events.push(event);
     });
-    resumable.opts.chunkSize = 1;
-    resumable.addFile(new Blob(['12']));
-    var file = resumable.files[0];
+    flow.opts.chunkSize = 1;
+    flow.addFile(new Blob(['12']));
+    var file = flow.files[0];
     expect(file.chunks.length).toBe(2);
-    resumable.upload();
+    flow.upload();
     // Sync events
     expect(events.length).toBe(4);
     expect(events[0]).toBe('fileAdded');
@@ -127,21 +127,21 @@ describe('upload file', function() {
     // Can be sync and async
     expect(events[11]).toBe('complete');
 
-    resumable.upload();
+    flow.upload();
     expect(events.length).toBe(14);
     expect(events[12]).toBe('uploadStart');
     expect(events[13]).toBe('complete');
   });
 
   it('should pause and resume file', function () {
-    resumable.opts.chunkSize = 1;
-    resumable.opts.simultaneousUploads = 2;
-    resumable.addFile(new Blob(['1234']));
-    resumable.addFile(new Blob(['56']));
-    var files = resumable.files;
+    flow.opts.chunkSize = 1;
+    flow.opts.simultaneousUploads = 2;
+    flow.addFile(new Blob(['1234']));
+    flow.addFile(new Blob(['56']));
+    var files = flow.files;
     expect(files[0].chunks.length).toBe(4);
     expect(files[1].chunks.length).toBe(2);
-    resumable.upload();
+    flow.upload();
     expect(files[0].isUploading()).toBeTruthy();
     expect(requests.length).toBe(2);
     expect(requests[0].aborted).toBeUndefined();
@@ -183,31 +183,31 @@ describe('upload file', function() {
     expect(files[1].isUploading()).toBeFalsy();
     expect(files[1].isComplete()).toBeTruthy();
     expect(files[1].progress()).toBe(1);
-    expect(resumable.progress()).toBe(1);
+    expect(flow.progress()).toBe(1);
   });
 
   it('should retry file', function () {
-    resumable.opts.testChunks = false;
-    resumable.opts.chunkSize = 1;
-    resumable.opts.simultaneousUploads = 1;
-    resumable.opts.maxChunkRetries = 1;
-    resumable.opts.permanentErrors = [500];
+    flow.opts.testChunks = false;
+    flow.opts.chunkSize = 1;
+    flow.opts.simultaneousUploads = 1;
+    flow.opts.maxChunkRetries = 1;
+    flow.opts.permanentErrors = [500];
     var error = jasmine.createSpy('error');
     var progress = jasmine.createSpy('progress');
     var success = jasmine.createSpy('success');
     var retry = jasmine.createSpy('retry');
-    resumable.on('fileError', error);
-    resumable.on('fileProgress', progress);
-    resumable.on('fileSuccess', success);
-    resumable.on('fileRetry', retry);
+    flow.on('fileError', error);
+    flow.on('fileProgress', progress);
+    flow.on('fileSuccess', success);
+    flow.on('fileRetry', retry);
 
-    resumable.addFile(new Blob(['12']));
-    var file = resumable.files[0];
+    flow.addFile(new Blob(['12']));
+    var file = flow.files[0];
     expect(file.chunks.length).toBe(2);
     expect(file.chunks[0].status()).toBe('pending');
     expect(file.chunks[1].status()).toBe('pending');
 
-    resumable.upload();
+    flow.upload();
     expect(requests.length).toBe(1);
     expect(file.chunks[0].status()).toBe('uploading');
     expect(file.chunks[1].status()).toBe('pending');
@@ -265,20 +265,20 @@ describe('upload file', function() {
 
   it('should retry file with timeout', function () {
     jasmine.Clock.useMock();
-    resumable.opts.testChunks = false;
-    resumable.opts.maxChunkRetries = 1;
-    resumable.opts.chunkRetryInterval = 100;
+    flow.opts.testChunks = false;
+    flow.opts.maxChunkRetries = 1;
+    flow.opts.chunkRetryInterval = 100;
 
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
     var retry = jasmine.createSpy('retry');
-    resumable.on('fileError', error);
-    resumable.on('fileSuccess', success);
-    resumable.on('fileRetry', retry);
+    flow.on('fileError', error);
+    flow.on('fileSuccess', success);
+    flow.on('fileRetry', retry);
 
-    resumable.addFile(new Blob(['12']));
-    var file = resumable.files[0];
-    resumable.upload();
+    flow.addFile(new Blob(['12']));
+    var file = flow.files[0];
+    flow.upload();
     expect(requests.length).toBe(1);
 
     requests[0].respond(400);
@@ -297,23 +297,23 @@ describe('upload file', function() {
   });
 
   it('should fail on permanent error', function () {
-    resumable.opts.testChunks = false;
-    resumable.opts.chunkSize = 1;
-    resumable.opts.simultaneousUploads = 2;
-    resumable.opts.maxChunkRetries = 1;
-    resumable.opts.permanentErrors = [500];
+    flow.opts.testChunks = false;
+    flow.opts.chunkSize = 1;
+    flow.opts.simultaneousUploads = 2;
+    flow.opts.maxChunkRetries = 1;
+    flow.opts.permanentErrors = [500];
 
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
     var retry = jasmine.createSpy('retry');
-    resumable.on('fileError', error);
-    resumable.on('fileSuccess', success);
-    resumable.on('fileRetry', retry);
+    flow.on('fileError', error);
+    flow.on('fileSuccess', success);
+    flow.on('fileRetry', retry);
 
-    resumable.addFile(new Blob(['abc']));
-    var file = resumable.files[0];
+    flow.addFile(new Blob(['abc']));
+    var file = flow.files[0];
     expect(file.chunks.length).toBe(3);
-    resumable.upload();
+    flow.upload();
     expect(requests.length).toBe(2);
     requests[0].respond(500);
     expect(requests.length).toBe(2);
@@ -325,12 +325,12 @@ describe('upload file', function() {
   it('should upload empty file', function () {
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
-    resumable.on('fileError', error);
-    resumable.on('fileSuccess', success);
+    flow.on('fileError', error);
+    flow.on('fileSuccess', success);
 
-    resumable.addFile(new Blob([]));
-    var file = resumable.files[0];
-    resumable.upload();
+    flow.addFile(new Blob([]));
+    var file = flow.files[0];
+    flow.upload();
     expect(requests.length).toBe(1);
     expect(file.progress()).toBe(0);
     requests[0].respond(200);
@@ -344,33 +344,33 @@ describe('upload file', function() {
 
   it('should not upload folder', function () {
     // http://stackoverflow.com/questions/8856628/detecting-folders-directories-in-javascript-filelist-objects
-    resumable.addFile({
+    flow.addFile({
       name: '.',
       size: 0
     });
-    expect(resumable.files.length).toBe(0);
-    resumable.addFile({
+    expect(flow.files.length).toBe(0);
+    flow.addFile({
       name: '.',
       size: 4096
     });
-    expect(resumable.files.length).toBe(0);
-    resumable.addFile({
+    expect(flow.files.length).toBe(0);
+    flow.addFile({
       name: '.',
       size: 4096 * 2
     });
-    expect(resumable.files.length).toBe(0);
+    expect(flow.files.length).toBe(0);
   });
 
   it('should preprocess chunks', function () {
     var preprocess = jasmine.createSpy('preprocess');
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
-    resumable.on('fileError', error);
-    resumable.on('fileSuccess', success);
-    resumable.opts.preprocess = preprocess;
-    resumable.addFile(new Blob(['abc']));
-    var file = resumable.files[0];
-    resumable.upload();
+    flow.on('fileError', error);
+    flow.on('fileSuccess', success);
+    flow.opts.preprocess = preprocess;
+    flow.addFile(new Blob(['abc']));
+    var file = flow.files[0];
+    flow.upload();
     expect(requests.length).toBe(0);
     expect(preprocess).wasCalledWith(file.chunks[0]);
     expect(file.chunks[0].preprocessState).toBe(1);

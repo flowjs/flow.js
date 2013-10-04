@@ -1,5 +1,5 @@
 var express = require('express');
-var resumable = require('./resumable-node.js')('tmp/');
+var flow = require('./flow-node.js')('tmp/');
 var app = express();
 
 // Host most stuff in the public folder
@@ -8,9 +8,9 @@ app.use(express.static(__dirname + '/../../src'));
 
 app.use(express.bodyParser());
 
-// Handle uploads through Resumable.js
+// Handle uploads through Flow.js
 app.post('/upload', function(req, res){
-  resumable.post(req, function(status, filename, original_filename, identifier){
+  flow.post(req, function(status, filename, original_filename, identifier){
     console.log('POST', status, original_filename, identifier);
     res.send(200, {
       // NOTE: Uncomment this funciton to enable cross-domain request.
@@ -30,16 +30,16 @@ app.post('/upload', function(req, res){
   });
 */
 
-// Handle status checks on chunks through Resumable.js
+// Handle status checks on chunks through Flow.js
 app.get('/upload', function(req, res){
-  resumable.get(req, function(status, filename, original_filename, identifier){
+  flow.get(req, function(status, filename, original_filename, identifier){
     console.log('GET', status);
     res.send(200, (status == 'found' ? 200 : 404));
   });
 });
 
 app.get('/download/:identifier', function(req, res){
-	resumable.write(req.params.identifier, res);
+	flow.write(req.params.identifier, res);
 });
 
 app.listen(3000);

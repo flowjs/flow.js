@@ -2,7 +2,7 @@ var fs = require('fs'), path = require('path'), util = require('util'), Stream =
 
 
 
-module.exports = resumable = function(temporaryFolder){
+module.exports = flow = function(temporaryFolder){
   var $ = this;
   $.temporaryFolder = temporaryFolder;
   $.maxFileSize = null;
@@ -21,7 +21,7 @@ module.exports = resumable = function(temporaryFolder){
     // Clean up the identifier
     identifier = cleanIdentifier(identifier);
     // What would the file name be?
-    return path.join($.temporaryFolder, './resumable-'+identifier+'.'+chunkNumber);
+    return path.join($.temporaryFolder, './flow-'+identifier+'.'+chunkNumber);
   }
 
   var validateRequest = function(chunkNumber, chunkSize, totalSize, identifier, filename, fileSize){
@@ -30,30 +30,30 @@ module.exports = resumable = function(temporaryFolder){
 
     // Check if the request is sane
     if (chunkNumber==0 || chunkSize==0 || totalSize==0 || identifier.length==0 || filename.length==0) {
-      return 'non_resumable_request';
+      return 'non_flow_request';
     }
     var numberOfChunks = Math.max(Math.floor(totalSize/(chunkSize*1.0)), 1);
     if (chunkNumber>numberOfChunks) {
-      return 'invalid_resumable_request1';
+      return 'invalid_flow_request1';
     }
 
     // Is the file too big?
     if($.maxFileSize && totalSize>$.maxFileSize) {
-      return 'invalid_resumable_request2';
+      return 'invalid_flow_request2';
     }
 
     if(typeof(fileSize)!='undefined') {
       if(chunkNumber<numberOfChunks && fileSize!=chunkSize) {
         // The chunk in the POST request isn't the correct size
-        return 'invalid_resumable_request3';
+        return 'invalid_flow_request3';
       }
       if(numberOfChunks>1 && chunkNumber==numberOfChunks && fileSize!=((totalSize%chunkSize)+chunkSize)) {
         // The chunks in the POST is the last one, and the fil is not the correct size
-        return 'invalid_resumable_request4';
+        return 'invalid_flow_request4';
       }
       if(numberOfChunks==1 && fileSize!=totalSize) {
         // The file is only a single chunk, and the data size does not fit
-        return 'invalid_resumable_request5';
+        return 'invalid_flow_request5';
       }
     }
 
@@ -63,11 +63,11 @@ module.exports = resumable = function(temporaryFolder){
   //'found', filename, original_filename, identifier
   //'not_found', null, null, null
   $.get = function(req, callback){
-    var chunkNumber = req.param('resumableChunkNumber', 0);
-    var chunkSize = req.param('resumableChunkSize', 0);
-    var totalSize = req.param('resumableTotalSize', 0);
-    var identifier = req.param('resumableIdentifier', "");
-    var filename = req.param('resumableFilename', "");
+    var chunkNumber = req.param('flowChunkNumber', 0);
+    var chunkSize = req.param('flowChunkSize', 0);
+    var totalSize = req.param('flowTotalSize', 0);
+    var identifier = req.param('flowIdentifier', "");
+    var filename = req.param('flowFilename', "");
 
     if(validateRequest(chunkNumber, chunkSize, totalSize, identifier, filename)=='valid') {
       var chunkFilename = getChunkFilename(chunkNumber, identifier);
@@ -85,23 +85,23 @@ module.exports = resumable = function(temporaryFolder){
 
   //'partly_done', filename, original_filename, identifier
   //'done', filename, original_filename, identifier
-  //'invalid_resumable_request', null, null, null
-  //'non_resumable_request', null, null, null
+  //'invalid_flow_request', null, null, null
+  //'non_flow_request', null, null, null
   $.post = function(req, callback){
 
     var fields = req.body;
     var files = req.files;
 
-    var chunkNumber = fields['resumableChunkNumber'];
-    var chunkSize = fields['resumableChunkSize'];
-    var totalSize = fields['resumableTotalSize'];
-    var identifier = cleanIdentifier(fields['resumableIdentifier']);
-    var filename = fields['resumableFilename'];
+    var chunkNumber = fields['flowChunkNumber'];
+    var chunkSize = fields['flowChunkSize'];
+    var totalSize = fields['flowTotalSize'];
+    var identifier = cleanIdentifier(fields['flowIdentifier']);
+    var filename = fields['flowFilename'];
 
-		var original_filename = fields['resumableIdentifier'];
+		var original_filename = fields['flowIdentifier'];
 
     if(!files[$.fileParameterName] || !files[$.fileParameterName].size) {
-      callback('invalid_resumable_request', null, null, null);
+      callback('invalid_flow_request', null, null, null);
       return;
     }
     var validation = validateRequest(chunkNumber, chunkSize, totalSize, identifier, files[$.fileParameterName].size);

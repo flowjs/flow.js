@@ -1,18 +1,18 @@
-describe('ResumableFile functions', function() {
+describe('FlowFile functions', function() {
 
   /**
-   * @type {Resumable}
+   * @type {Flow}
    */
-  var resumable;
+  var flow;
   /**
-   * @type {ResumableFile}
+   * @type {FlowFile}
    */
   var file;
 
   beforeEach(function () {
-    resumable = new Resumable({
+    flow = new Flow({
     });
-    file = new Resumable.ResumableFile(resumable, {
+    file = new Flow.FlowFile(flow, {
       name: 'image.jpg',
       type: 'image/png'
     });

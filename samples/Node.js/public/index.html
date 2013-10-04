@@ -1,35 +1,35 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Resumable.js - Multiple simultaneous, stable and resumable uploads via the HTML5 File API</title>
+    <title>Flow.js - Multiple simultaneous, stable and resumable uploads via the HTML5 File API</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" type="text/css" href="style.css" />
   </head>
   <body>
     <div id="frame">
 
-      <h1>Resumable.js</h1>
+      <h1>Flow.js</h1>
       <p>It's a JavaScript library providing multiple simultaneous, stable and resumable uploads via the HTML5 File API.</p>
 
       <p>The library is designed to introduce fault-tolerance into the upload of large files through HTTP. This is done by splitting each files into small chunks; whenever the upload of a chunk fails, uploading is retried until the procedure completes. This allows uploads to automatically resume uploading after a network connection is lost either locally or to the server. Additionally, it allows for users to pause and resume uploads without loosing state.</p>
 
-      <p>Resumable.js relies on the HTML5 File API and the ability to chunks files into smaller pieces. Currently, this means that support is limited to Firefox 4+ and Chrome 11+.</p>
+      <p>Flow.js relies on the HTML5 File API and the ability to chunks files into smaller pieces. Currently, this means that support is limited to Firefox 4+ and Chrome 11+.</p>
 
       <hr/>
 
       <h3>Demo</h3>
       <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
-      <script src="resumable.js"></script>
+      <script src="flow.js"></script>
 
-      <div class="resumable-error">
-        Your browser, unfortunately, is not supported by Resumable.js. The library requires support for <a href="http://www.w3.org/TR/FileAPI/">the HTML5 File API</a> along with <a href="http://www.w3.org/TR/FileAPI/#normalization-of-params">file slicing</a>.
+      <div class="flow-error">
+        Your browser, unfortunately, is not supported by Flow.js. The library requires support for <a href="http://www.w3.org/TR/FileAPI/">the HTML5 File API</a> along with <a href="http://www.w3.org/TR/FileAPI/#normalization-of-params">file slicing</a>.
       </div>
 
-      <div class="resumable-drop" ondragenter="jQuery(this).addClass('resumable-dragover');" ondragend="jQuery(this).removeClass('resumable-dragover');" ondrop="jQuery(this).removeClass('resumable-dragover');">
-        Drop files here to upload or <a class="resumable-browse-folder"><u>select folder</u> or <a class="resumable-browse"><u>select from your computer</u></a>
+      <div class="flow-drop" ondragenter="jQuery(this).addClass('flow-dragover');" ondragend="jQuery(this).removeClass('flow-dragover');" ondrop="jQuery(this).removeClass('flow-dragover');">
+        Drop files here to upload or <a class="flow-browse-folder"><u>select folder</u> or <a class="flow-browse"><u>select from your computer</u></a>
       </div>
       
-      <div class="resumable-progress">
+      <div class="flow-progress">
         <table>
           <tr>
             <td width="100%"><div class="progress-container"><div class="progress-bar"></div></div></td>
@@ -43,60 +43,60 @@
         </table>
       </div>
       
-      <ul class="resumable-list"></ul>
+      <ul class="flow-list"></ul>
 
       <script>
         (function () {
-          var r = new Resumable({
+          var r = new Flow({
             target: '/upload',
             chunkSize: 1024*1024,
             testChunks: false
           });
-          // Resumable.js isn't supported, fall back on a different method
+          // Flow.js isn't supported, fall back on a different method
           if (!r.support) {
-            $('.resumable-error').show();
+            $('.flow-error').show();
             return ;
           }
           // Show a place for dropping/selecting files
-          $('.resumable-drop').show();
-          r.assignDrop($('.resumable-drop')[0]);
-          r.assignBrowse($('.resumable-browse')[0]);
-          r.assignBrowse($('.resumable-browse-folder')[0], true);
+          $('.flow-drop').show();
+          r.assignDrop($('.flow-drop')[0]);
+          r.assignBrowse($('.flow-browse')[0]);
+          r.assignBrowse($('.flow-browse-folder')[0], true);
 
           // Handle file add event
           r.on('fileAdded', function(file){
             // Show progress bar
-            $('.resumable-progress, .resumable-list').show();
+            $('.flow-progress, .flow-list').show();
             // Add the file to the list
-            $('.resumable-list').append(
-              '<li class="resumable-file resumable-file-'+file.uniqueIdentifier+'">' +
-              'Uploading <span class="resumable-file-name"></span> ' +
-              '<span class="resumable-file-size"></span> ' +
-              '<span class="resumable-file-progress"></span>' +
-              '<span class="resumable-file-pause">' +
+            $('.flow-list').append(
+              '<li class="flow-file flow-file-'+file.uniqueIdentifier+'">' +
+              'Uploading <span class="flow-file-name"></span> ' +
+              '<span class="flow-file-size"></span> ' +
+              '<span class="flow-file-progress"></span>' +
+              '<span class="flow-file-pause">' +
               ' <img src="pause.png" title="Pause upload" />' +
               '</span>' +
-              '<span class="resumable-file-resume">' +
+              '<span class="flow-file-resume">' +
               ' <img src="resume.png" title="Resume upload" />' +
               '</span>' +
-              '<span class="resumable-file-cancel">' +
+              '<span class="flow-file-cancel">' +
               ' <img src="cancel.png" title="Cancel upload" />' +
               '</span>'
             );
-            var $self = $('.resumable-file-'+file.uniqueIdentifier);
-            $self.find('.resumable-file-name').text(file.name);
-            $self.find('.resumable-file-size').text(readablizeBytes(file.size));
-            $self.find('.resumable-file-pause').on('click', function () {
+            var $self = $('.flow-file-'+file.uniqueIdentifier);
+            $self.find('.flow-file-name').text(file.name);
+            $self.find('.flow-file-size').text(readablizeBytes(file.size));
+            $self.find('.flow-file-pause').on('click', function () {
               file.pause();
-              $self.find('.resumable-file-pause').hide();
-              $self.find('.resumable-file-resume').show();
+              $self.find('.flow-file-pause').hide();
+              $self.find('.flow-file-resume').show();
             });
-            $self.find('.resumable-file-resume').on('click', function () {
+            $self.find('.flow-file-resume').on('click', function () {
               file.resume();
-              $self.find('.resumable-file-pause').show();
-              $self.find('.resumable-file-resume').hide();
+              $self.find('.flow-file-pause').show();
+              $self.find('.flow-file-resume').hide();
             });
-            $self.find('.resumable-file-cancel').on('click', function () {
+            $self.find('.flow-file-cancel').on('click', function () {
               file.cancel();
               $self.remove();
             });
@@ -106,23 +106,23 @@
           });
           r.on('complete', function(){
             // Hide pause/resume when the upload has completed
-            $('.resumable-progress .progress-resume-link, .resumable-progress .progress-pause-link').hide();
+            $('.flow-progress .progress-resume-link, .flow-progress .progress-pause-link').hide();
           });
           r.on('fileSuccess', function(file,message){
             // Reflect that the file upload has completed
-            $('.resumable-file-'+file.uniqueIdentifier+' .resumable-file-progress')
+            $('.flow-file-'+file.uniqueIdentifier+' .flow-file-progress')
               .text('(completed)');
-            $('.resumable-file-'+file.uniqueIdentifier+'')
-              .find('.resumable-file-pause, .resumable-file-resume')
+            $('.flow-file-'+file.uniqueIdentifier+'')
+              .find('.flow-file-pause, .flow-file-resume')
               .remove();
           });
           r.on('fileError', function(file, message){
             // Reflect that the file upload has resulted in error
-            $('.resumable-file-'+file.uniqueIdentifier+' .resumable-file-progress').html('(file could not be uploaded: '+message+')');
+            $('.flow-file-'+file.uniqueIdentifier+' .flow-file-progress').html('(file could not be uploaded: '+message+')');
           });
           r.on('fileProgress', function(file){
             // Handle progress for both the file and the overall upload
-            $('.resumable-file-'+file.uniqueIdentifier+' .resumable-file-progress')
+            $('.flow-file-'+file.uniqueIdentifier+' .flow-file-progress')
               .html(Math.floor(file.progress()*100) + '% '
                 + readablizeBytes(file.averageSpeed) + '/s '
                 + secondsToStr(file.timeRemaining()) + ' remaining') ;
@@ -130,8 +130,8 @@
           });
           r.on('uploadStart', function(){
             // Show pause, hide resume
-            $('.resumable-progress .progress-resume-link').hide();
-            $('.resumable-progress .progress-pause-link').show();
+            $('.flow-progress .progress-resume-link').hide();
+            $('.flow-progress .progress-pause-link').show();
           });
           r.on('catchAll', function() {
             console.log.apply(console, arguments);
@@ -140,21 +140,21 @@
             pause: function () {
               r.pause();
               // Show resume, hide pause
-              $('.resumable-file-resume').show();
-              $('.resumable-file-pause').hide();
-              $('.resumable-progress .progress-resume-link').show();
-              $('.resumable-progress .progress-pause-link').hide();
+              $('.flow-file-resume').show();
+              $('.flow-file-pause').hide();
+              $('.flow-progress .progress-resume-link').show();
+              $('.flow-progress .progress-pause-link').hide();
             },
             cancel: function() {
               r.cancel();
-              $('.resumable-file').remove();
+              $('.flow-file').remove();
             },
             upload: function() {
-              $('.resumable-file-pause').show();
-              $('.resumable-file-resume').hide();
+              $('.flow-file-pause').show();
+              $('.flow-file-resume').hide();
               r.resume();
             },
-            resumable: r
+            flow: r
           };
         })();
 

@@ -1,4 +1,6 @@
-##Java Demo for Resumable.js
+## Java Demo for Resumable.js
+
+This sample might be outdated, note that resumable.js was renamed to flow.js.
 
 This is a resumable.js demo for people who use java-servlet in server side.
 

@@ -1,50 +1,50 @@
 describe('setup', function() {
   /**
-   * @type {Resumable}
+   * @type {Flow}
    */
-  var resumable;
+  var flow;
 
   beforeEach(function () {
-    resumable = new Resumable();
+    flow = new Flow();
   });
 
   it('should be supported', function() {
-    expect(resumable.support).toBeTruthy();
+    expect(flow.support).toBeTruthy();
   });
 
   it('files should be empty', function() {
-    expect(resumable.files).toBeDefined();
-    expect(resumable.files.length).toBe(0);
+    expect(flow.files).toBeDefined();
+    expect(flow.files.length).toBe(0);
   });
 
   it('events should be empty', function() {
-    expect(resumable.events).toBeDefined();
-    expect(resumable.events.length).toBe(0);
+    expect(flow.events).toBeDefined();
+    expect(flow.events.length).toBe(0);
   });
 
   it('set opts', function() {
-    resumable = new Resumable({
+    flow = new Flow({
       chunkSize: 123
     });
-    expect(resumable.opts.chunkSize).toBe(123);
-    expect(resumable.opts.simultaneousUploads).toBe(resumable.defaults.simultaneousUploads);
+    expect(flow.opts.chunkSize).toBe(123);
+    expect(flow.opts.simultaneousUploads).toBe(flow.defaults.simultaneousUploads);
   });
 
   it('test methods', function() {
-    expect(resumable.getSize()).toBe(0);
-    expect(resumable.getFromUniqueIdentifier('')).toBe(false);
-    expect(resumable.progress()).toBe(0);
-    expect(resumable.isUploading()).toBe(false);
-    expect(resumable.uploadNextChunk()).toBe(false);
+    expect(flow.getSize()).toBe(0);
+    expect(flow.getFromUniqueIdentifier('')).toBe(false);
+    expect(flow.progress()).toBe(0);
+    expect(flow.isUploading()).toBe(false);
+    expect(flow.uploadNextChunk()).toBe(false);
   });
 
   describe('assignBrowse', function() {
     it('assign to input', function() {
       var input = document.createElement('input');
       var addFiles = jasmine.createSpy('addFiles');
-      resumable.addFiles = addFiles;
+      flow.addFiles = addFiles;
       input.type = 'file';
-      resumable.assignBrowse(input);
+      flow.assignBrowse(input);
       expect(input.hasAttribute('multiple')).toBeTruthy();
       expect(addFiles).not.toHaveBeenCalled();
       var event = document.createEvent('MouseEvents');
@@ -56,8 +56,8 @@ describe('setup', function() {
     it('assign to div', function() {
       var div = document.createElement('div');
       var addFiles = jasmine.createSpy('addFiles');
-      resumable.addFiles = addFiles;
-      resumable.assignBrowse(div);
+      flow.addFiles = addFiles;
+      flow.assignBrowse(div);
       expect(div.children.length).toBe(1);
       var input = div.children[0];
       expect(addFiles).not.toHaveBeenCalled();
@@ -70,14 +70,14 @@ describe('setup', function() {
     it('single file', function() {
       var input = document.createElement('input');
       input.type = 'file';
-      resumable.assignBrowse(input, false, true);
+      flow.assignBrowse(input, false, true);
       expect(input.hasAttribute('multiple')).toBeFalsy();
     });
 
     it('directory', function() {
       var input = document.createElement('input');
       input.type = 'file';
-      resumable.assignBrowse(input, true);
+      flow.assignBrowse(input, true);
       expect(input.hasAttribute('webkitdirectory')).toBeTruthy();
     });
   });
@@ -86,8 +86,8 @@ describe('setup', function() {
     it('assign to div', function() {
       var div = document.createElement('div');
       var onDrop = jasmine.createSpy('onDrop');
-      resumable.onDrop = onDrop;
-      resumable.assignDrop(div);
+      flow.onDrop = onDrop;
+      flow.assignDrop(div);
       var event = document.createEvent('MouseEvents');
       event.initEvent('drop', true, true);
       event.dataTransfer = {files: []};
@@ -95,7 +95,7 @@ describe('setup', function() {
       expect(onDrop).toHaveBeenCalled();
       expect(onDrop.callCount).toBe(1);
 
-      resumable.unAssignDrop(div);
+      flow.unAssignDrop(div);
       div.dispatchEvent(event);
       expect(onDrop.callCount).toBe(1);
     });

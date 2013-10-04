@@ -1,11 +1,11 @@
 describe('add single file', function() {
   /**
-   * @type {Resumable}
+   * @type {Flow}
    */
-  var resumable;
+  var flow;
 
   beforeEach(function () {
-    resumable = new Resumable({
+    flow = new Flow({
       generateUniqueIdentifier: function (file) {
         return file.size;
       },
@@ -14,13 +14,13 @@ describe('add single file', function() {
   });
 
   it('should add single file', function() {
-    resumable.addFile(new Blob(['file part']));
-    expect(resumable.files.length).toBe(1);
-    var file = resumable.files[0];
-    resumable.upload();
+    flow.addFile(new Blob(['file part']));
+    expect(flow.files.length).toBe(1);
+    var file = flow.files[0];
+    flow.upload();
     expect(file.isUploading()).toBeTruthy();
-    resumable.addFile(new Blob(['file part 2']));
-    expect(resumable.files.length).toBe(1);
+    flow.addFile(new Blob(['file part 2']));
+    expect(flow.files.length).toBe(1);
     expect(file.isUploading()).toBeFalsy();
   });
 });
