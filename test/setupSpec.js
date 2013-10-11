@@ -5,7 +5,11 @@ describe('setup', function() {
   var flow;
 
   beforeEach(function () {
-    flow = new Flow();
+    flow = new Flow({
+      generateUniqueIdentifier: function (file) {
+        return file.size;
+      }
+    });
   });
 
   it('should be supported', function() {
@@ -31,11 +35,20 @@ describe('setup', function() {
   });
 
   it('test methods', function() {
-    expect(flow.getSize()).toBe(0);
     expect(flow.getFromUniqueIdentifier('')).toBe(false);
     expect(flow.progress()).toBe(0);
     expect(flow.isUploading()).toBe(false);
     expect(flow.uploadNextChunk()).toBe(false);
+    expect(flow.timeRemaining()).toBe(0);
+    expect(flow.sizeUploaded()).toBe(0);
+  });
+
+  it('test getSize', function() {
+    expect(flow.getSize()).toBe(0);
+    flow.addFile(new Blob(['1234']));
+    expect(flow.getSize()).toBe(4);
+    flow.addFile(new Blob(['123']));
+    expect(flow.getSize()).toBe(7);
   });
 
   describe('assignBrowse', function() {

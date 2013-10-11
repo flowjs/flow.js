@@ -568,6 +568,32 @@
         totalSize += file.size;
       });
       return totalSize;
+    },
+
+    /**
+     * Returns the total size uploaded of all files in bytes.
+     * @function
+     * @returns {number}
+     */
+    sizeUploaded: function () {
+      var size = 0;
+      each(this.files, function (file) {
+        size += file.sizeUploaded();
+      });
+      return size;
+    },
+
+    /**
+     * Returns remaining time to upload all files in seconds. Accuracy is based on average speed.
+     * @function
+     * @returns {number}
+     */
+    timeRemaining: function () {
+      var time = 0;
+      each(this.files, function (file) {
+        time += file.timeRemaining();
+      });
+      return time;
     }
   };
 
