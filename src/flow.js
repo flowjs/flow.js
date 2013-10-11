@@ -33,7 +33,7 @@
      * Library version
      * @type {string}
      */
-    this.version = '2.0.0-beta2';
+    this.version = '2.0.0-beta3';
 
     /**
      * Supported by browser?
