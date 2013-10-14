@@ -599,7 +599,7 @@
       if (!averageSpeed) {
         return Number.POSITIVE_INFINITY;
       }
-      return sizeDelta / averageSpeed;
+      return Math.floor(sizeDelta / averageSpeed);
     }
   };
 
@@ -909,12 +909,7 @@
     sizeUploaded: function () {
       var size = 0;
       each(this.chunks, function (chunk) {
-        // can't sum only chunk.loaded values, because it is bigger than chunk size
-        if (chunk.status() === 'success') {
-          size += chunk.endByte - chunk.startByte;
-        } else {
-          size += chunk.loaded;
-        }
+        size += chunk.sizeUploaded();
       });
       return size;
     },
@@ -929,7 +924,7 @@
       if (!this.averageSpeed) {
         return Number.POSITIVE_INFINITY;
       }
-      return Math.floor(Math.max(this.size - this.sizeUploaded(), 0) / this.averageSpeed);
+      return Math.floor((this.size - this.sizeUploaded()) / this.averageSpeed);
     },
 
     /**
@@ -1291,6 +1286,20 @@
     },
 
     /**
+     * Count total size uploaded
+     * @function
+     * @returns {number}
+     */
+    sizeUploaded: function () {
+      var size = this.endByte - this.startByte;
+      // can't return only chunk.loaded value, because it is bigger than chunk size
+      if (this.status() !== 'success') {
+        size = this.progress() * size;
+      }
+      return size;
+    },
+
+    /**
      * Prepare Xhr request. Set query, headers and data
      * @param {string} method GET or POST
      * @param {string} [paramsMethod] octet or form
@@ -1399,7 +1408,7 @@
    * @type {FlowChunk}
    */
   Flow.FlowChunk = FlowChunk;
-  
+
   if (typeof module !== 'undefined') {
     module.exports = Flow;
   } else if (typeof define === "function" && define.amd) {

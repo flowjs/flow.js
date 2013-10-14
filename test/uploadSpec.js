@@ -401,7 +401,7 @@ describe('upload file', function() {
     flow.upload();
 
     clock.tick(1000);
-    requests[0].progress(5, 10, true);
+    requests[0].progress(50, 100, true);
     expect(fileProgress).toHaveBeenCalled();
     expect(fileFirst.currentSpeed).toBe(5);
     expect(fileFirst.averageSpeed).toBe(2.5);
