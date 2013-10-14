@@ -34,21 +34,27 @@ describe('setup', function() {
     expect(flow.opts.simultaneousUploads).toBe(flow.defaults.simultaneousUploads);
   });
 
-  it('test methods', function() {
-    expect(flow.getFromUniqueIdentifier('')).toBe(false);
+  it('should show methods initial state', function() {
+    expect(flow.uploadNextChunk()).toBe(false);
+
     expect(flow.progress()).toBe(0);
     expect(flow.isUploading()).toBe(false);
-    expect(flow.uploadNextChunk()).toBe(false);
     expect(flow.timeRemaining()).toBe(0);
     expect(flow.sizeUploaded()).toBe(0);
   });
 
-  it('test getSize', function() {
+  it('should return total files size', function() {
     expect(flow.getSize()).toBe(0);
     flow.addFile(new Blob(['1234']));
     expect(flow.getSize()).toBe(4);
     flow.addFile(new Blob(['123']));
     expect(flow.getSize()).toBe(7);
+  });
+
+  it('should find file by identifier', function() {
+    expect(flow.getFromUniqueIdentifier('')).toBe(false);
+    flow.addFile(new Blob(['1234']));
+    expect(flow.getFromUniqueIdentifier(4)).toBe(flow.files[0]);
   });
 
   describe('assignBrowse', function() {
