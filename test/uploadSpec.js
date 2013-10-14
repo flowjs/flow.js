@@ -427,6 +427,5 @@ describe('upload file', function() {
     expect(fileSecond.timeRemaining()).toBe(0);
     expect(flow.sizeUploaded()).toBe(15);
     expect(flow.timeRemaining()).toBe(0);
-
   });
 });

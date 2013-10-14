@@ -585,6 +585,7 @@
 
     /**
      * Returns remaining time to upload all files in seconds. Accuracy is based on average speed.
+     * If speed is zero, time remaining will be equal to positive infinity `Number.POSITIVE_INFINITY`
      * @function
      * @returns {number}
      */
@@ -919,7 +920,8 @@
     },
 
     /**
-     * Time remaining in seconds
+     * Returns remaining time to finish upload file in seconds. Accuracy is based on average speed.
+     * If speed is zero, time remaining will be equal to positive infinity `Number.POSITIVE_INFINITY`
      * @function
      * @returns {number}
      */
