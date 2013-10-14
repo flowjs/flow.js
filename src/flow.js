@@ -589,11 +589,16 @@
      * @returns {number}
      */
     timeRemaining: function () {
-      var time = 0;
+      var sizeDelta = 0;
+      var averageSpeed = 0;
       each(this.files, function (file) {
-        time += file.timeRemaining();
+        sizeDelta += file.size - file.sizeUploaded();
+        averageSpeed += file.averageSpeed;
       });
-      return time;
+      if (!averageSpeed) {
+        return Number.POSITIVE_INFINITY;
+      }
+      return sizeDelta / averageSpeed;
     }
   };
 
@@ -708,8 +713,11 @@
      * @function
      */
     measureSpeed: function () {
-      var smoothingFactor = this.flowObj.opts.speedSmoothingFactor;
       var timeSpan = Date.now() - this._lastProgressCallback;
+      if (!timeSpan) {
+        return ;
+      }
+      var smoothingFactor = this.flowObj.opts.speedSmoothingFactor;
       var uploaded = this.sizeUploaded();
       // Prevent negative upload speed after file upload resume
       this.currentSpeed = Math.max((uploaded - this._prevUploadedSize) / timeSpan * 1000, 0);
@@ -722,7 +730,7 @@
      * Callback when something happens within the chunk.
      * @function
      * @param {string} event can be 'progress', 'success', 'error' or 'retry'
-     * @param {string} message
+     * @param {string} [message]
      */
     chunkEvent: function (event, message) {
       switch (event) {
@@ -746,8 +754,10 @@
           if (this.error) {
             return;
           }
+          this.measureSpeed();
           this.flowObj.fire('fileProgress', this);
           this.flowObj.fire('progress');
+          this._lastProgressCallback = Date.now();
           if (this.isComplete()) {
             this.flowObj.fire('fileSuccess', this, message);
           }
@@ -915,7 +925,7 @@
      */
     timeRemaining: function () {
       if (!this.averageSpeed) {
-        return 0;
+        return Number.POSITIVE_INFINITY;
       }
       return Math.floor(Math.max(this.size - this.sizeUploaded(), 0) / this.averageSpeed);
     },
@@ -972,7 +982,7 @@
      * File size
      * @type {number}
      */
-    this. fileObjSize = fileObj.size;
+    this.fileObjSize = fileObj.size;
 
     /**
      * File offset

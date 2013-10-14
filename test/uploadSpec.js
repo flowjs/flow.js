@@ -380,4 +380,53 @@ describe('upload file', function() {
     expect(success).wasCalledWith(file, "response");
     expect(error).not.toHaveBeenCalled();
   });
+
+  it('should have upload speed', function() {
+    var clock = sinon.useFakeTimers();
+    flow.opts.testChunks = false;
+    flow.opts.speedSmoothingFactor = 0.5;
+    flow.opts.simultaneousUploads = 1;
+    var fileProgress = jasmine.createSpy('fileProgress');
+    flow.on('fileProgress', fileProgress);
+    flow.addFile(new Blob(['0123456789']));
+    flow.addFile(new Blob(['12345']));
+    var fileFirst = flow.files[0];
+    var fileSecond = flow.files[1];
+    expect(fileFirst.currentSpeed).toBe(0);
+    expect(fileFirst.averageSpeed).toBe(0);
+    expect(fileFirst.sizeUploaded()).toBe(0);
+    expect(fileFirst.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
+    expect(flow.sizeUploaded()).toBe(0);
+    expect(flow.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
+    flow.upload();
+
+    clock.tick(1000);
+    requests[0].progress(5, 10, true);
+    expect(fileProgress).toHaveBeenCalled();
+    expect(fileFirst.currentSpeed).toBe(5);
+    expect(fileFirst.averageSpeed).toBe(2.5);
+    expect(fileFirst.sizeUploaded()).toBe(5);
+    expect(fileFirst.timeRemaining()).toBe(2);
+
+    expect(flow.sizeUploaded()).toBe(5);
+    expect(flow.timeRemaining()).toBe(4);
+
+    clock.tick(1000);
+    requests[0].progress(10, 10, true);
+    expect(fileFirst.currentSpeed).toBe(5);
+    expect(fileFirst.averageSpeed).toBe(3.75);
+
+    requests[0].respond(200, [], "response");
+    expect(fileFirst.currentSpeed).toBe(5);
+    expect(fileFirst.averageSpeed).toBe(3.75);
+
+    requests[1].respond(200, [], "response");
+    expect(fileFirst.sizeUploaded()).toBe(10);
+    expect(fileFirst.timeRemaining()).toBe(0);
+    expect(fileSecond.sizeUploaded()).toBe(5);
+    expect(fileSecond.timeRemaining()).toBe(0);
+    expect(flow.sizeUploaded()).toBe(15);
+    expect(flow.timeRemaining()).toBe(0);
+
+  });
 });
