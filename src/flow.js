@@ -1399,12 +1399,15 @@
    * @type {FlowChunk}
    */
   Flow.FlowChunk = FlowChunk;
-
-  window.Flow = Flow;
-
+  
+  if (typeof module !== 'undefined') {
+    module.exports = Flow;
+  } else if (typeof define === "function" && define.amd) {
+    // AMD/requirejs: Define the module
+    define(function(){
+      return Flow;
+    });
+  } else {
+    window.Flow = Flow;
+  }
 })(window, document);
-
-// Node.js-style export for Node and Component
-if (typeof module !== 'undefined') {
-  module.exports = window.Flow;
-}
