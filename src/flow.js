@@ -30,12 +30,6 @@
    */
   function Flow(opts) {
     /**
-     * Library version
-     * @type {string}
-     */
-    this.version = '2.0.0-beta3';
-
-    /**
      * Supported by browser?
      * @type {boolean}
      */
@@ -1408,6 +1402,12 @@
    * @type {FlowChunk}
    */
   Flow.FlowChunk = FlowChunk;
+
+  /**
+   * Library version
+   * @type {string}
+   */
+  Flow.version = '2.0.0-beta4';
 
   if (typeof module !== 'undefined') {
     module.exports = Flow;
