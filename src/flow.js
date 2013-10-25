@@ -1408,7 +1408,7 @@
    * Library version
    * @type {string}
    */
-  Flow.version = '2.0.0-beta4';
+  Flow.version = '2.0.0-beta5';
 
   if (typeof module !== 'undefined') {
     module.exports = Flow;

@@ -1,6 +1,6 @@
 {
   "name": "flow.js",
-  "version": "2.0.0-beta4",
+  "version": "2.0.0-beta5",
   "description": "Flow.js library implements html5 file upload and provides multiple simultaneous, stable, fault tolerant and resumable uploads.",
   "main": "src/flow.js",
   "scripts": {
