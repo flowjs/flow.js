@@ -104,7 +104,8 @@
       event.stopPropagation();
       event.preventDefault();
       var dataTransfer = event.dataTransfer;
-      if (dataTransfer.items && dataTransfer.items[0].webkitGetAsEntry) {
+      if (dataTransfer.items && dataTransfer.items[0] &&
+        dataTransfer.items[0].webkitGetAsEntry) {
         $.webkitReadDataTransfer(event);
       } else {
         $.addFiles(dataTransfer.files, event);
