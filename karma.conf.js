@@ -1,6 +1,3 @@
-// Karma configuration
-// Generated on Sat Aug 17 2013 12:12:06 GMT+0300 (FLE Daylight Time)
-
 module.exports = function(config) {
   config.set({
 

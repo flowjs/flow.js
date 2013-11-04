@@ -57,7 +57,7 @@ module.exports = function(grunt) {
           username: grunt.option('sauce-username') || process.env.SAUCE_USERNAME,
           accessKey: grunt.option('sauce-access-key') || process.env.SAUCE_ACCESS_KEY,
           startConnect: grunt.option('sauce-local') ? false : true ,
-          testName: 'Resumable.js'
+          testName: 'flow.js'
         }
       }
     }
