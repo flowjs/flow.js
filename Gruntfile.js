@@ -73,5 +73,5 @@ module.exports = function(grunt) {
   // Release tasks
   grunt.registerTask('min', ['uglify']);
   // Development
-  grunt.registerTask('test', ["karma:travis"]);
+  grunt.registerTask('test', ["karma:travis", "coveralls"]);
 };
