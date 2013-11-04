@@ -39,7 +39,7 @@ describe('setup', function() {
 
     expect(flow.progress()).toBe(0);
     expect(flow.isUploading()).toBe(false);
-    expect(flow.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
+    expect(flow.timeRemaining()).toBe(0);
     expect(flow.sizeUploaded()).toBe(0);
   });
 

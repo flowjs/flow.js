@@ -417,8 +417,8 @@ describe('upload file', function() {
     expect(fileFirst.averageSpeed).toBe(3.75);
 
     requests[0].respond(200, [], "response");
-    expect(fileFirst.currentSpeed).toBe(5);
-    expect(fileFirst.averageSpeed).toBe(3.75);
+    expect(fileFirst.currentSpeed).toBe(0);
+    expect(fileFirst.averageSpeed).toBe(0);
 
     requests[1].respond(200, [], "response");
     expect(fileFirst.sizeUploaded()).toBe(10);
@@ -426,6 +426,36 @@ describe('upload file', function() {
     expect(fileSecond.sizeUploaded()).toBe(5);
     expect(fileSecond.timeRemaining()).toBe(0);
     expect(flow.sizeUploaded()).toBe(15);
+    expect(flow.timeRemaining()).toBe(0);
+
+    // paused and resumed
+    flow.addFile(new Blob(['012345678901234']));
+    var fileThird = flow.files[2];
+    expect(fileThird.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
+    flow.upload();
+    clock.tick(1000);
+    requests[2].progress(10, 15, true);
+    expect(fileThird.timeRemaining()).toBe(1);
+    expect(flow.timeRemaining()).toBe(1);
+    fileThird.pause();
+    expect(fileThird.timeRemaining()).toBe(0);
+    expect(flow.timeRemaining()).toBe(0);
+    fileThird.resume();
+    expect(fileThird.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
+    expect(flow.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
+    clock.tick(1000);
+    requests[3].progress(11, 15, true);
+    expect(fileThird.timeRemaining()).toBe(8);
+    expect(flow.timeRemaining()).toBe(8);
+    clock.tick(1000);
+    requests[3].progress(12, 15, true);
+    expect(fileThird.timeRemaining()).toBe(4);
+    expect(flow.timeRemaining()).toBe(4);
+
+    requests[3].respond(500);
+    expect(fileThird.currentSpeed).toBe(0);
+    expect(fileThird.averageSpeed).toBe(0);
+    expect(fileThird.timeRemaining()).toBe(0);
     expect(flow.timeRemaining()).toBe(0);
   });
 });

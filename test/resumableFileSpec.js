@@ -5,7 +5,7 @@ describe('FlowFile functions', function() {
    */
   var flow;
   /**
-   * @type {FlowFile}
+   * @type {Flow.FlowFile}
    */
   var file;
 
