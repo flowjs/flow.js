@@ -6,7 +6,6 @@
   /**
    * Flow.js is a library providing multiple simultaneous, stable and
    * resumable uploads via the HTML5 File API.
-   * @name
    * @param [opts]
    * @param {number} [opts.chunkSize]
    * @param {bool} [opts.forceChunkSize]
@@ -594,11 +593,16 @@
       var sizeDelta = 0;
       var averageSpeed = 0;
       each(this.files, function (file) {
-        sizeDelta += file.size - file.sizeUploaded();
-        averageSpeed += file.averageSpeed;
+        if (!file.paused && !file.error) {
+          sizeDelta += file.size - file.sizeUploaded();
+          averageSpeed += file.averageSpeed;
+        }
       });
-      if (!averageSpeed) {
+      if (sizeDelta && !averageSpeed) {
         return Number.POSITIVE_INFINITY;
+      }
+      if (!sizeDelta && !averageSpeed) {
+        return 0;
       }
       return Math.floor(sizeDelta / averageSpeed);
     }
@@ -761,6 +765,8 @@
           this.flowObj.fire('progress');
           this._lastProgressCallback = Date.now();
           if (this.isComplete()) {
+            this.currentSpeed = 0;
+            this.averageSpeed = 0;
             this.flowObj.fire('fileSuccess', this, message);
           }
           break;
@@ -922,10 +928,17 @@
      * @returns {number}
      */
     timeRemaining: function () {
-      if (!this.averageSpeed) {
+      if (this.paused || this.error) {
+        return 0;
+      }
+      var delta = this.size - this.sizeUploaded();
+      if (delta && !this.averageSpeed) {
         return Number.POSITIVE_INFINITY;
       }
-      return Math.floor((this.size - this.sizeUploaded()) / this.averageSpeed);
+      if (!delta && !this.averageSpeed) {
+        return 0;
+      }
+      return Math.floor(delta / this.averageSpeed);
     },
 
     /**
