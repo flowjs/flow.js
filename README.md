@@ -123,13 +123,15 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 #### Properties
 
 * `.support` A boolean value indicator whether or not Flow.js is supported by the current browser.
+* `.supportDirectory` A boolean value, which indicates if browser supports directory uploads.
 * `.opts` A hash object of the configuration of the Flow.js instance.
 * `.files` An array of `FlowFile` file objects added by the user (see full docs for this object type below).
 
 #### Methods
 
-* `.assignBrowse(domNodes, isDirectory, singleFile)` Assign a browse action to one or more DOM nodes.  Pass in `true` to allow directories to be selected (Chrome only). To prevent multiple file uploads
-set singleFile to true.
+* `.assignBrowse(domNodes, isDirectory, singleFile)` Assign a browse action to one or more DOM nodes. Pass in `true` to allow directories to be selected (Chrome only, support can be checked with `supportDirectory` property).
+To prevent multiple file uploads set singleFile to true.
+Note: avoid using `a` and `button` tags as file upload buttons, use span instead.
 * `.assignDrop(domNodes)` Assign one or more DOM nodes as a drop target.
 * `.on(event, callback)` Listen for event from Flow.js (see below)
 * `.upload()` Start or resume uploading.
