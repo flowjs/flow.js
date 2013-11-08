@@ -95,7 +95,7 @@ The object is loaded with a configuration options:
 Available configuration options are:
 
 * `target` The target URL for the multipart POST request. (Default: `/`)
-* `singleFile` Enable multi file upload. (Default: false)
+* `singleFile` Enable single file upload. Once one file is uploaded, second file will overtake existing one, first one will be canceled. (Default: false)
 * `chunkSize` The size in bytes of each uploaded chunk of data. The last uploaded chunk will be at least this size and up to two the size, see [Issue #51](https://github.com/23/resumable.js/issues/51) for details and reasons. (Default: `1*1024*1024`)
 * `forceChunkSize` Force all chunks to be less or equal than chunkSize. Otherwise, the last chunk will be greater than or equal to `chunkSize`. (Default: `false`)
 * `simultaneousUploads` Number of simultaneous uploads (Default: `3`)
