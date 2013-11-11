@@ -149,7 +149,7 @@ Note: avoid using `a` and `button` tags as file upload buttons, use span instead
 
 #### Events
 
-* `.fileSuccess(file)` A specific file was completed.
+* `.fileSuccess(file, message)` A specific file was completed. First argument `file` is instance of `FlowFile`, second argument `message` contains server response. Response is always a string.
 * `.fileProgress(file)` Uploading progressed for a specific file.
 * `.fileAdded(file, event)` This event is used for file validation. To reject this file return false.
 This event is also called before file is added to upload queue,
@@ -172,7 +172,7 @@ FlowFile constructor can be accessed in `Flow.FlowFile`.
 
 * `.flowObj` A back-reference to the parent `Flow` object.
 * `.file` The correlating HTML5 `File` object.
-* `.fileName` The name of the file.
+* `.name` The name of the file.
 * `.relativePath` The relative path to the file (defaults to file name if relative path doesn't exist)
 * `.size` Size in bytes of the file.
 * `.uniqueIdentifier` A unique identifier assigned to this file object. This value is included in uploads to the server for reference, but can also be used in CSS classes etc when building your upload UI.
