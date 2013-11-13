@@ -184,6 +184,7 @@
       each(event.dataTransfer.items, function (item) {
         var entry = item.webkitGetAsEntry();
         if (!entry) {
+          decrement();
           return ;
         }
         if (entry.isFile) {
