@@ -12,6 +12,15 @@ module.exports = function(grunt) {
         dest: 'build/flow.min.js'
       }
     },
+    concat: {
+      build: {
+        files: {
+          'build/flow.js': [
+            'src/flow.js'
+          ]
+        }
+      }
+    },
     coveralls: {
       options: {
         coverage_dir: 'coverage/'
@@ -71,7 +80,7 @@ module.exports = function(grunt) {
   // Default task.
   grunt.registerTask('default', ['test']);
   // Release tasks
-  grunt.registerTask('min', ['uglify']);
+  grunt.registerTask('build', ['uglify', 'concat']);
   // Development
   grunt.registerTask('test', ["karma:travis", "coveralls"]);
 };

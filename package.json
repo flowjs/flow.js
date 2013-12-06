@@ -40,6 +40,7 @@
     "karma-sauce-launcher": "~0.1.0",
     "sinon": "~1.7.3",
     "karma-coverage": "0.1.0",
-    "grunt-karma-coveralls": "~2.0.2"
+    "grunt-karma-coveralls": "~2.0.2",
+    "grunt-contrib-concat": "~0.3.0"
   }
 }
