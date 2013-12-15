@@ -140,6 +140,10 @@ To prevent multiple file uploads set singleFile to true.
 Note: avoid using `a` and `button` tags as file upload buttons, use span instead.
 * `.assignDrop(domNodes)` Assign one or more DOM nodes as a drop target.
 * `.on(event, callback)` Listen for event from Flow.js (see below)
+* `.off([event, [callback]])`:
+    * `.off()` All events are removed.
+    * `.off(event)` Remove all callbacks of specific event.
+    * `.off(event, callback)` Remove specific callback of event. `callback` should be a `Function`.
 * `.upload()` Start or resume uploading.
 * `.pause()` Pause uploading.
 * `.resume()` Resume uploading.

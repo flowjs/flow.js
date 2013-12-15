@@ -8,16 +8,6 @@ describe('events', function() {
     flow = new Flow();
   });
 
-  it('should catch all events', function() {
-    var valid = false;
-    flow.on('catchall', function (event) {
-      expect(event).toBe('test');
-      valid = true;
-    });
-    flow.fire('test');
-    expect(valid).toBeTruthy();
-  });
-
   it('should catch an event', function() {
     var valid = false;
     flow.on('test', function () {
@@ -40,6 +30,23 @@ describe('events', function() {
     });
     flow.fire('test', argumentOne, argumentTwo);
     expect(valid).toBeTruthy();
+  });
+
+  it('should throw catchall event last', function() {
+    var executed = 0;
+    flow.on('catchall', function (event, one) {
+      expect(event).toBe('test');
+      expect(one).toBe(1);
+      expect(executed).toBe(1);
+      executed++;
+    });
+    flow.on('test', function (one) {
+      expect(one).toBe(1);
+      expect(executed).toBe(0);
+      executed++;
+    });
+    flow.fire('test', 1);
+    expect(executed).toBe(2);
   });
 
   it('should return event value', function() {
@@ -70,5 +77,28 @@ describe('events', function() {
       return false;
     });
     expect(flow.fire('maybe2')).toBeFalsy();
+  });
+
+  describe('off', function () {
+    var event;
+    beforeEach(function () {
+      event = jasmine.createSpy('event');
+      flow.on('event', event);
+    });
+    it('should remove event', function () {
+      flow.off('event');
+      flow.fire('event');
+      expect(event).not.toHaveBeenCalled();
+    });
+    it('should remove specific event', function () {
+      flow.off('event', event);
+      flow.fire('event');
+      expect(event).not.toHaveBeenCalled();
+    });
+    it('should remove all events', function () {
+      flow.off();
+      flow.fire('event');
+      expect(event).not.toHaveBeenCalled();
+    });
   });
 });

@@ -92,11 +92,11 @@
 
     /**
      * List of events:
-     *  even indexes stand for event names
-     *  odd indexes stands for event callbacks
-     * @type {Array}
+     *  key stands for event name
+     *  value array list of callbacks
+     * @type {}
      */
-    this.events = [];
+    this.events = {};
 
     var $ = this;
 
@@ -145,7 +145,32 @@
      * @param {Function} callback
      */
     on: function (event, callback) {
-      this.events.push(event.toLowerCase(), callback);
+      event = event.toLowerCase();
+      if (!this.events.hasOwnProperty(event)) {
+        this.events[event] = [];
+      }
+      this.events[event].push(callback);
+    },
+
+    /**
+     * Remove event callback
+     * @function
+     * @param {string} [event] removes all events if not specified
+     * @param {Function} [fn] removes all callbacks of event if not specified
+     */
+    off: function (event, fn) {
+      if (event !== undefined) {
+        event = event.toLowerCase();
+        if (fn !== undefined) {
+          if (this.events.hasOwnProperty(event)) {
+            arrayRemove(this.events[event], fn);
+          }
+        } else {
+          delete this.events[event];
+        }
+      } else {
+        this.events = {};
+      }
     },
 
     /**
@@ -159,16 +184,16 @@
     fire: function (event, args) {
       // `arguments` is an object, not array, in FF, so:
       args = Array.prototype.slice.call(arguments);
-      // Find event listeners, and support pseudo-event `catchAll`
       event = event.toLowerCase();
       var preventDefault = false;
-      for (var i = 0; i <= this.events.length; i += 2) {
-        if (this.events[i] === event) {
-          preventDefault = this.events[i + 1].apply(this, args.slice(1)) === false || preventDefault;
-        }
-        if (this.events[i] === 'catchall') {
-          preventDefault = this.events[i + 1].apply(null, args) === false || preventDefault;
-        }
+      if (this.events.hasOwnProperty(event)) {
+        each(this.events[event], function (callback) {
+          preventDefault = callback.apply(this, args.slice(1)) === false || preventDefault;
+        });
+      }
+      if (event != 'catchall') {
+        args.unshift('catchAll');
+        preventDefault = this.fire.apply(this, args) === false || preventDefault;
       }
       return !preventDefault;
     },
@@ -1360,8 +1385,17 @@
     }
   };
 
-
-
+  /**
+   * Remove value from array
+   * @param array
+   * @param value
+   */
+  function arrayRemove(array, value) {
+    var index = array.indexOf(value);
+    if (index > -1) {
+      array.splice(index, 1);
+    }
+  }
 
   /**
    * Extends the destination object `dst` by copying all of the properties from

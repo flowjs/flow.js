@@ -23,7 +23,7 @@ describe('setup', function() {
 
   it('events should be empty', function() {
     expect(flow.events).toBeDefined();
-    expect(flow.events.length).toBe(0);
+    expect(Object.keys(flow.events).length).toBe(0);
   });
 
   it('set opts', function() {
