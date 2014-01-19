@@ -1,0 +1,44 @@
+{
+  "name": "flow.js",
+  "version": "3.0.0-snapshot",
+  "description": "Resumable file upload protocol. Flow.js library implements html5 file upload and provides stable, fault tolerant and resumable uploads.",
+  "scripts": {
+    "test": "grunt test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/flowjs/flow.js.git"
+  },
+  "keywords": [
+    "flow.js",
+    "flow",
+    "file upload",
+    "resumable upload",
+    "chunk upload",
+    "html5 upload",
+    "javascript upload",
+    "upload"
+  ],
+  "author": "Aidas Klimas",
+  "license": "MIT",
+  "readmeFilename": "README.md",
+  "bugs": {
+    "url": "https://github.com/flowjs/flow.js/issues"
+  },
+  "devDependencies": {
+    "grunt": "*",
+    "grunt-contrib-uglify": "*",
+    "karma-chrome-launcher": "*",
+    "karma-firefox-launcher": "*",
+    "karma-ie-launcher": "*",
+    "karma-jasmine": "~0.1",
+    "karma": "0.10.1",
+    "grunt-karma": "0.6.1",
+    "grunt-saucelabs": "~4.0.4",
+    "karma-sauce-launcher": "~0.1.0",
+    "sinon": "~1.7.3",
+    "karma-coverage": "0.1.0",
+    "grunt-karma-coveralls": "~2.0.2",
+    "grunt-contrib-concat": "~0.3.0"
+  }
+}

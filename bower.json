@@ -1,0 +1,13 @@
+{
+  "name": "flow.js",
+  "version": "3.0.0-snapshot",
+  "main": "src/flow.js",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "samples"
+  ]
+}

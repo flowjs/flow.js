@@ -1,0 +1,13 @@
+*~
+
+# Node
+/build
+/node_modules
+/bower_components
+
+# Editors
+.idea
+
+# Tests
+sauce_connect.log
+/coverage
