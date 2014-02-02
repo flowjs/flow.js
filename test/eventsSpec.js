@@ -1,4 +1,11 @@
 describe('events', function() {
+  var on, off, fire;
+  beforeEach(function () {
+    var event = events();
+    on = event.on;
+    off = event.off;
+    fire = event.fire;
+  });
   it('should catch an event', function() {
     var callback = jasmine.createSpy();
     on('test', callback);
@@ -9,40 +16,40 @@ describe('events', function() {
   it('should pass some arguments', function() {
     var argumentOne = 123;
     var argumentTwo = "dqw";
-    var callback = jasmine.createSpy();
+    var callback = jasmine.createSpy('test');
     on('test', callback);
-    fire('test', argumentOne, argumentTwo);
-    expect(callback).toHaveBeenCalledWith(argumentOne, argumentTwo);
+    var event = fire('test', argumentOne, argumentTwo);
+    expect(callback).toHaveBeenCalledWith(event, argumentOne, argumentTwo);
   });
 
   it('should return event value', function() {
-    on('false', function () {
-      return false;
+    on('prevent', function (event) {
+      event.preventDefault();
     });
-    on('true', function () {
+    on('noop', function () {
 
     });
-    expect(fire('true')).toBeTruthy();
-    expect(fire('not existant')).toBeTruthy();
-    expect(fire('false')).toBeFalsy();
+    expect(fire('noop').defaultPrevented).toBeFalsy();
+    expect(fire('not existant').defaultPrevented).toBeFalsy();
+    expect(fire('prevent').defaultPrevented).toBeTruthy();
   });
 
   it('should return multiple event value', function() {
-    on('maybe', function () {
-      return false;
+    on('maybe', function (event) {
+      event.preventDefault();
     });
     on('maybe', function () {
 
     });
-    expect(fire('maybe')).toBeFalsy();
+    expect(fire('maybe').defaultPrevented).toBeTruthy();
     // opposite order
     on('maybe2', function () {
 
     });
-    on('maybe2', function () {
-      return false;
+    on('maybe2', function (event) {
+      event.preventDefault();
     });
-    expect(fire('maybe2')).toBeFalsy();
+    expect(fire('maybe2').defaultPrevented).toBeTruthy();
   });
 
   describe('off', function () {

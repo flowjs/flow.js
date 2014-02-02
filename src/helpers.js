@@ -57,3 +57,8 @@ function arrayRemove(array, value) {
     array.splice(index, 1);
   }
 }
+
+/**
+ * A function that performs no operations.
+ */
+function noop() {}
