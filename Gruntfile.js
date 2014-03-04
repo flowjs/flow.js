@@ -8,16 +8,26 @@ module.exports = function(grunt) {
         banner: '/*! <%= pkg.name %> <%= pkg.version %> */\n'
       },
       build: {
-        src: 'src/flow.js',
-        dest: 'build/flow.min.js'
+        src: 'dist/flow.js',
+        dest: 'dist/flow.min.js'
       }
     },
     concat: {
       build: {
         files: {
-          'build/flow.js': [
+          'dist/flow.js': [
             'src/flow.js'
           ]
+        }
+      }
+    },
+    jst: {
+      compile: {
+        options: {
+
+        },
+        files: {
+          "dist/flow.js": ["dist/flow.js"]
         }
       }
     },
@@ -69,6 +79,36 @@ module.exports = function(grunt) {
           testName: 'flow.js'
         }
       }
+    },
+    clean: {
+      release: ["dist/"]
+    },
+    bump: {
+      options: {
+        files: ['package.json', 'bower.json'],
+        updateConfigs: ['pkg'],
+        commit: true,
+        commitMessage: 'Release v%VERSION%',
+        commitFiles: ['-a'], // '-a' for all files
+        createTag: true,
+        tagName: 'v%VERSION%',
+        tagMessage: 'Version %VERSION%',
+        push: true,
+        pushTo: 'origin',
+        gitDescribeOptions: '--tags --always --abbrev=1 --dirty=-d' // options to use with '$ git describe'
+      }
+    },
+    'template': {
+      'release': {
+        'options': {
+          'data': {
+            'version': '<%= pkg.version %>'
+          }
+        },
+        'files': {
+          'dist/flow.js': ['dist/flow.js']
+        }
+      }
     }
   });
 
@@ -80,7 +120,13 @@ module.exports = function(grunt) {
   // Default task.
   grunt.registerTask('default', ['test']);
   // Release tasks
-  grunt.registerTask('build', ['uglify', 'concat']);
+  grunt.registerTask('build', ['concat', 'template', 'uglify']);
+  grunt.registerTask('release', function(type) {
+    type = type ? type : 'patch';
+    grunt.task.run('bump-only:' + type);
+    grunt.task.run('clean', 'build');
+    grunt.task.run('bump-commit');
+  });
   // Development
   grunt.registerTask('test', ["karma:travis", "coveralls"]);
 };

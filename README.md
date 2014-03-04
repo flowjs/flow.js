@@ -16,8 +16,8 @@ JQuery and node.js backend demo https://github.com/flowjs/flow.js/tree/master/sa
 
 ## How can I install it?
 
-Download a latest build.zip from https://github.com/flowjs/flow.js/releases
-it contains development and minified production files.
+Download a latest build from https://github.com/flowjs/flow.js/releases
+it contains development and minified production files in `dist/` folder.
 
 or use bower:
 
@@ -26,9 +26,6 @@ or use bower:
 or use git clone
 
         git clone https://github.com/flowjs/flow.js
-
-or use cdn, look for available packages at http://www.jsdelivr.com/#!flow,
-
 
 ## How can I use it?
 
