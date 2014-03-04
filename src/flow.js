@@ -346,10 +346,6 @@
         domNodes = [domNodes];
       }
 
-      // We will create an <input> and overlay it on the domNode
-      // (crappy, but since HTML5 doesn't have a cross-browser.browse() method
-      // we haven't a choice. FF4+ allows click() for this though:
-      // https://developer.mozilla.org/en/using_files_from_web_applications)
       each(domNodes, function (domNode) {
         var input;
         if (domNode.tagName === 'INPUT' && domNode.type === 'file') {
@@ -357,29 +353,20 @@
         } else {
           input = document.createElement('input');
           input.setAttribute('type', 'file');
-          // input fill entire dom node
-          extend(domNode.style, {
-            display: 'inline-block',
-            position: 'relative',
-            overflow: 'hidden',
-            verticalAlign: 'top'
-          });
-          // in Opera only 'browse' button
-          // is clickable and it is located at
-          // the right side of the input
+          // display:none - not working in opera 12
           extend(input.style, {
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            fontFamily: 'Arial',
-            // 4 persons reported this, the max values that worked for them were 243, 236, 236, 118
-            fontSize: '118px',
-            margin: 0,
-            padding: 0,
-            opacity: 0,
-            cursor: 'pointer'
+            visibility: 'hidden',
+            position: 'absolute'
           });
+          // for opera 12 browser, input must be assigned to a document
           domNode.appendChild(input);
+          // https://developer.mozilla.org/en/using_files_from_web_applications)
+          // event listener is executed two times
+          // first one - original mouse click event
+          // second - input.click(), input is inside domNode
+          domNode.addEventListener('click', function() {
+            input.click();
+          }, false);
         }
         if (!this.opts.singleFile && !singleFile) {
           input.setAttribute('multiple', 'multiple');
