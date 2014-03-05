@@ -1,7 +1,7 @@
 {
   "name": "flow.js",
   "version": "2.2.1",
-  "main": "src/flow.js",
+  "main": "./dist/flow.js",
   "ignore": [
     "**/.*",
     "node_modules",
