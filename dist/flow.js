@@ -327,7 +327,9 @@
       });
       if (!outstanding && !preventEvents) {
         // All chunks have been uploaded, complete
-        this.fire('complete');
+        async(function () {
+          this.fire('complete');
+        }, this);
       }
       return false;
     },
@@ -448,7 +450,9 @@
         started = this.uploadNextChunk(true) || started;
       }
       if (!started) {
-        this.fire('complete');
+        async(function () {
+          this.fire('complete');
+        }, this);
       }
     },
 
@@ -1385,6 +1389,15 @@
   }
 
   /**
+   * Execute function asynchronously
+   * @param fn
+   * @param context
+   */
+  function async(fn, context) {
+    setTimeout(fn.bind(context), 0);
+  }
+
+  /**
    * Extends the destination object `dst` by copying all of the properties from
    * the `src` object(s) to `dst`. You can specify multiple `src` objects.
    * @function
@@ -1449,7 +1462,7 @@
    * Library version
    * @type {string}
    */
-  Flow.version = '2.2.2';
+  Flow.version = '2.3.0';
 
   if ( typeof module === "object" && module && typeof module.exports === "object" ) {
     // Expose Flow as module.exports in loaders that implement the Node
