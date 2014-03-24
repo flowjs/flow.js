@@ -327,7 +327,9 @@
       });
       if (!outstanding && !preventEvents) {
         // All chunks have been uploaded, complete
-        this.fire('complete');
+        async(function () {
+          this.fire('complete');
+        }, this);
       }
       return false;
     },
@@ -448,7 +450,9 @@
         started = this.uploadNextChunk(true) || started;
       }
       if (!started) {
-        this.fire('complete');
+        async(function () {
+          this.fire('complete');
+        }, this);
       }
     },
 
@@ -1382,6 +1386,15 @@
     if (index > -1) {
       array.splice(index, 1);
     }
+  }
+
+  /**
+   * Execute function asynchronously
+   * @param fn
+   * @param context
+   */
+  function async(fn, context) {
+    setTimeout(fn.bind(context), 0);
   }
 
   /**

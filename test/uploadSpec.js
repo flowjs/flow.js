@@ -93,6 +93,7 @@ describe('upload file', function() {
   });
 
   it('should throw expected events', function () {
+    jasmine.Clock.useMock();
     var events = [];
     flow.on('catchAll', function (event) {
       events.push(event);
@@ -120,16 +121,22 @@ describe('upload file', function() {
     expect(events[6]).toBe('fileProgress');
     expect(events[7]).toBe('progress');
     requests[2].respond(200);
-    expect(events.length).toBe(12);
+    expect(events.length).toBe(11);
     expect(events[8]).toBe('fileProgress');
     expect(events[9]).toBe('progress');
     expect(events[10]).toBe('fileSuccess');
-    // Can be sync and async
+
+    jasmine.Clock.tick(1);
+    expect(events.length).toBe(12);
     expect(events[11]).toBe('complete');
 
     flow.upload();
-    expect(events.length).toBe(14);
+    expect(events.length).toBe(13);
     expect(events[12]).toBe('uploadStart');
+
+    // complete event is always asynchronous
+    jasmine.Clock.tick(1);
+    expect(events.length).toBe(14);
     expect(events[13]).toBe('complete');
   });
 
