@@ -128,5 +128,5 @@ module.exports = function(grunt) {
     grunt.task.run('bump-commit');
   });
   // Development
-  grunt.registerTask('test', ["karma:travis", "coveralls"]);
+  grunt.registerTask('test', ["karma:travis"]);
 };
