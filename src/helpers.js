@@ -62,3 +62,9 @@ function arrayRemove(array, value) {
  * A function that performs no operations.
  */
 function noop() {}
+
+
+/**
+ * A function that returns first argument.
+ */
+function identity(i) {return i;}

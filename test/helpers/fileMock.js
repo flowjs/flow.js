@@ -11,5 +11,8 @@ function fileMock(data, name, properties) {
   if (properties && properties.lastModified) {
     b.lastModified = properties.lastModified;
   }
+  if (properties && properties.relativePath) {
+    b.relativePath = properties.relativePath;
+  }
   return b;
 }

@@ -15,10 +15,6 @@ describe('flow.upload', function () {
 
   beforeEach(function () {
     flowObj = flow();
-    flowObj.addFiles([
-      fileMock([], 'one'),
-      fileMock([], 'two')
-    ]);
 
     requests = [];
     xhr = sinon.useFakeXMLHttpRequest();
@@ -31,8 +27,46 @@ describe('flow.upload', function () {
     xhr.restore();
   });
 
-  it('should start upload', function () {
-    flowObj.upload();
-    expect(requests.length).toBe(0);
+  describe('isUploading', function () {
+    beforeEach(function () {
+      flowObj.addFile(fileMock([], 'one'));
+    });
+    it('should set isUploading to true', function () {
+      expect(flowObj.isUploading).toBeFalsy();
+      flowObj.upload();
+      expect(flowObj.isUploading).toBeTruthy();
+    });
+  });
+
+  describe('single file', function () {
+    beforeEach(function () {
+      flowObj.addFile(fileMock([], 'one'));
+    });
+    it('should upload single file', function () {
+      flowObj.upload();
+      expect(requests.length).toBe(1);
+    });
+    it('should upload once', function () {
+      flowObj.upload();
+      flowObj.upload();
+      expect(requests.length).toBe(1);
+    });
+    it('should post as formdata', function () {
+      flowObj.upload();
+      expect(requests[0].method).toBe('POST');
+      expect(requests[0].requestBody instanceof FormData).toBeTruthy();
+    });
+  });
+
+  describe('file params', function () {
+    var requestBody;
+    beforeEach(function () {
+      flowObj.addFile(fileMock([], 'one'));
+      flowObj.upload();
+      requestBody = requests[0].requestBody;
+    });
+    it('should have default params', function () {
+      expect(requestBody).toBeTruthy();
+    });
   });
 });

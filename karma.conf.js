@@ -11,11 +11,12 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      'node_modules/sinon/pkg/sinon-1.7.3.js',
+      'node_modules/sinon/pkg/sinon.js',
       'test/helpers/*.js',
+      'src/http.js',
       'src/sliceFile.js',
       'src/flow.js',
-      'src/events.js',
+      'src/formData.js',
       'src/helpers.js',
       'src/api.js',
       'test/*Spec.js'

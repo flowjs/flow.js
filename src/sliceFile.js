@@ -6,12 +6,5 @@ var sliceFn = Blob.prototype.slice || Blob.prototype.mozSlice || Blob.prototype.
  * @returns {Object}
  */
 function sliceFile(file, size) {
-  return {
-    blob: sliceFn.call(file.file, file.offset, size),
-    data: {
-      name: file.name,
-      size: file.size,
-      offset: file.offset
-    }
-  }
+  return sliceFn.call(file.file, file.offset, size);
 }
