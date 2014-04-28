@@ -1367,7 +1367,7 @@
         data.append(this.flowObj.opts.fileParameterName, blob);
       }
 
-      this.xhr.open(method, target);
+      this.xhr.open(method, target, true);
       this.xhr.withCredentials = this.flowObj.opts.withCredentials;
 
       // Add data from header options
