@@ -344,9 +344,12 @@
      * @param {Element|Array.<Element>} domNodes
      * @param {boolean} isDirectory Pass in true to allow directories to
      * @param {boolean} singleFile prevent multi file upload
+     * @param {Object} attributes set custom attributes:
+     *  http://www.w3.org/TR/html-markup/input.file.html#input.file-attributes
+     *  eg: accept: 'image/*'
      * be selected (Chrome only).
      */
-    assignBrowse: function (domNodes, isDirectory, singleFile) {
+    assignBrowse: function (domNodes, isDirectory, singleFile, attributes) {
       if (typeof domNodes.length === 'undefined') {
         domNodes = [domNodes];
       }
@@ -379,6 +382,9 @@
         if (isDirectory) {
           input.setAttribute('webkitdirectory', 'webkitdirectory');
         }
+        each(attributes, function (value, key) {
+          input.setAttribute(key, value);
+        });
         // When new files are added, simply append them to the overall list
         var $ = this;
         input.addEventListener('change', function (e) {
@@ -1210,8 +1216,8 @@
       if (typeof preprocess === 'function') {
         switch (this.preprocessState) {
           case 0:
-            preprocess(this);
             this.preprocessState = 1;
+            preprocess(this);
             return;
           case 1:
             return;
@@ -1367,7 +1373,7 @@
         data.append(this.flowObj.opts.fileParameterName, blob);
       }
 
-      this.xhr.open(method, target);
+      this.xhr.open(method, target, true);
       this.xhr.withCredentials = this.flowObj.opts.withCredentials;
 
       // Add data from header options
@@ -1465,7 +1471,7 @@
    * Library version
    * @type {string}
    */
-  Flow.version = '2.4.0';
+  Flow.version = '2.5.0';
 
   if ( typeof module === "object" && module && typeof module.exports === "object" ) {
     // Expose Flow as module.exports in loaders that implement the Node
