@@ -132,8 +132,13 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 
 #### Methods
 
-* `.assignBrowse(domNodes, isDirectory, singleFile)` Assign a browse action to one or more DOM nodes. Pass in `true` to allow directories to be selected (Chrome only, support can be checked with `supportDirectory` property).
-To prevent multiple file uploads set singleFile to true.
+* `.assignBrowse(domNodes, isDirectory, singleFile, attributes)` Assign a browse action to one or more DOM nodes.
+  * `domNodes` array of dom nodes or a single node.
+  * `isDirectory` Pass in `true` to allow directories to be selected (Chrome only, support can be checked with `supportDirectory` property).
+  * `singleFile` To prevent multiple file uploads set this to true. Also look at config parameter `singleFile`.
+  * `attributes` Pass object of keys and values to set custom attributes on input fields.
+  For example, you can set `accept` attribute to `image/*`. This means that user will be able to select only images.
+  Full list of attributes: http://www.w3.org/TR/html-markup/input.file.html#input.file-attributes
 Note: avoid using `a` and `button` tags as file upload buttons, use span instead.
 * `.assignDrop(domNodes)` Assign one or more DOM nodes as a drop target.
 * `.on(event, callback)` Listen for event from Flow.js (see below)
