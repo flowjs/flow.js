@@ -5,7 +5,7 @@ This sample is written for [Node.js 0.6+](http://nodejs.org/) and requires [Expr
 To install and run:
 
     cd samples/Node.js
-    npm install express
+    npm install express@3.*
     node app.js
 
 Then browse to [localhost:3000](http://localhost:3000).

@@ -26,7 +26,7 @@
       </div>
 
       <div class="flow-drop" ondragenter="jQuery(this).addClass('flow-dragover');" ondragend="jQuery(this).removeClass('flow-dragover');" ondrop="jQuery(this).removeClass('flow-dragover');">
-        Drop files here to upload or <a class="flow-browse-folder"><u>select folder</u></a> or <a class="flow-browse"><u>select from your computer</u></a>
+        Drop files here to upload or <a class="flow-browse-folder"><u>select folder</u></a> or <a class="flow-browse"><u>select from your computer</u></a> or <a class="flow-browse-image"><u>select images</u></a>
       </div>
       
       <div class="flow-progress">
@@ -62,6 +62,7 @@
           r.assignDrop($('.flow-drop')[0]);
           r.assignBrowse($('.flow-browse')[0]);
           r.assignBrowse($('.flow-browse-folder')[0], true);
+          r.assignBrowse($('.flow-browse-image')[0], false, false, {accept: 'image/*'});
 
           // Handle file add event
           r.on('fileAdded', function(file){
@@ -72,7 +73,10 @@
               '<li class="flow-file flow-file-'+file.uniqueIdentifier+'">' +
               'Uploading <span class="flow-file-name"></span> ' +
               '<span class="flow-file-size"></span> ' +
-              '<span class="flow-file-progress"></span>' +
+              '<span class="flow-file-progress"></span> ' +
+              '<a href="" class="flow-file-download" target="_blank">' +
+              'Download' +
+              '</a> ' +
               '<span class="flow-file-pause">' +
               ' <img src="pause.png" title="Pause upload" />' +
               '</span>' +
@@ -86,6 +90,7 @@
             var $self = $('.flow-file-'+file.uniqueIdentifier);
             $self.find('.flow-file-name').text(file.name);
             $self.find('.flow-file-size').text(readablizeBytes(file.size));
+            $self.find('.flow-file-download').attr('href', '/download/' + file.uniqueIdentifier).hide();
             $self.find('.flow-file-pause').on('click', function () {
               file.pause();
               $self.find('.flow-file-pause').hide();
@@ -109,12 +114,11 @@
             $('.flow-progress .progress-resume-link, .flow-progress .progress-pause-link').hide();
           });
           r.on('fileSuccess', function(file,message){
+            var $self = $('.flow-file-'+file.uniqueIdentifier);
             // Reflect that the file upload has completed
-            $('.flow-file-'+file.uniqueIdentifier+' .flow-file-progress')
-              .text('(completed)');
-            $('.flow-file-'+file.uniqueIdentifier+'')
-              .find('.flow-file-pause, .flow-file-resume')
-              .remove();
+            $self.find('.flow-file-progress').text('(completed)');
+            $self.find('.flow-file-pause, .flow-file-resume').remove();
+            $self.find('.flow-file-download').attr('href', '/download/' + file.uniqueIdentifier).show();
           });
           r.on('fileError', function(file, message){
             // Reflect that the file upload has resulted in error
