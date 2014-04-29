@@ -1210,8 +1210,8 @@
       if (typeof preprocess === 'function') {
         switch (this.preprocessState) {
           case 0:
-            preprocess(this);
             this.preprocessState = 1;
+            preprocess(this);
             return;
           case 1:
             return;
