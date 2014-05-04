@@ -1,4 +1,6 @@
 var express = require('express');
+var multipart = require('connect-multiparty');
+var multipartMiddleware = multipart();
 var flow = require('./flow-node.js')('tmp/');
 var app = express();
 
@@ -9,7 +11,7 @@ app.use(express.static(__dirname + '/../../src'));
 app.use(express.bodyParser());
 
 // Handle uploads through Flow.js
-app.post('/upload', function(req, res){
+app.post('/upload', multipartMiddleware, function(req, res){
   flow.post(req, function(status, filename, original_filename, identifier){
     console.log('POST', status, original_filename, identifier);
     res.send(200, {
