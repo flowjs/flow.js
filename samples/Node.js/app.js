@@ -8,8 +8,6 @@ var app = express();
 app.use(express.static(__dirname + '/public'));
 app.use(express.static(__dirname + '/../../src'));
 
-app.use(express.bodyParser());
-
 // Handle uploads through Flow.js
 app.post('/upload', multipartMiddleware, function(req, res){
   flow.post(req, function(status, filename, original_filename, identifier){
