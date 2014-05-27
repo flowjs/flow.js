@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "express": "^4.3.1",
+    "connect-multiparty": "^1.0.4"
+  }
+}
