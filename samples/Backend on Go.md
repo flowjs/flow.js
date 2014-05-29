@@ -1,6 +1,9 @@
 # Backend in Go
 
-Each `POST` request is parsed and then saved to disk. After the final chunk is uploaded, the chunks are stitched together in a separate go routine and then deleted.
+1. A `GET` request is sent to see if a chunk exists on disk. If it isn't found, the chunk is uploaded.
+2. Each `POST` request is parsed and then saved to disk.
+3. After the final chunk is uploaded, the chunks are stitched together in a separate go routine.
+4. The chunks are deleted.
 
 This implementation assumes that the final chunk is the last piece of the file being uploaded.
 
@@ -42,6 +45,7 @@ func main() {
 	})
 
 	m.Post("/upload", streamHandler(chunkedReader))
+	m.Get("/upload", continueUpload)
 
 	m.Run()
 }
@@ -61,6 +65,14 @@ type streamHandler func(http.ResponseWriter, *http.Request) error
 func (fn streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := fn(w, r); err != nil {
 		http.Error(w, err.Error(), 500)
+	}
+}
+
+func continueUpload(w http.ResponseWriter, r *http.Request) {
+	chunkDirPath := "./incomplete/" + r.FormValue("flowFilename") + "/" + r.FormValue("flowChunkNumber")
+	if _, err := os.Stat(chunkDirPath); err != nil {
+		w.WriteHeader(404)
+		return
 	}
 }
 
