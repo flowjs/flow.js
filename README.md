@@ -45,15 +45,15 @@ To allow files to be either selected and drag-dropped, you'll assign drop target
 
 After this, interaction with Flow.js is done by listening to events:
 
-    r.on('fileAdded', function(file, event){
-        ...
-      });
-    r.on('fileSuccess', function(file,message){
-        ...
-      });
-    r.on('fileError', function(file, message){
-        ...
-      });
+    flow.on('fileAdded', function(file, event){
+       console.log(file, event);
+    });
+    flow.on('fileSuccess', function(file,message){
+        console.log(file,message);
+    });
+    flow.on('fileError', function(file, message){
+        console.log(file, message);
+    });
 
 ## How do I set it up with my server?
 
