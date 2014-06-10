@@ -143,7 +143,7 @@ module.exports = flow = function(temporaryFolder) {
     //   var stream = fs.createWriteStream(filename);
     //   r.write(identifier, stream);
     //   stream.on('data', function(data){...});
-    //   stream.on('end', function(){...});
+    //   stream.on('finish', function(){...});
     $.write = function(identifier, writableStream, options) {
         options = options || {};
         options.end = (typeof options['end'] == 'undefined' ? true : options['end']);
