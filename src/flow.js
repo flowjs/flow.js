@@ -444,18 +444,43 @@
     },
 
     /**
+     * should upload next chunk
+     * @function
+     * @returns {boolean|number}
+     */
+    _shouldUploadNext: function () {
+      var num = 0;
+      var should = true;
+      var simultaneousUploads = this.opts.simultaneousUploads;
+      each(this.files, function (file) {
+        each(file.chunks, function(chunk) {
+          if (chunk.status() === 'uploading') {
+            num++;
+            if (num >= simultaneousUploads) {
+              should = false;
+              return false;
+            }
+          }
+        });
+      });
+      // if should is true then return uploading chunks's length
+      return should && num;
+    },
+
+    /**
      * Start or resume uploading.
      * @function
      */
     upload: function () {
       // Make sure we don't start too many uploads at once
-      if (this.isUploading()) {
+      var ret = this._shouldUploadNext();
+      if (ret === false) {
         return;
       }
       // Kick off the queue
       this.fire('uploadStart');
       var started = false;
-      for (var num = 1; num <= this.opts.simultaneousUploads; num++) {
+      for (var num = 1; num <= this.opts.simultaneousUploads - ret; num++) {
         started = this.uploadNextChunk(true) || started;
       }
       if (!started) {
