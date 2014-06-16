@@ -442,6 +442,16 @@
       });
       return uploading;
     },
+    
+    uploadingNum: function () {
+      var num = 0;
+      each(this.files, function (file) {
+        if (file.isUploading()) {
+          num++;
+        }
+      });
+      return num;
+    },
 
     /**
      * Start or resume uploading.
@@ -449,13 +459,14 @@
      */
     upload: function () {
       // Make sure we don't start too many uploads at once
-      if (this.isUploading()) {
+      var uploadingNum = this.uploadingNum();
+      if (uploadingNum >= this.opts.simultaneousUploads) {
         return;
       }
       // Kick off the queue
       this.fire('uploadStart');
       var started = false;
-      for (var num = 1; num <= this.opts.simultaneousUploads; num++) {
+      for (var num = 1; num <= this.opts.simultaneousUploads - uploadingNum; num++) {
         started = this.uploadNextChunk(true) || started;
       }
       if (!started) {
