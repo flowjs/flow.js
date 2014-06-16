@@ -442,15 +442,29 @@
       });
       return uploading;
     },
-    
-    uploadingNum: function () {
+
+    /**
+     * should upload next chunk
+     * @function
+     * @returns {boolean|number}
+     */
+    _shouldUploadNext: function () {
       var num = 0;
+      var should = true;
+      var simultaneousUploads = this.opts.simultaneousUploads;
       each(this.files, function (file) {
-        if (file.isUploading()) {
-          num++;
-        }
+        each(file.chunks, function(chunk) {
+          if (chunk.status() === 'uploading') {
+            num++;
+            if (num >= simultaneousUploads) {
+              should = false;
+              return false;
+            }
+          }
+        });
       });
-      return num;
+      // if should is true then return uploading chunks's length
+      return should && num;
     },
 
     /**
@@ -459,14 +473,14 @@
      */
     upload: function () {
       // Make sure we don't start too many uploads at once
-      var uploadingNum = this.uploadingNum();
-      if (uploadingNum >= this.opts.simultaneousUploads) {
+      var ret = this._shouldUploadNext();
+      if (ret === false) {
         return;
       }
       // Kick off the queue
       this.fire('uploadStart');
       var started = false;
-      for (var num = 1; num <= this.opts.simultaneousUploads - uploadingNum; num++) {
+      for (var num = 1; num <= this.opts.simultaneousUploads - ret; num++) {
         started = this.uploadNextChunk(true) || started;
       }
       if (!started) {
