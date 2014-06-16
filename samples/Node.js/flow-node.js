@@ -104,7 +104,7 @@ module.exports = flow = function(temporaryFolder) {
             callback('invalid_flow_request', null, null, null);
             return;
         }
-        var validation = validateRequest(chunkNumber, chunkSize, totalSize, identifier, files[$.fileParameterName].size);
+        var validation = validateRequest(chunkNumber, chunkSize, totalSize, identifier, filename, files[$.fileParameterName].size);
         if (validation == 'valid') {
             var chunkFilename = getChunkFilename(chunkNumber, identifier);
 
