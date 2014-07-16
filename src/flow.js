@@ -1245,8 +1245,6 @@
             return;
           case 1:
             return;
-          case 2:
-            break;
         }
       }
       if (this.flowObj.opts.testChunks && !this.tested) {
@@ -1293,7 +1291,7 @@
      * @returns {string} 'pending', 'uploading', 'success', 'error'
      */
     status: function () {
-      if (this.pendingRetry) {
+      if (this.pendingRetry || this.preprocessState === 1) {
         // if pending retry then that's effectively the same as actively uploading,
         // there might just be a slight delay before the retry starts
         return 'uploading';
