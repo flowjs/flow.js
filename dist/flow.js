@@ -15,12 +15,12 @@
    * @param {number} [opts.progressCallbacksInterval]
    * @param {number} [opts.speedSmoothingFactor]
    * @param {Object|Function} [opts.query]
-   * @param {Object} [opts.headers]
+   * @param {Object|Function} [opts.headers]
    * @param {bool} [opts.withCredentials]
    * @param {Function} [opts.preprocess]
    * @param {string} [opts.method]
    * @param {bool} [opts.prioritizeFirstAndLastChunk]
-   * @param {string} [opts.target]
+   * @param {string|Function} [opts.target]
    * @param {number} [opts.maxChunkRetries]
    * @param {number} [opts.chunkRetryInterval]
    * @param {Array.<number>} [opts.permanentErrors]
@@ -444,18 +444,43 @@
     },
 
     /**
+     * should upload next chunk
+     * @function
+     * @returns {boolean|number}
+     */
+    _shouldUploadNext: function () {
+      var num = 0;
+      var should = true;
+      var simultaneousUploads = this.opts.simultaneousUploads;
+      each(this.files, function (file) {
+        each(file.chunks, function(chunk) {
+          if (chunk.status() === 'uploading') {
+            num++;
+            if (num >= simultaneousUploads) {
+              should = false;
+              return false;
+            }
+          }
+        });
+      });
+      // if should is true then return uploading chunks's length
+      return should && num;
+    },
+
+    /**
      * Start or resume uploading.
      * @function
      */
     upload: function () {
       // Make sure we don't start too many uploads at once
-      if (this.isUploading()) {
+      var ret = this._shouldUploadNext();
+      if (ret === false) {
         return;
       }
       // Kick off the queue
       this.fire('uploadStart');
       var started = false;
-      for (var num = 1; num <= this.opts.simultaneousUploads; num++) {
+      for (var num = 1; num <= this.opts.simultaneousUploads - ret; num++) {
         started = this.uploadNextChunk(true) || started;
       }
       if (!started) {
@@ -1174,8 +1199,7 @@
      * @param params
      * @returns {string}
      */
-    getTarget: function(params){
-      var target = this.flowObj.opts.target;
+    getTarget: function(target, params){
       if(target.indexOf('?') < 0) {
         target += '?';
       } else {
@@ -1194,7 +1218,7 @@
       this.xhr = new XMLHttpRequest();
       this.xhr.addEventListener("load", this.testHandler, false);
       this.xhr.addEventListener("error", this.testHandler, false);
-      var data = this.prepareXhrRequest('GET');
+      var data = this.prepareXhrRequest('GET', true);
       this.xhr.send(data);
     },
 
@@ -1246,8 +1270,7 @@
       this.xhr.addEventListener("load", this.doneHandler, false);
       this.xhr.addEventListener("error", this.doneHandler, false);
 
-      var data = this.prepareXhrRequest('POST', this.flowObj.opts.method, bytes);
-
+      var data = this.prepareXhrRequest('POST', false, this.flowObj.opts.method, bytes);
       this.xhr.send(data);
     },
 
@@ -1342,19 +1365,17 @@
     /**
      * Prepare Xhr request. Set query, headers and data
      * @param {string} method GET or POST
+     * @param {bool} isTest is this a test request
      * @param {string} [paramsMethod] octet or form
      * @param {Blob} [blob] to send
      * @returns {FormData|Blob|Null} data to send
      */
-    prepareXhrRequest: function(method, paramsMethod, blob) {
+    prepareXhrRequest: function(method, isTest, paramsMethod, blob) {
       // Add data from the query options
-      var query = this.flowObj.opts.query;
-      if (typeof query === "function") {
-        query = query(this.fileObj, this);
-      }
+      var query = evalOpts(this.flowObj.opts.query, this.fileObj, this, isTest);
       query = extend(this.getParams(), query);
 
-      var target = this.flowObj.opts.target;
+      var target = evalOpts(this.flowObj.opts.target, this.fileObj, this, isTest);
       var data = null;
       if (method === 'GET' || paramsMethod === 'octet') {
         // Add data from the query options
@@ -1362,7 +1383,7 @@
         each(query, function (v, k) {
           params.push([encodeURIComponent(k), encodeURIComponent(v)].join('='));
         });
-        target = this.getTarget(params);
+        target = this.getTarget(target, params);
         data = blob || null;
       } else {
         // Add data from the query options
@@ -1377,7 +1398,7 @@
       this.xhr.withCredentials = this.flowObj.opts.withCredentials;
 
       // Add data from header options
-      each(this.flowObj.opts.headers, function (v, k) {
+      each(evalOpts(this.flowObj.opts.headers, this.fileObj, this, isTest), function (v, k) {
         this.xhr.setRequestHeader(k, v);
       }, this);
 
@@ -1396,6 +1417,22 @@
       array.splice(index, 1);
     }
   }
+
+  /**
+   * If option is a function, evaluate it with given params
+   * @param {*} data
+   * @param {...} args arguments of a callback
+   * @returns {*}
+   */
+  function evalOpts(data, args) {
+    if (typeof data === "function") {
+      // `arguments` is an object, not array, in FF, so:
+      args = Array.prototype.slice.call(arguments);
+      data = data.apply(null, args.slice(1));
+    }
+    return data;
+  }
+  Flow.evalOpts = evalOpts;
 
   /**
    * Execute function asynchronously
@@ -1471,7 +1508,7 @@
    * Library version
    * @type {string}
    */
-  Flow.version = '2.5.0';
+  Flow.version = '2.6.0';
 
   if ( typeof module === "object" && module && typeof module.exports === "object" ) {
     // Expose Flow as module.exports in loaders that implement the Node
