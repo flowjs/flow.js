@@ -1389,7 +1389,7 @@
         each(query, function (v, k) {
           data.append(k, v);
         });
-        data.append(this.flowObj.opts.fileParameterName, blob);
+        data.append(this.flowObj.opts.fileParameterName, blob, this.fileObj.file.name);
       }
 
       this.xhr.open(method, target, true);
