@@ -1260,7 +1260,7 @@
         (this.fileObj.file.mozSlice ? 'mozSlice' :
           (this.fileObj.file.webkitSlice ? 'webkitSlice' :
             'slice')));
-      var bytes = this.fileObj.file[func](this.startByte, this.endByte);
+      var bytes = this.fileObj.file[func](this.startByte, this.endByte, this.fileObj.file.type);
 
       // Set up request and listen for event
       this.xhr = new XMLHttpRequest();
