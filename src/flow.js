@@ -1245,8 +1245,6 @@
             return;
           case 1:
             return;
-          case 2:
-            break;
         }
       }
       if (this.flowObj.opts.testChunks && !this.tested) {
@@ -1262,7 +1260,7 @@
         (this.fileObj.file.mozSlice ? 'mozSlice' :
           (this.fileObj.file.webkitSlice ? 'webkitSlice' :
             'slice')));
-      var bytes = this.fileObj.file[func](this.startByte, this.endByte);
+      var bytes = this.fileObj.file[func](this.startByte, this.endByte, this.fileObj.file.type);
 
       // Set up request and listen for event
       this.xhr = new XMLHttpRequest();
@@ -1293,7 +1291,7 @@
      * @returns {string} 'pending', 'uploading', 'success', 'error'
      */
     status: function () {
-      if (this.pendingRetry) {
+      if (this.pendingRetry || this.preprocessState === 1) {
         // if pending retry then that's effectively the same as actively uploading,
         // there might just be a slight delay before the retry starts
         return 'uploading';
@@ -1391,7 +1389,7 @@
         each(query, function (v, k) {
           data.append(k, v);
         });
-        data.append(this.flowObj.opts.fileParameterName, blob);
+        data.append(this.flowObj.opts.fileParameterName, blob, this.fileObj.file.name);
       }
 
       this.xhr.open(method, target, true);

@@ -388,6 +388,25 @@ describe('upload file', function() {
     expect(error).not.toHaveBeenCalled();
   });
 
+
+
+  it('should preprocess chunks and wait for preprocess to finish', function () {
+    flow.opts.simultaneousUploads = 1;
+    var preprocess = jasmine.createSpy('preprocess');
+    flow.opts.preprocess = preprocess;
+    flow.addFile(new Blob(['abc']));
+    flow.addFile(new Blob(['abca']));
+    var file = flow.files[0];
+    var secondFile = flow.files[1];
+    flow.upload();
+    expect(requests.length).toBe(0);
+    expect(preprocess).wasCalledWith(file.chunks[0]);
+    expect(preprocess).wasNotCalledWith(secondFile.chunks[0]);
+
+    flow.upload();
+    expect(preprocess).wasNotCalledWith(secondFile.chunks[0]);
+  });
+
   it('should have upload speed', function() {
     var clock = sinon.useFakeTimers();
     flow.opts.testChunks = false;
