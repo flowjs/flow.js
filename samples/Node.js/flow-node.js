@@ -47,7 +47,7 @@ module.exports = flow = function(temporaryFolder) {
                 // The chunk in the POST request isn't the correct size
                 return 'invalid_flow_request3';
             }
-            if (numberOfChunks > 1 && chunkNumber == numberOfChunks && fileSize != ((totalSize % chunkSize) + chunkSize)) {
+            if (numberOfChunks > 1 && chunkNumber == numberOfChunks && fileSize != ((totalSize % chunkSize) + parseInt(chunkSize))) {
                 // The chunks in the POST is the last one, and the fil is not the correct size
                 return 'invalid_flow_request4';
             }
