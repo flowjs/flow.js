@@ -98,12 +98,12 @@ module.exports = flow = function(temporaryFolder) {
         var identifier = cleanIdentifier(fields['flowIdentifier']);
         var filename = fields['flowFilename'];
 
-        var original_filename = fields['flowIdentifier'];
-
         if (!files[$.fileParameterName] || !files[$.fileParameterName].size) {
             callback('invalid_flow_request', null, null, null);
             return;
         }
+
+        var original_filename = files[$.fileParameterName]['originalFilename'];
         var validation = validateRequest(chunkNumber, chunkSize, totalSize, identifier, filename, files[$.fileParameterName].size);
         if (validation == 'valid') {
             var chunkFilename = getChunkFilename(chunkNumber, identifier);
