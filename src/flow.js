@@ -1302,8 +1302,9 @@
         // or 'LOADING' - meaning that stuff is happening
         return 'uploading';
       } else {
-        if (this.xhr.status == 200) {
+        if (this.xhr.status == 200 || this.xhr.status == 202) {
           // HTTP 200, perfect
+		  // HTTP 202 Accepted - The request has been accepted for processing, but the processing has not been completed.
           return 'success';
         } else if (this.flowObj.opts.permanentErrors.indexOf(this.xhr.status) > -1 ||
             this.retries >= this.flowObj.opts.maxChunkRetries) {
