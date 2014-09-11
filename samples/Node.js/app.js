@@ -36,7 +36,7 @@ app.post('/upload', multipartMiddleware, function(req, res) {
 app.get('/upload', function(req, res) {
     flow.get(req, function(status, filename, original_filename, identifier) {
         console.log('GET', status);
-        res.send(200, (status == 'found' ? 200 : 404));
+        res.send(status == 'found' ? 200 : 404);
     });
 });
 
