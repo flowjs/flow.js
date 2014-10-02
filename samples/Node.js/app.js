@@ -20,9 +20,7 @@ app.post('/upload', multipartMiddleware, function(req, res) {
     if (ACCESS_CONTROLL_ALLOW_ORIGIN) {
       res.header("Access-Control-Allow-Origin", "*");
     }
-    res.status(status).send({
-      'Access-Control-Allow-Origin': '*'
-    });
+    res.status(status).send();
   });
 });
 
@@ -39,7 +37,9 @@ app.options('/upload', function(req, res){
 app.get('/upload', function(req, res) {
   flow.get(req, function(status, filename, original_filename, identifier) {
     console.log('GET', status);
-    res.header("Access-Control-Allow-Origin", "*");
+    if (ACCESS_CONTROLL_ALLOW_ORIGIN) {
+      res.header("Access-Control-Allow-Origin", "*");
+    }
 
     if (status == 'found') {
       status = 200;
