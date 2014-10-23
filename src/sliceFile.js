@@ -2,9 +2,10 @@ var sliceFn = Blob.prototype.slice || Blob.prototype.mozSlice || Blob.prototype.
 /**
  * Creates file slice with params
  * @param file
+ * @param offset
  * @param size
  * @returns {Object}
  */
-function sliceFile(file, size) {
-  return sliceFn.call(file.file, file.offset, size);
+function sliceFile(file, offset, size) {
+  return sliceFn.call(file, offset, size, file.type);
 }

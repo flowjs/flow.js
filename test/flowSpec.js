@@ -6,86 +6,91 @@ describe('flow', function () {
     flowObj = flow();
   });
 
-  describe('addFiles', function () {
-    function addFiles() {
-      flowObj.addFiles([
-        fileMock([], 'one'),
-        fileMock([], 'two')
-      ]);
-    }
+  function addTwoFiles() {
+    flowObj.addFiles([
+      fileMock([], 'one'),
+      fileMock([], 'two')
+    ]);
+  }
 
-    it('should add new files', function () {
-      addFiles();
+  describe('addFiles', function () {
+    it('should add new files to queue', function () {
+      addTwoFiles();
       expect(flowObj.files.length).toBe(2);
     });
 
-    it('should use custom constructor', function () {
+    it('should allow to add custom properties for files with custom constructor', function () {
       var i = 0;
       flowObj.options.fileConstructor = function () {
         this.id = i++;
       };
-      addFiles();
+      addTwoFiles();
       expect(flowObj.files.length).toBe(2);
       expect(flowObj.files[0].id).toBe(0);
       expect(flowObj.files[1].id).toBe(1);
     });
-
-    describe('filterFileList', function () {
-      var filterFileList;
-      function createFilter(cb) {
-        filterFileList = jasmine.createSpy('filter files').andCallFake(cb);
-        flowObj.options.filterFileList = filterFileList;
-      }
-      it('should reject all added files', function () {
-        createFilter(function () {
-          return [];
-        })
-        addFiles();
-        expect(filterFileList.callCount).toBe(1);
-        expect(flowObj.files.length).toBe(0);
-      });
-
-      it('should validate every file', function () {
-        createFilter(function (files) {
-          var list = [];
-          each(files, function (file) {
-            if (file.name != 'one') {
-              list.push(file);
-            }
-          });
-          return list;
-        });
-        addFiles();
-        expect(filterFileList.callCount).toBe(1);
-        expect(flowObj.files.length).toBe(1);
-        expect(flowObj.files[0].name).toBe('two');
-      });
-
-      it('should validate every file in short syntax', function () {
-        createFilter(function (files) {
-          return files.map(function (file) {
-            return file.name != 'one' && file;
-          });
-        });
-        addFiles();
-        expect(filterFileList.callCount).toBe(1);
-        expect(flowObj.files.length).toBe(1);
-        expect(flowObj.files[0].name).toBe('two');
-      });
-    });
-
-
-    it('should notify then files are added to queue', function () {
-      var notify = jasmine.createSpy('files added callback');
-      flowObj.options.onFilesAdded = notify;
-      addFiles();
-      expect(notify.callCount).toBe(1);
-      expect(notify.mostRecentCall.args[0].length).toBe(2);
-    });
-
   });
 
-  describe('every file should have id by default', function () {
+  describe('filterFileList', function () {
+    var filterFileList;
+    function createFilter(cb) {
+      filterFileList = jasmine.createSpy('filter files').and.callFake(cb);
+      flowObj.options.filterFileList = filterFileList;
+    }
+    it('should reject all added files', function () {
+      createFilter(function () {
+        return [];
+      });
+      addTwoFiles();
+      expect(filterFileList.calls.count()).toBe(1);
+      expect(flowObj.files.length).toBe(0);
+    });
+
+    it('should reject files with name "one"', function () {
+      createFilter(function (files) {
+        var list = [];
+        each(files, function (file) {
+          if (file.name != 'one') {
+            list.push(file);
+          }
+        });
+        return list;
+      });
+      addTwoFiles();
+      expect(filterFileList.calls.count()).toBe(1);
+      expect(flowObj.files.length).toBe(1);
+      expect(flowObj.files[0].name).toBe('two');
+    });
+
+    it('should allow to change current files array and reject false values', function () {
+      createFilter(function (files) {
+        return files.map(function (file) {
+          return file.name != 'one' && file;
+        });
+      });
+      addTwoFiles();
+      expect(filterFileList.calls.count()).toBe(1);
+      expect(flowObj.files.length).toBe(1);
+      expect(flowObj.files[0].name).toBe('two');
+    });
+  });
+
+  describe('onFilesAdded', function () {
+    var notify;
+    beforeEach(function () {
+      notify = jasmine.createSpy('files added callback');
+      flowObj.options.onFilesAdded = notify;
+      addTwoFiles();
+    });
+    it('should notify then files are added to queue', function () {
+      expect(notify.calls.count()).toBe(1);
+    });
+    it('first argument should be array of files', function () {
+      expect(notify.calls.mostRecent().args[0].length).toBe(2);
+    });
+  });
+
+  describe('every file should have unique id by default', function () {
     beforeEach(function () {
       flowObj.addFile(
         fileMock(['abc'], 'one', {
@@ -104,17 +109,42 @@ describe('flow', function () {
       );
       expect(flowObj.files.length).toBe(1);
     });
-    describe('getById', function () {
-      it('should get file by id', function () {
-        expect(flowObj.getById('3-home/one')).toBe(flowObj.files[0])
-      });
-      it('should return null if file was not found', function () {
-        expect(flowObj.getById('fqwf')).toBe(null);
-      });
+  });
+
+  describe('onDuplicateFilesAdded', function () {
+    // duplicate files must be filtered in filterFileList
+  });
+
+  describe('getById', function () {
+    beforeEach(function () {
+      addTwoFiles();
+    });
+    it('should get file by id', function () {
+      expect(flowObj.getById('0-one')).toBe(flowObj.files[0])
+    });
+    it('should return null if file was not found', function () {
+      expect(flowObj.getById('none')).toBe(null);
     });
   });
 
-  describe('extension', function () {
+  describe('relativePath', function () {
+    beforeEach(function () {
+      var file = fileMock([], 'one');
+      file.relativePath = 'C:/one';
+      flowObj.addFiles([
+        file,
+        fileMock([], 'two')
+      ]);
+    });
+    it('should get file relative path', function () {
+      expect(flowObj.files[0].relativePath).toBe('C:/one')
+    });
+    it('should return name if relative path is not available', function () {
+      expect(flowObj.files[1].relativePath).toBe('two');
+    });
+  });
+
+  describe('extension - file should have a valid extension property', function () {
     function fileExtension(name) {
       flowObj.addFile(
         fileMock([], name)
@@ -134,5 +164,4 @@ describe('flow', function () {
       expect(fileExtension('.dwq.dq.wd.qdw.E')).toBe('e');
     });
   });
-
 });

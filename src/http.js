@@ -30,7 +30,7 @@ function http(config) {
   var method = config.method.toUpperCase();
 
   var xhr = new XMLHttpRequest();
-  xhr.open(method, url);
+  xhr.open(method, url, true);
 
   each(config.headers, function (value, key) {
     xhr.setRequestHeader(key, value);

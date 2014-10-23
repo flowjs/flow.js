@@ -38,7 +38,6 @@ describe('http', function () {
     });
   });
 
-
   it('should call complete event', function () {
     var complete = jasmine.createSpy('complete');
     http({
@@ -56,10 +55,9 @@ describe('http', function () {
     });
     requests[0].uploadProgress({loaded: 1, total:55, lengthComputable: true});
     expect(progress).toHaveBeenCalled();
-    expect(progress.mostRecentCall.args[0]).toBe(1);
-    expect(progress.mostRecentCall.args[1]).toBe(55);
+    expect(progress.calls.mostRecent().args[0]).toBe(1);
+    expect(progress.calls.mostRecent().args[1]).toBe(55);
   });
-
 
   describe('params', function () {
     it('should append parameters to url', function () {

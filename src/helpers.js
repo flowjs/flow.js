@@ -19,6 +19,30 @@ function extend(dst, src) {
 }
 
 /**
+ * Extends the destination object `dst` by copying all of the properties from
+ * the `src` object(s) to `dst`. You can specify multiple `src` objects.
+ * Deep extend follows `dst` object and only extends dst defined attributes.
+ * @function
+ * @param {Object} dst Destination object.
+ * @param {...Object} src Source object(s).
+ * @returns {Object} Reference to `dst`.
+ */
+function deepExtend(dst, src) {
+  each(arguments, function(obj) {
+    if (obj !== dst) {
+      each(obj, function(value, key){
+        if (dst[key] !== null && typeof dst[key] === 'object') {
+          deepExtend(dst[key], value);
+        } else {
+          dst[key] = value;
+        }
+      });
+    }
+  });
+  return dst;
+}
+
+/**
  * Iterate each element of an object
  * @function
  * @param {Array|Object} obj object or an array to iterate
@@ -44,6 +68,21 @@ function each(obj, callback, context) {
       }
     }
   }
+}
+
+/**
+ * If option is a function, evaluate it with given params
+ * @param {*} data
+ * @param {...} args arguments of a callback
+ * @returns {*}
+ */
+function evalOpts(data, args) {
+  if (typeof data === "function") {
+    // `arguments` is an object, not array, in FF, so:
+    args = Array.prototype.slice.call(arguments);
+    data = data.apply(null, args.slice(1));
+  }
+  return data;
 }
 
 /**

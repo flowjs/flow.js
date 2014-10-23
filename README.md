@@ -1,3 +1,20 @@
+### Contribute!
+This is an early version of flow.js. It is still missing most of its features,
+so please contribute. All crazy ideas are welcome!
+
+Feature list:
+
+  * Batch uploads (can upload many files in one request)
+  * Chunk uploads (Chunk size depends on connection speed)
+  * Preprocessing (Zip, Resize, ...)
+  * Client side validation (Invalid extension, ...)
+  * Server side validation (Not enough space, Invalid user, ...)
+  * Fault tolerance (Checksum validation, Retry on server crash, ...)
+  * Pause, Resume, Avg. file speed calculation, Progress
+  * (Optional, for later) Files balancing and uploading to multiple targets(servers) at once.
+
+Read more at our [General discussion](https://github.com/flowjs/flow.js/issues/4)
+
 ## Flow.js
 
 Flow.js is a JavaScript library providing multiple simultaneous, stable and resumable uploads via the HTML5 File API.
@@ -7,9 +24,6 @@ Flow.js does not have any external dependencies other than the `HTML5 File API`.
 Library follows simple file upload protocol, which can be easily implemented in any language. One of this protocol design goals is to make it simple for mobile and browser clients to use it. Server side just exposes common api, which can be easily adopted and used as public api.
 
 The library is designed to introduce fault-tolerance into the upload of large files through HTTP. This is done by splitting each file into small chunks. Then, whenever the upload of a chunk fails, uploading is retried until the procedure completes. This allows uploads to automatically resume uploading after a network connection is lost either locally or to the server. Additionally, it allows for users to pause, resume and even recover uploads without losing state because only the currently uploading chunks will be aborted, not the entire upload.
-
-
-Examples are available in the `examples/` folder. Please push your own as Markdown to help document the project.
 
 ## Contribution
 

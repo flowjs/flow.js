@@ -15,6 +15,7 @@ module.exports = function(config) {
       'test/helpers/*.js',
       'src/http.js',
       'src/sliceFile.js',
+      'src/flowFile.js',
       'src/flow.js',
       'src/formData.js',
       'src/helpers.js',
