@@ -90,5 +90,5 @@ module.exports = function(grunt) {
   // Release
   grunt.registerTask('build', ['concat', 'uglify']);
   // Development
-  grunt.registerTask('travis', ["karma:travis", "coveralls"]);
+  grunt.registerTask('travis', ["karma:travis"]);
 };
