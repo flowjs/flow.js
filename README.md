@@ -1,5 +1,4 @@
-## Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.png)](https://travis-ci.org/flowjs/flow.js) [![Coverage Status](https://coveralls.io/repos/flowjs/flow.js/badge.png?branch=master)](https://coveralls.io/r/flowjs/flow.js?branch=master)
-
+# Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.png)](https://travis-ci.org/flowjs/flow.js) [![Coverage Status](https://coveralls.io/repos/flowjs/flow.js/badge.png?branch=master)](https://coveralls.io/r/flowjs/flow.js?branch=master)
 
 Flow.js is a JavaScript library providing multiple simultaneous, stable and resumable uploads via the HTML5 File API. 
 
@@ -9,7 +8,9 @@ Flow.js does not have any external dependencies other than the `HTML5 File API`.
 
 Samples and examples are available in the `samples/` folder. Please push your own as Markdown to help document the project.
 
-## Can i see a demo?
+## Whould you like to contribute? [View our development branch](https://github.com/flowjs/flow.js/tree/develop)
+
+## Can I see a demo?
 [Flow.js + angular.js file upload demo](http://flowjs.github.io/ng-flow/) - ng-flow extension page https://github.com/flowjs/ng-flow
 
 JQuery and node.js backend demo https://github.com/flowjs/flow.js/tree/master/samples/Node.js
