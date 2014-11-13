@@ -1,6 +1,6 @@
 {
   "name": "flow.js",
-  "version": "2.6.2",
+  "version": "2.6.3",
   "main": "./dist/flow.js",
   "ignore": [
     "**/.*",
