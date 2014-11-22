@@ -786,10 +786,11 @@
      * For internal usage only.
      * Callback when something happens within the chunk.
      * @function
+     * @param {FlowChunk} chunk
      * @param {string} event can be 'progress', 'success', 'error' or 'retry'
      * @param {string} [message]
      */
-    chunkEvent: function (event, message) {
+    chunkEvent: function (chunk, event, message) {
       switch (event) {
         case 'progress':
           if (Date.now() - this._lastProgressCallback <
@@ -797,32 +798,32 @@
             break;
           }
           this.measureSpeed();
-          this.flowObj.fire('fileProgress', this);
+          this.flowObj.fire('fileProgress', this, chunk);
           this.flowObj.fire('progress');
           this._lastProgressCallback = Date.now();
           break;
         case 'error':
           this.error = true;
           this.abort(true);
-          this.flowObj.fire('fileError', this, message);
-          this.flowObj.fire('error', message, this);
+          this.flowObj.fire('fileError', this, message, chunk);
+          this.flowObj.fire('error', message, this, chunk);
           break;
         case 'success':
           if (this.error) {
             return;
           }
           this.measureSpeed();
-          this.flowObj.fire('fileProgress', this);
+          this.flowObj.fire('fileProgress', this, chunk);
           this.flowObj.fire('progress');
           this._lastProgressCallback = Date.now();
           if (this.isComplete()) {
             this.currentSpeed = 0;
             this.averageSpeed = 0;
-            this.flowObj.fire('fileSuccess', this, message);
+            this.flowObj.fire('fileSuccess', this, message, chunk);
           }
           break;
         case 'retry':
-          this.flowObj.fire('fileRetry', this);
+          this.flowObj.fire('fileRetry', this, chunk);
           break;
       }
     },
@@ -1121,6 +1122,17 @@
 
     var $ = this;
 
+
+    /**
+     * Send chunk event
+     * @param event
+     * @param {...} args arguments of a callback
+     */
+    this.event = function (event, args) {
+      args = Array.prototype.slice.call(arguments);
+      args.unshift($);
+      $.fileObj.chunkEvent.apply($.fileObj, args);
+    };
     /**
      * Catch progress event
      * @param {ProgressEvent} event
@@ -1130,7 +1142,7 @@
         $.loaded = event.loaded ;
         $.total = event.total;
       }
-      $.fileObj.chunkEvent('progress');
+      $.event('progress', event);
     };
 
     /**
@@ -1156,10 +1168,10 @@
     this.doneHandler = function(event) {
       var status = $.status();
       if (status === 'success' || status === 'error') {
-        $.fileObj.chunkEvent(status, $.message());
+        $.event(status, $.message());
         $.flowObj.uploadNextChunk();
       } else {
-        $.fileObj.chunkEvent('retry', $.message());
+        $.event('retry', $.message());
         $.pendingRetry = true;
         $.abort();
         $.retries++;
