@@ -76,6 +76,7 @@
       withCredentials: false,
       preprocess: null,
       method: 'multipart',
+
       prioritizeFirstAndLastChunk: false,
       target: '/',
       testChunks: true,
@@ -925,7 +926,7 @@
       });
       var percent = bytesLoaded / this.size;
       // We don't want to lose percentages when an upload is paused
-      this._prevProgress = Math.max(this._prevProgress, percent > 0.999 ? 1 : percent);
+      this._prevProgress = Math.max(this._prevProgress, percent > 0.9999 ? 1 : percent);
       return this._prevProgress;
     },
 
