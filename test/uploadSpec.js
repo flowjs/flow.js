@@ -331,6 +331,30 @@ describe('upload file', function() {
     expect(success).not.toHaveBeenCalled();
   });
 
+  it('should fail on permanent test error', function () {
+    flow.opts.testChunks = true;
+    flow.opts.chunkSize = 1;
+    flow.opts.simultaneousUploads = 2;
+    flow.opts.maxChunkRetries = 1;
+    flow.opts.permanentErrors = [500];
+
+    var error = jasmine.createSpy('error');
+    var success = jasmine.createSpy('success');
+    var retry = jasmine.createSpy('retry');
+    flow.on('fileError', error);
+    flow.on('fileSuccess', success);
+    flow.on('fileRetry', retry);
+
+    flow.addFile(new Blob(['abc']));
+    flow.upload();
+    expect(requests.length).toBe(2);
+    requests[0].respond(500);
+    expect(requests.length).toBe(2);
+    expect(error).toHaveBeenCalled();
+    expect(retry).not.toHaveBeenCalled();
+    expect(success).not.toHaveBeenCalled();
+  });
+
   it('should upload empty file', function () {
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
@@ -389,8 +413,6 @@ describe('upload file', function() {
     expect(success).wasCalledWith(file, "response", file.chunks[0]);
     expect(error).not.toHaveBeenCalled();
   });
-
-
 
   it('should preprocess chunks and wait for preprocess to finish', function () {
     flow.opts.simultaneousUploads = 1;

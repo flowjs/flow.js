@@ -1153,11 +1153,16 @@
      */
     this.testHandler = function(event) {
       var status = $.status();
-      if (status === 'success') {
-        $.tested = true;
-        $.fileObj.chunkEvent(status, $.message());
+      if (status === 'error') {
+        $.event(status, $.message());
         $.flowObj.uploadNextChunk();
-      } else if (!$.fileObj.paused) {// Error might be caused by file pause method
+      } else if (status === 'success') {
+        $.tested = true;
+        $.event(status, $.message());
+        $.flowObj.uploadNextChunk();
+      } else if (!$.fileObj.paused) {
+        // Error might be caused by file pause method
+        // Chunks does not exist on the server side
         $.tested = true;
         $.send();
       }
@@ -1321,7 +1326,7 @@
 		      // HTTP 202 Accepted - The request has been accepted for processing, but the processing has not been completed.
           return 'success';
         } else if (this.flowObj.opts.permanentErrors.indexOf(this.xhr.status) > -1 ||
-            this.retries >= this.flowObj.opts.maxChunkRetries) {
+            this.retries && this.retries >= this.flowObj.opts.maxChunkRetries) {
           // HTTP 415/500/501, permanent error
           return 'error';
         } else {
