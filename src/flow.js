@@ -1156,7 +1156,7 @@
      * @param {Event} event
      */
     this.testHandler = function(event) {
-      var status = $.status();
+      var status = $.status(true);
       if (status === 'error') {
         $.event(status, $.message());
         $.flowObj.uploadNextChunk();
@@ -1315,7 +1315,7 @@
      * @function
      * @returns {string} 'pending', 'uploading', 'success', 'error'
      */
-    status: function () {
+    status: function (isTest) {
       if (this.pendingRetry || this.preprocessState === 1) {
         // if pending retry then that's effectively the same as actively uploading,
         // there might just be a slight delay before the retry starts
@@ -1332,7 +1332,7 @@
 		      // HTTP 202 Accepted - The request has been accepted for processing, but the processing has not been completed.
           return 'success';
         } else if (this.flowObj.opts.permanentErrors.indexOf(this.xhr.status) > -1 ||
-            this.retries && this.retries >= this.flowObj.opts.maxChunkRetries) {
+            !isTest && this.retries >= this.flowObj.opts.maxChunkRetries) {
           // HTTP 415/500/501, permanent error
           return 'error';
         } else {
