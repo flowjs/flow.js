@@ -19,6 +19,8 @@
    * @param {bool} [opts.withCredentials]
    * @param {Function} [opts.preprocess]
    * @param {string} [opts.method]
+   * @param {string|Function} [opts.testMethod]
+   * @param {string|Function} [opts.uploadMethod]
    * @param {bool} [opts.prioritizeFirstAndLastChunk]
    * @param {string|Function} [opts.target]
    * @param {number} [opts.maxChunkRetries]
@@ -76,7 +78,8 @@
       withCredentials: false,
       preprocess: null,
       method: 'multipart',
-
+      testMethod: 'GET',
+      uploadMethod: 'POST',
       prioritizeFirstAndLastChunk: false,
       target: '/',
       testChunks: true,
@@ -1238,7 +1241,8 @@
       this.xhr = new XMLHttpRequest();
       this.xhr.addEventListener("load", this.testHandler, false);
       this.xhr.addEventListener("error", this.testHandler, false);
-      var data = this.prepareXhrRequest('GET', true);
+      var testMethod = evalOpts(this.flowObj.opts.testMethod, this.fileObj, this);
+      var data = this.prepareXhrRequest(testMethod, true);
       this.xhr.send(data);
     },
 
@@ -1288,7 +1292,8 @@
       this.xhr.addEventListener("load", this.doneHandler, false);
       this.xhr.addEventListener("error", this.doneHandler, false);
 
-      var data = this.prepareXhrRequest('POST', false, this.flowObj.opts.method, bytes);
+      var uploadMethod = evalOpts(this.flowObj.opts.uploadMethod, this.fileObj, this);
+      var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, bytes);
       this.xhr.send(data);
     },
 
