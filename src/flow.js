@@ -270,7 +270,7 @@
         return custom(file);
       }
       // Some confusion in different versions of Firefox
-      var relativePath = file.relativePath || file.webkitRelativePath || file.fileName || file.name;
+      var relativePath = file.relativePath || file.webkitRelativePath || file.fileName || file.name || 'pasted';
       return file.size + '-' + relativePath.replace(/[^0-9a-zA-Z_-]/img, '');
     },
 
@@ -698,6 +698,12 @@
     this.name = file.fileName || file.name;
 
     /**
+     * Placeholder for Files with empty names
+     * @type {string}
+     */
+    this.generatedFileName = '';
+
+    /**
      * File size
      * @type {number}
      */
@@ -1000,6 +1006,21 @@
     },
 
     /**
+     * Generate a name if empty (i.e. paste)
+     * @function
+     */
+    generateFileName: function () {
+      var
+        d = new Date(),
+        ts = Date.parse(d),
+        name = ts + '-generated-filename.png';
+
+      this.generatedFileName = name;
+
+      return this.generatedFileName;
+    },
+
+    /**
      * Get file type
      * @function
      * @returns {string}
@@ -1015,7 +1036,16 @@
      */
     getExtension: function () {
       return this.name.substr((~-this.name.lastIndexOf(".") >>> 0) + 2).toLowerCase();
+    },
+
+    /**
+     * Get File name
+     * @function
+     */
+    getFileName: function () {
+      return this.name || this.generatedFileName || this.generateFileName();       
     }
+
   };
 
 
@@ -1210,7 +1240,7 @@
         flowCurrentChunkSize: this.endByte - this.startByte,
         flowTotalSize: this.fileObjSize,
         flowIdentifier: this.fileObj.uniqueIdentifier,
-        flowFilename: this.fileObj.name,
+        flowFilename: this.fileObj.getFileName(),
         flowRelativePath: this.fileObj.relativePath,
         flowTotalChunks: this.fileObj.chunks.length
       };
@@ -1415,7 +1445,7 @@
         each(query, function (v, k) {
           data.append(k, v);
         });
-        data.append(this.flowObj.opts.fileParameterName, blob, this.fileObj.file.name);
+        data.append(this.flowObj.opts.fileParameterName, blob, this.fileObj.getFileName());
       }
 
       this.xhr.open(method, target, true);

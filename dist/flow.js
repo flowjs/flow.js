@@ -264,7 +264,7 @@
         return custom(file);
       }
       // Some confusion in different versions of Firefox
-      var relativePath = file.relativePath || file.webkitRelativePath || file.fileName || file.name;
+      var relativePath = file.relativePath || file.webkitRelativePath || file.fileName || file.name || 'pasted';
       return file.size + '-' + relativePath.replace(/[^0-9a-zA-Z_-]/img, '');
     },
 
@@ -692,6 +692,12 @@
     this.name = file.fileName || file.name;
 
     /**
+     * Placeholder for Files with empty names
+     * @type {string}
+     */
+    this.generatedFileName = '';
+
+    /**
      * File size
      * @type {number}
      */
@@ -993,6 +999,21 @@
     },
 
     /**
+     * Generate a name if empty (i.e. paste)
+     * @function
+     */
+    generateFileName: function () {
+      var
+        d = new Date(),
+        ts = Date.parse(d),
+        name = ts + '-generated-filename.png';
+
+      this.generatedFileName = name;
+
+      return this.generatedFileName;
+    },
+
+    /**
      * Get file type
      * @function
      * @returns {string}
@@ -1008,7 +1029,16 @@
      */
     getExtension: function () {
       return this.name.substr((~-this.name.lastIndexOf(".") >>> 0) + 2).toLowerCase();
+    },
+
+    /**
+     * Get File name
+     * @function
+     */
+    getFileName: function () {
+      return this.name || this.generatedFileName || this.generateFileName();       
     }
+
   };
 
 
@@ -1187,7 +1217,7 @@
         flowCurrentChunkSize: this.endByte - this.startByte,
         flowTotalSize: this.fileObjSize,
         flowIdentifier: this.fileObj.uniqueIdentifier,
-        flowFilename: this.fileObj.name,
+        flowFilename: this.fileObj.getFileName(),
         flowRelativePath: this.fileObj.relativePath,
         flowTotalChunks: this.fileObj.chunks.length
       };
@@ -1302,8 +1332,9 @@
         // or 'LOADING' - meaning that stuff is happening
         return 'uploading';
       } else {
-        if (this.xhr.status == 200) {
+        if (this.xhr.status == 200 || this.xhr.status == 202) {
           // HTTP 200, perfect
+		  // HTTP 202 Accepted - The request has been accepted for processing, but the processing has not been completed.
           return 'success';
         } else if (this.flowObj.opts.permanentErrors.indexOf(this.xhr.status) > -1 ||
             this.retries >= this.flowObj.opts.maxChunkRetries) {
@@ -1389,7 +1420,7 @@
         each(query, function (v, k) {
           data.append(k, v);
         });
-        data.append(this.flowObj.opts.fileParameterName, blob, this.fileObj.file.name);
+        data.append(this.flowObj.opts.fileParameterName, blob, this.fileObj.getFileName());
       }
 
       this.xhr.open(method, target, true);
@@ -1506,7 +1537,7 @@
    * Library version
    * @type {string}
    */
-  Flow.version = '2.6.2';
+  Flow.version = '2.6.3';
 
   if ( typeof module === "object" && module && typeof module.exports === "object" ) {
     // Expose Flow as module.exports in loaders that implement the Node
