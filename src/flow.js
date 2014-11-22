@@ -24,6 +24,7 @@
    * @param {number} [opts.maxChunkRetries]
    * @param {number} [opts.chunkRetryInterval]
    * @param {Array.<number>} [opts.permanentErrors]
+   * @param {Array.<number>} [opts.successStatuses]
    * @param {Function} [opts.generateUniqueIdentifier]
    * @constructor
    */
@@ -82,6 +83,7 @@
       maxChunkRetries: 0,
       chunkRetryInterval: null,
       permanentErrors: [404, 415, 500, 501],
+      successStatuses: [200, 201, 202],
       onDropStopPropagation: false
     };
 
@@ -1314,9 +1316,9 @@
         // or 'LOADING' - meaning that stuff is happening
         return 'uploading';
       } else {
-        if (this.xhr.status == 200 || this.xhr.status == 202) {
+        if (this.flowObj.opts.successStatuses.indexOf(this.xhr.status) > -1) {
           // HTTP 200, perfect
-		  // HTTP 202 Accepted - The request has been accepted for processing, but the processing has not been completed.
+		      // HTTP 202 Accepted - The request has been accepted for processing, but the processing has not been completed.
           return 'success';
         } else if (this.flowObj.opts.permanentErrors.indexOf(this.xhr.status) > -1 ||
             this.retries >= this.flowObj.opts.maxChunkRetries) {
