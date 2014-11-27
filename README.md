@@ -94,9 +94,9 @@ After this is done and `testChunks` enabled, an upload can quickly catch up even
 #### Configuration
 
 The object is loaded with a configuration options:
-
-    var r = new Flow({opt1:'val', ...});
-    
+```javascript
+var r = new Flow({opt1:'val', ...});
+```
 Available configuration options are:
 
 * `target` The target URL for the multipart POST request. This can be a string or a function. If a
@@ -234,17 +234,17 @@ To ensure consistency throughout the source code, keep these rules in mind as yo
 
 ## Installation Dependencies
 1. To clone your Github repository, run:
-
-        git clone git@github.com:<github username>/flow.js.git
-
+```console
+git clone git@github.com:<github username>/flow.js.git
+```
 2. To go to the Flow.js directory, run:
-
-        cd flow.js
-
+```console
+cd flow.js
+```
 3. To add node.js dependencies
-
-        npm install
-
+```console
+npm install
+```
 ## Testing
 
 Our unit and integration tests are written with Jasmine and executed with Karma. To run all of the
