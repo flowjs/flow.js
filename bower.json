@@ -12,6 +12,7 @@
     "CHANGELOG.md",
     "karma.conf.js",
     "package.json",
-    "src/*"
+    "src/*",
+    "Gruntfile.js"
   ]
 }
