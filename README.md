@@ -21,41 +21,41 @@ Download a latest build from https://github.com/flowjs/flow.js/releases
 it contains development and minified production files in `dist/` folder.
 
 or use bower:
-
-        bower install flow.js#~2
-                
+```console
+bower install flow.js#~2
+```                
 or use git clone
-
-        git clone https://github.com/flowjs/flow.js
-
+```console
+git clone https://github.com/flowjs/flow.js
+```
 ## How can I use it?
 
 A new `Flow` object is created with information of what and where to post:
-
-    var flow = new Flow({
-      target:'/api/photo/redeem-upload-token', 
-      query:{upload_token:'my_token'}
-    });
-    // Flow.js isn't supported, fall back on a different method
-    if(!flow.support) location.href = '/some-old-crappy-uploader';
-  
+```javascript
+var flow = new Flow({
+  target:'/api/photo/redeem-upload-token', 
+  query:{upload_token:'my_token'}
+});
+// Flow.js isn't supported, fall back on a different method
+if(!flow.support) location.href = '/some-old-crappy-uploader';
+```
 To allow files to be either selected and drag-dropped, you'll assign drop target and a DOM item to be clicked for browsing:
-
-    flow.assignBrowse(document.getElementById('browseButton'));
-    flow.assignDrop(document.getElementById('dropTarget'));
-
+```javascript
+flow.assignBrowse(document.getElementById('browseButton'));
+flow.assignDrop(document.getElementById('dropTarget'));
+```
 After this, interaction with Flow.js is done by listening to events:
-
-    flow.on('fileAdded', function(file, event){
-       console.log(file, event);
-    });
-    flow.on('fileSuccess', function(file,message){
-        console.log(file,message);
-    });
-    flow.on('fileError', function(file, message){
-        console.log(file, message);
-    });
-
+```javascript
+flow.on('fileAdded', function(file, event){
+    console.log(file, event);
+});
+flow.on('fileSuccess', function(file,message){
+    console.log(file,message);
+});
+flow.on('fileError', function(file, message){
+    console.log(file, message);
+});
+```
 ## How do I set it up with my server?
 
 Most of the magic for Flow.js happens in the user's browser, but files still need to be reassembled from chunks on the server side. This should be a fairly simple task and can be achieved in any web framework or language, which is able to receive file uploads.
@@ -249,13 +249,13 @@ To ensure consistency throughout the source code, keep these rules in mind as yo
 
 Our unit and integration tests are written with Jasmine and executed with Karma. To run all of the
 tests on Chrome run:
-
-    grunt karma:watch
-
+```console
+grunt karma:watch
+```
 Or choose other browser
-
-    grunt karma:watch --browsers=Firefox,Chrome
-
+```console
+grunt karma:watch --browsers=Firefox,Chrome
+```
 Browsers should be comma separated and case sensitive.
 
 To re-run tests just change any source or test file.
