@@ -19,11 +19,14 @@
    * @param {bool} [opts.withCredentials]
    * @param {Function} [opts.preprocess]
    * @param {string} [opts.method]
+   * @param {string|Function} [opts.testMethod]
+   * @param {string|Function} [opts.uploadMethod]
    * @param {bool} [opts.prioritizeFirstAndLastChunk]
    * @param {string|Function} [opts.target]
    * @param {number} [opts.maxChunkRetries]
    * @param {number} [opts.chunkRetryInterval]
    * @param {Array.<number>} [opts.permanentErrors]
+   * @param {Array.<number>} [opts.successStatuses]
    * @param {Function} [opts.generateUniqueIdentifier]
    * @constructor
    */
@@ -75,6 +78,8 @@
       withCredentials: false,
       preprocess: null,
       method: 'multipart',
+      testMethod: 'GET',
+      uploadMethod: 'POST',
       prioritizeFirstAndLastChunk: false,
       target: '/',
       testChunks: true,
@@ -82,6 +87,7 @@
       maxChunkRetries: 0,
       chunkRetryInterval: null,
       permanentErrors: [404, 415, 500, 501],
+      successStatuses: [200, 201, 202],
       onDropStopPropagation: false
     };
 
@@ -786,10 +792,11 @@
      * For internal usage only.
      * Callback when something happens within the chunk.
      * @function
+     * @param {FlowChunk} chunk
      * @param {string} event can be 'progress', 'success', 'error' or 'retry'
      * @param {string} [message]
      */
-    chunkEvent: function (event, message) {
+    chunkEvent: function (chunk, event, message) {
       switch (event) {
         case 'progress':
           if (Date.now() - this._lastProgressCallback <
@@ -797,32 +804,32 @@
             break;
           }
           this.measureSpeed();
-          this.flowObj.fire('fileProgress', this);
+          this.flowObj.fire('fileProgress', this, chunk);
           this.flowObj.fire('progress');
           this._lastProgressCallback = Date.now();
           break;
         case 'error':
           this.error = true;
           this.abort(true);
-          this.flowObj.fire('fileError', this, message);
-          this.flowObj.fire('error', message, this);
+          this.flowObj.fire('fileError', this, message, chunk);
+          this.flowObj.fire('error', message, this, chunk);
           break;
         case 'success':
           if (this.error) {
             return;
           }
           this.measureSpeed();
-          this.flowObj.fire('fileProgress', this);
+          this.flowObj.fire('fileProgress', this, chunk);
           this.flowObj.fire('progress');
           this._lastProgressCallback = Date.now();
           if (this.isComplete()) {
             this.currentSpeed = 0;
             this.averageSpeed = 0;
-            this.flowObj.fire('fileSuccess', this, message);
+            this.flowObj.fire('fileSuccess', this, message, chunk);
           }
           break;
         case 'retry':
-          this.flowObj.fire('fileRetry', this);
+          this.flowObj.fire('fileRetry', this, chunk);
           break;
       }
     },
@@ -922,7 +929,7 @@
       });
       var percent = bytesLoaded / this.size;
       // We don't want to lose percentages when an upload is paused
-      this._prevProgress = Math.max(this._prevProgress, percent > 0.999 ? 1 : percent);
+      this._prevProgress = Math.max(this._prevProgress, percent > 0.9999 ? 1 : percent);
       return this._prevProgress;
     },
 
@@ -1121,6 +1128,17 @@
 
     var $ = this;
 
+
+    /**
+     * Send chunk event
+     * @param event
+     * @param {...} args arguments of a callback
+     */
+    this.event = function (event, args) {
+      args = Array.prototype.slice.call(arguments);
+      args.unshift($);
+      $.fileObj.chunkEvent.apply($.fileObj, args);
+    };
     /**
      * Catch progress event
      * @param {ProgressEvent} event
@@ -1130,7 +1148,7 @@
         $.loaded = event.loaded ;
         $.total = event.total;
       }
-      $.fileObj.chunkEvent('progress');
+      $.event('progress', event);
     };
 
     /**
@@ -1138,12 +1156,17 @@
      * @param {Event} event
      */
     this.testHandler = function(event) {
-      var status = $.status();
-      if (status === 'success') {
-        $.tested = true;
-        $.fileObj.chunkEvent(status, $.message());
+      var status = $.status(true);
+      if (status === 'error') {
+        $.event(status, $.message());
         $.flowObj.uploadNextChunk();
-      } else if (!$.fileObj.paused) {// Error might be caused by file pause method
+      } else if (status === 'success') {
+        $.tested = true;
+        $.event(status, $.message());
+        $.flowObj.uploadNextChunk();
+      } else if (!$.fileObj.paused) {
+        // Error might be caused by file pause method
+        // Chunks does not exist on the server side
         $.tested = true;
         $.send();
       }
@@ -1156,10 +1179,10 @@
     this.doneHandler = function(event) {
       var status = $.status();
       if (status === 'success' || status === 'error') {
-        $.fileObj.chunkEvent(status, $.message());
+        $.event(status, $.message());
         $.flowObj.uploadNextChunk();
       } else {
-        $.fileObj.chunkEvent('retry', $.message());
+        $.event('retry', $.message());
         $.pendingRetry = true;
         $.abort();
         $.retries++;
@@ -1218,7 +1241,8 @@
       this.xhr = new XMLHttpRequest();
       this.xhr.addEventListener("load", this.testHandler, false);
       this.xhr.addEventListener("error", this.testHandler, false);
-      var data = this.prepareXhrRequest('GET', true);
+      var testMethod = evalOpts(this.flowObj.opts.testMethod, this.fileObj, this);
+      var data = this.prepareXhrRequest(testMethod, true);
       this.xhr.send(data);
     },
 
@@ -1268,7 +1292,8 @@
       this.xhr.addEventListener("load", this.doneHandler, false);
       this.xhr.addEventListener("error", this.doneHandler, false);
 
-      var data = this.prepareXhrRequest('POST', false, this.flowObj.opts.method, bytes);
+      var uploadMethod = evalOpts(this.flowObj.opts.uploadMethod, this.fileObj, this);
+      var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, bytes);
       this.xhr.send(data);
     },
 
@@ -1290,7 +1315,7 @@
      * @function
      * @returns {string} 'pending', 'uploading', 'success', 'error'
      */
-    status: function () {
+    status: function (isTest) {
       if (this.pendingRetry || this.preprocessState === 1) {
         // if pending retry then that's effectively the same as actively uploading,
         // there might just be a slight delay before the retry starts
@@ -1302,11 +1327,12 @@
         // or 'LOADING' - meaning that stuff is happening
         return 'uploading';
       } else {
-        if (this.xhr.status == 200) {
+        if (this.flowObj.opts.successStatuses.indexOf(this.xhr.status) > -1) {
           // HTTP 200, perfect
+		      // HTTP 202 Accepted - The request has been accepted for processing, but the processing has not been completed.
           return 'success';
         } else if (this.flowObj.opts.permanentErrors.indexOf(this.xhr.status) > -1 ||
-            this.retries >= this.flowObj.opts.maxChunkRetries) {
+            !isTest && this.retries >= this.flowObj.opts.maxChunkRetries) {
           // HTTP 415/500/501, permanent error
           return 'error';
         } else {
@@ -1506,7 +1532,7 @@
    * Library version
    * @type {string}
    */
-  Flow.version = '2.6.2';
+  Flow.version = '2.8.0';
 
   if ( typeof module === "object" && module && typeof module.exports === "object" ) {
     // Expose Flow as module.exports in loaders that implement the Node
