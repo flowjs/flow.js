@@ -191,7 +191,7 @@ module.exports = flow = function(temporaryFolder) {
 
                     console.log('exist removing ', chunkFilename);
                     fs.unlink(chunkFilename, function(err) {
-                        if (options.onError) options.onError(err);
+                        if (err && options.onError) options.onError(err);
                     });
 
                     pipeChunkRm(number + 1);
