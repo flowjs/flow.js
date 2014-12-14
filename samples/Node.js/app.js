@@ -6,42 +6,53 @@ var multipartMiddleware = multipart();
 var flow = require('./flow-node.js')('tmp');
 var app = express();
 
+// Configure access control allow origin header stuff
+var ACCESS_CONTROLL_ALLOW_ORIGIN = false;
+
 // Host most stuff in the public folder
 app.use(express.static(__dirname + '/public'));
 app.use(express.static(__dirname + '/../../src'));
 
 // Handle uploads through Flow.js
 app.post('/upload', multipartMiddleware, function(req, res) {
-    flow.post(req, function(status, filename, original_filename, identifier) {
-        console.log('POST', status, original_filename, identifier);
-        res.send(200, {
-            // NOTE: Uncomment this funciton to enable cross-domain request.
-            //'Access-Control-Allow-Origin': '*'
-        });
-    });
+  flow.post(req, function(status, filename, original_filename, identifier) {
+    console.log('POST', status, original_filename, identifier);
+    if (ACCESS_CONTROLL_ALLOW_ORIGIN) {
+      res.header("Access-Control-Allow-Origin", "*");
+    }
+    res.status(status).send();
+  });
 });
 
-// Handle cross-domain requests
-// NOTE: Uncomment this funciton to enable cross-domain request.
-/*
-  app.options('/upload', function(req, res){
+
+app.options('/upload', function(req, res){
   console.log('OPTIONS');
-  res.send(true, {
-  'Access-Control-Allow-Origin': '*'
-  }, 200);
-  });
-*/
+  if (ACCESS_CONTROLL_ALLOW_ORIGIN) {
+    res.header("Access-Control-Allow-Origin", "*");
+  }
+  res.status(200).send();
+});
 
 // Handle status checks on chunks through Flow.js
 app.get('/upload', function(req, res) {
-    flow.get(req, function(status, filename, original_filename, identifier) {
-        console.log('GET', status);
-        res.send(status == 'found' ? 200 : 404);
-    });
+  flow.get(req, function(status, filename, original_filename, identifier) {
+    console.log('GET', status);
+    if (ACCESS_CONTROLL_ALLOW_ORIGIN) {
+      res.header("Access-Control-Allow-Origin", "*");
+    }
+
+    if (status == 'found') {
+      status = 200;
+    } else {
+      status = 404;
+    }
+
+    res.status(status).send();
+  });
 });
 
 app.get('/download/:identifier', function(req, res) {
-    flow.write(req.params.identifier, res);
+  flow.write(req.params.identifier, res);
 });
 
 app.listen(3000);
