@@ -1,5 +1,4 @@
-## Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.png)](https://travis-ci.org/flowjs/flow.js) [![Coverage Status](https://coveralls.io/repos/flowjs/flow.js/badge.png?branch=master)](https://coveralls.io/r/flowjs/flow.js?branch=master)
-
+# Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.png)](https://travis-ci.org/flowjs/flow.js) [![Coverage Status](https://coveralls.io/repos/flowjs/flow.js/badge.png?branch=master)](https://coveralls.io/r/flowjs/flow.js?branch=master)
 
 Flow.js is a JavaScript library providing multiple simultaneous, stable and resumable uploads via the HTML5 File API. 
 
@@ -9,7 +8,9 @@ Flow.js does not have any external dependencies other than the `HTML5 File API`.
 
 Samples and examples are available in the `samples/` folder. Please push your own as Markdown to help document the project.
 
-## Can i see a demo?
+## Whould you like to contribute? [View our development branch](https://github.com/flowjs/flow.js/tree/develop)
+
+## Can I see a demo?
 [Flow.js + angular.js file upload demo](http://flowjs.github.io/ng-flow/) - ng-flow extension page https://github.com/flowjs/ng-flow
 
 JQuery and node.js backend demo https://github.com/flowjs/flow.js/tree/master/samples/Node.js
@@ -20,41 +21,41 @@ Download a latest build from https://github.com/flowjs/flow.js/releases
 it contains development and minified production files in `dist/` folder.
 
 or use bower:
-
-        bower install flow.js#~2
-                
+```console
+bower install flow.js#~2
+```                
 or use git clone
-
-        git clone https://github.com/flowjs/flow.js
-
+```console
+git clone https://github.com/flowjs/flow.js
+```
 ## How can I use it?
 
 A new `Flow` object is created with information of what and where to post:
-
-    var flow = new Flow({
-      target:'/api/photo/redeem-upload-token', 
-      query:{upload_token:'my_token'}
-    });
-    // Flow.js isn't supported, fall back on a different method
-    if(!flow.support) location.href = '/some-old-crappy-uploader';
-  
+```javascript
+var flow = new Flow({
+  target:'/api/photo/redeem-upload-token', 
+  query:{upload_token:'my_token'}
+});
+// Flow.js isn't supported, fall back on a different method
+if(!flow.support) location.href = '/some-old-crappy-uploader';
+```
 To allow files to be either selected and drag-dropped, you'll assign drop target and a DOM item to be clicked for browsing:
-
-    flow.assignBrowse(document.getElementById('browseButton'));
-    flow.assignDrop(document.getElementById('dropTarget'));
-
+```javascript
+flow.assignBrowse(document.getElementById('browseButton'));
+flow.assignDrop(document.getElementById('dropTarget'));
+```
 After this, interaction with Flow.js is done by listening to events:
-
-    flow.on('fileAdded', function(file, event){
-       console.log(file, event);
-    });
-    flow.on('fileSuccess', function(file,message){
-        console.log(file,message);
-    });
-    flow.on('fileError', function(file, message){
-        console.log(file, message);
-    });
-
+```javascript
+flow.on('fileAdded', function(file, event){
+    console.log(file, event);
+});
+flow.on('fileSuccess', function(file,message){
+    console.log(file,message);
+});
+flow.on('fileError', function(file, message){
+    console.log(file, message);
+});
+```
 ## How do I set it up with my server?
 
 Most of the magic for Flow.js happens in the user's browser, but files still need to be reassembled from chunks on the server side. This should be a fairly simple task and can be achieved in any web framework or language, which is able to receive file uploads.
@@ -82,7 +83,8 @@ For every request, you can confirm reception in HTTP status codes (can be change
 Enabling the `testChunks` option will allow uploads to be resumed after browser restarts and even across browsers (in theory you could even run the same file upload across multiple tabs or different browsers).  The `POST` data requests listed are required to use Flow.js to receive data, but you can extend support by implementing a corresponding `GET` request with the same parameters:
 
 * If this request returns a `200` HTTP code, the chunks is assumed to have been completed.
-* If the request returns anything else, the chunk will be uploaded in the standard fashion.
+* If request returns a permanent error status, upload is stopped.
+* If request returns anything else, the chunk will be uploaded in the standard fashion.
 
 After this is done and `testChunks` enabled, an upload can quickly catch up even after a browser restart by simply verifying already uploaded chunks that do not need to be uploaded again.
 
@@ -92,9 +94,9 @@ After this is done and `testChunks` enabled, an upload can quickly catch up even
 #### Configuration
 
 The object is loaded with a configuration options:
-
-    var r = new Flow({opt1:'val', ...});
-    
+```javascript
+var r = new Flow({opt1:'val', ...});
+```
 Available configuration options are:
 
 * `target` The target URL for the multipart POST request. This can be a string or a function. If a
@@ -112,11 +114,13 @@ function, it will be passed a FlowFile, a FlowChunk and isTest boolean (Default:
  include cookies as part of the request, you need to set the `withCredentials` property to true.
 (Default: `false`)
 * `method` Method to use when POSTing chunks to the server (`multipart` or `octet`) (Default: `multipart`)
+* `testMethod` HTTP method to use when chunks are being tested. If set to a function, it will be passed a FlowFile and a FlowChunk arguments. (Default: `GET`)
+* `uploadMethod` HTTP method to use when chunks are being uploaded. If set to a function, it will be passed a FlowFile and a FlowChunk arguments. (Default: `GET`)
 * `prioritizeFirstAndLastChunk` Prioritize first and last chunks of all files. This can be handy if you can determine if a file is valid for your service from only the first or last chunk. For example, photo or video meta data is usually located in the first part of a file, making it easy to test support from only the first chunk. (Default: `false`)
 * `testChunks` Make a GET request to the server for each chunks to see if it already exists. If implemented on the server-side, this will allow for upload resumes even after a browser crash or even a computer restart. (Default: `true`)
 * `preprocess` Optional function to process each chunk before testing & sending. Function is passed the chunk as parameter, and should call the `preprocessFinished` method on the chunk when finished. (Default: `null`)
 * `generateUniqueIdentifier` Override the function that generates unique identifiers for each file.  (Default: `null`)
-* `maxChunkRetries` The maximum number of retries for a chunk before the upload is failed. Valid values are any positive integer and `undefined` for no limit. (Default: `undefined`)
+* `maxChunkRetries` The maximum number of retries for a chunk before the upload is failed. Valid values are any positive integer and `undefined` for no limit. (Default: `0`)
 * `chunkRetryInterval` The number of milliseconds to wait before retrying a chunk on a non-permanent error.  Valid values are any positive integer and `undefined` for immediate retry. (Default: `undefined`)
 * `progressCallbacksInterval` The time interval in milliseconds between progress reports. Set it
 to 0 to handle each progress callback. (Default: `500`)
@@ -124,6 +128,9 @@ to 0 to handle each progress callback. (Default: `500`)
 and average upload speed wil be equal to current upload speed. For longer file uploads it is
 better set this number to 0.02, because time remaining estimation will be more accurate. This
 parameter must be adjusted together with `progressCallbacksInterval` parameter. (Default 0.1)
+* `successStatuses` Response is success if response status is in this list (Default: `[200,201,
+202]`)
+* `permanentErrors` Response fails if response status is in this list (Default: `[404, 415, 500, 501]`)
 
 
 #### Properties
@@ -165,8 +172,10 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 
 #### Events
 
-* `.fileSuccess(file, message)` A specific file was completed. First argument `file` is instance of `FlowFile`, second argument `message` contains server response. Response is always a string.
-* `.fileProgress(file)` Uploading progressed for a specific file.
+* `.fileSuccess(file, message, chunk)` A specific file was completed. First argument `file` is instance of `FlowFile`, second argument `message` contains server response. Response is always a string. 
+Third argument `chunk` is instance of `FlowChunk`. You can get response status by accessing xhr 
+object `chunk.xhr.status`.
+* `.fileProgress(file, chunk)` Uploading progressed for a specific file.
 * `.fileAdded(file, event)` This event is used for file validation. To reject this file return false.
 This event is also called before file is added to upload queue,
 this means that calling `flow.upload()` function will not start current file upload.
@@ -174,12 +183,13 @@ Optionally, you can use the browser `event` object from when the file was
 added.
 * `.filesAdded(array, event)` Same as fileAdded, but used for multiple file validation.
 * `.filesSubmitted(array, event)` Can be used to start upload of currently added files.
-* `.fileRetry(file)` Something went wrong during upload of a specific file, uploading is being retried.
-* `.fileError(file, message)` An error occurred during upload of a specific file.
+* `.fileRetry(file, chunk)` Something went wrong during upload of a specific file, uploading is being 
+retried.
+* `.fileError(file, message, chunk)` An error occurred during upload of a specific file.
 * `.uploadStart()` Upload has been started on the Flow object.
 * `.complete()` Uploading completed.
 * `.progress()` Uploading progress.
-* `.error(message, file)` An error, including fileError, occurred.
+* `.error(message, file, chunk)` An error, including fileError, occurred.
 * `.catchAll(event, ...)` Listen to all the events listed above with the same callback function.
 
 ### FlowFile
@@ -224,28 +234,28 @@ To ensure consistency throughout the source code, keep these rules in mind as yo
 
 ## Installation Dependencies
 1. To clone your Github repository, run:
-
-        git clone git@github.com:<github username>/flow.js.git
-
+```console
+git clone git@github.com:<github username>/flow.js.git
+```
 2. To go to the Flow.js directory, run:
-
-        cd flow.js
-
+```console
+cd flow.js
+```
 3. To add node.js dependencies
-
-        npm install
-
+```console
+npm install
+```
 ## Testing
 
 Our unit and integration tests are written with Jasmine and executed with Karma. To run all of the
 tests on Chrome run:
-
-    grunt karma:watch
-
+```console
+grunt karma:watch
+```
 Or choose other browser
-
-    grunt karma:watch --browsers=Firefox,Chrome
-
+```console
+grunt karma:watch --browsers=Firefox,Chrome
+```
 Browsers should be comma separated and case sensitive.
 
 To re-run tests just change any source or test file.

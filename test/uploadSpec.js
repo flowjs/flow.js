@@ -211,13 +211,15 @@ describe('upload file', function() {
     flow.addFile(new Blob(['12']));
     var file = flow.files[0];
     expect(file.chunks.length).toBe(2);
-    expect(file.chunks[0].status()).toBe('pending');
-    expect(file.chunks[1].status()).toBe('pending');
+    var firstChunk = file.chunks[0];
+    var secondChunk = file.chunks[1];
+    expect(firstChunk.status()).toBe('pending');
+    expect(secondChunk.status()).toBe('pending');
 
     flow.upload();
     expect(requests.length).toBe(1);
-    expect(file.chunks[0].status()).toBe('uploading');
-    expect(file.chunks[1].status()).toBe('pending');
+    expect(firstChunk.status()).toBe('uploading');
+    expect(secondChunk.status()).toBe('pending');
 
     expect(error).not.toHaveBeenCalled();
     expect(progress).not.toHaveBeenCalled();
@@ -226,8 +228,8 @@ describe('upload file', function() {
 
     requests[0].respond(400);
     expect(requests.length).toBe(2);
-    expect(file.chunks[0].status()).toBe('uploading');
-    expect(file.chunks[1].status()).toBe('pending');
+    expect(firstChunk.status()).toBe('uploading');
+    expect(secondChunk.status()).toBe('pending');
 
     expect(error).not.toHaveBeenCalled();
     expect(progress).not.toHaveBeenCalled();
@@ -236,8 +238,8 @@ describe('upload file', function() {
 
     requests[1].respond(200);
     expect(requests.length).toBe(3);
-    expect(file.chunks[0].status()).toBe('success');
-    expect(file.chunks[1].status()).toBe('uploading');
+    expect(firstChunk.status()).toBe('success');
+    expect(secondChunk.status()).toBe('uploading');
 
     expect(error).not.toHaveBeenCalled();
     expect(progress.callCount).toBe(1);
@@ -246,8 +248,8 @@ describe('upload file', function() {
 
     requests[2].respond(400);
     expect(requests.length).toBe(4);
-    expect(file.chunks[0].status()).toBe('success');
-    expect(file.chunks[1].status()).toBe('uploading');
+    expect(firstChunk.status()).toBe('success');
+    expect(secondChunk.status()).toBe('uploading');
 
     expect(error).not.toHaveBeenCalled();
     expect(progress.callCount).toBe(1);
@@ -259,7 +261,7 @@ describe('upload file', function() {
     expect(file.chunks.length).toBe(0);
 
     expect(error.callCount).toBe(1);
-    expect(error).toHaveBeenCalledWith(file, 'Err');
+    expect(error).toHaveBeenCalledWith(file, 'Err', secondChunk);
     expect(progress.callCount).toBe(1);
     expect(success).not.toHaveBeenCalled();
     expect(retry.callCount).toBe(2);
@@ -329,6 +331,30 @@ describe('upload file', function() {
     expect(success).not.toHaveBeenCalled();
   });
 
+  it('should fail on permanent test error', function () {
+    flow.opts.testChunks = true;
+    flow.opts.chunkSize = 1;
+    flow.opts.simultaneousUploads = 2;
+    flow.opts.maxChunkRetries = 1;
+    flow.opts.permanentErrors = [500];
+
+    var error = jasmine.createSpy('error');
+    var success = jasmine.createSpy('success');
+    var retry = jasmine.createSpy('retry');
+    flow.on('fileError', error);
+    flow.on('fileSuccess', success);
+    flow.on('fileRetry', retry);
+
+    flow.addFile(new Blob(['abc']));
+    flow.upload();
+    expect(requests.length).toBe(2);
+    requests[0].respond(500);
+    expect(requests.length).toBe(2);
+    expect(error).toHaveBeenCalled();
+    expect(retry).not.toHaveBeenCalled();
+    expect(success).not.toHaveBeenCalled();
+  });
+
   it('should upload empty file', function () {
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
@@ -384,11 +410,9 @@ describe('upload file', function() {
     file.chunks[0].preprocessFinished();
     expect(requests.length).toBe(1);
     requests[0].respond(200, [], "response");
-    expect(success).wasCalledWith(file, "response");
+    expect(success).wasCalledWith(file, "response", file.chunks[0]);
     expect(error).not.toHaveBeenCalled();
   });
-
-
 
   it('should preprocess chunks and wait for preprocess to finish', function () {
     flow.opts.simultaneousUploads = 1;
@@ -405,6 +429,16 @@ describe('upload file', function() {
 
     flow.upload();
     expect(preprocess).wasNotCalledWith(secondFile.chunks[0]);
+  });
+
+  it('should set chunk as a third event parameter', function () {
+    var success = jasmine.createSpy('success');
+    flow.on('fileSuccess', success);
+    flow.addFile(new Blob(['abc']));
+    var file = flow.files[0];
+    flow.upload();
+    requests[0].respond(200, [], "response");
+    expect(success).wasCalledWith(file, "response", file.chunks[0]);
   });
 
   it('should have upload speed', function() {
