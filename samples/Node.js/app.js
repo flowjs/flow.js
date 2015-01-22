@@ -4,6 +4,7 @@ var express = require('express');
 var multipart = require('connect-multiparty');
 var multipartMiddleware = multipart();
 var flow = require('./flow-node.js')('tmp');
+var fs = require('fs');
 var app = express();
 
 // Configure access control allow origin header stuff
@@ -17,6 +18,9 @@ app.use(express.static(__dirname + '/../../src'));
 app.post('/upload', multipartMiddleware, function(req, res) {
   flow.post(req, function(status, filename, original_filename, identifier) {
     console.log('POST', status, original_filename, identifier);
+    // Assemble Chunks
+    var stream = fs.createWriteStream('uploads/' + filename);
+    flow.write(identifier, stream);
     if (ACCESS_CONTROLL_ALLOW_ORIGIN) {
       res.header("Access-Control-Allow-Origin", "*");
     }
