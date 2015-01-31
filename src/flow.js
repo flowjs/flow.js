@@ -199,7 +199,7 @@
       if (this.events.hasOwnProperty(event)) {
         each(this.events[event], function (callback) {
           preventDefault = callback.apply(this, args.slice(1)) === false || preventDefault;
-        });
+        }, this);
       }
       if (event != 'catchall') {
         args.unshift('catchAll');

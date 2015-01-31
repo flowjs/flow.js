@@ -17,6 +17,15 @@ describe('events', function() {
     expect(valid).toBeTruthy();
   });
 
+  it('should have a context of flow instance', function() {
+    var context = null;
+    flow.on('test', function () {
+      context = this;
+    });
+    flow.fire('test');
+    expect(context).toEqual(flow);
+  });
+
   it('should pass some arguments', function() {
     var valid = false;
     var argumentOne = 123;
