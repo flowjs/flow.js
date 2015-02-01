@@ -22,6 +22,8 @@ app.post('/upload', multipartMiddleware, function(req, res) {
       // Assemble Chunks
       var stream = fs.createWriteStream('uploads/' + filename);
       flow.write(identifier, stream);
+      // Clean chunks after the file is assembled
+      flow.clean(identifier);
     }
     if (ACCESS_CONTROLL_ALLOW_ORIGIN) {
       res.header("Access-Control-Allow-Origin", "*");
