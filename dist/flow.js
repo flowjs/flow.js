@@ -2,7 +2,8 @@
  * @license MIT
  */
 (function(window, document, undefined) {'use strict';
-
+  // ie10+
+  var ie10plus = window.navigator.msPointerEnabled;
   /**
    * Flow.js is a library providing multiple simultaneous, stable and
    * resumable uploads via the HTML5 File API.
@@ -198,7 +199,7 @@
       if (this.events.hasOwnProperty(event)) {
         each(this.events[event], function (callback) {
           preventDefault = callback.apply(this, args.slice(1)) === false || preventDefault;
-        });
+        }, this);
       }
       if (event != 'catchall') {
         args.unshift('catchAll');
@@ -562,9 +563,11 @@
     addFiles: function (fileList, event) {
       var files = [];
       each(fileList, function (file) {
+        // Uploading empty file IE10/IE11 hangs indefinitely
+        // see https://connect.microsoft.com/IE/feedback/details/813443/uploading-empty-file-ie10-ie11-hangs-indefinitely
         // Directories have size `0` and name `.`
         // Ignore already added files
-        if (!(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.')) &&
+        if ((!ie10plus || ie10plus && file.size > 0) && !(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.')) &&
           !this.getFromUniqueIdentifier(this.generateUniqueIdentifier(file))) {
           var f = new FlowFile(this, file);
           if (this.fire('fileAdded', f, event)) {
@@ -1532,7 +1535,7 @@
    * Library version
    * @type {string}
    */
-  Flow.version = '2.8.0';
+  Flow.version = '2.9.0';
 
   if ( typeof module === "object" && module && typeof module.exports === "object" ) {
     // Expose Flow as module.exports in loaders that implement the Node
