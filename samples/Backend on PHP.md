@@ -1,6 +1,8 @@
-# Sample server implementation in PHP
+# Flow.js server implementation in PHP
 
-Take a look at flow.js php library https://github.com/flowjs/flow-php-server.
+
+## This example is deprecated, you should consider using the following library -  https://github.com/flowjs/flow-php-server.
+
 
 [Chris Gregory](http://online-php.com) has provided this sample implementation for PHP. 
 
