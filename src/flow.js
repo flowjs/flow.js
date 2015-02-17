@@ -29,6 +29,7 @@
    * @param {number} [opts.chunkRetryInterval]
    * @param {Array.<number>} [opts.permanentErrors]
    * @param {Array.<number>} [opts.successStatuses]
+   * @param {Function} [opts.read]
    * @param {Function} [opts.generateUniqueIdentifier]
    * @constructor
    */
@@ -91,9 +92,10 @@
       chunkRetryInterval: null,
       permanentErrors: [404, 415, 500, 501],
       successStatuses: [200, 201, 202],
-      onDropStopPropagation: false
+      onDropStopPropagation: false,
+      read: webAPIFileRead,
     };
-
+    
     /**
      * Current options
      * @type {Object}
@@ -144,6 +146,12 @@
      * @type {Object}
      */
     this.opts = Flow.extend({}, this.defaults, opts || {});
+
+    if (!this.opts.fileFactory.supportsPrioritizeFirstAndLastChunk &&
+        this.defaults.prioritizeFirstAndLastChunk) {
+      throw Error("Cannot use prioritizeFirstAndLastChunk and with this fileFactory.");
+    }
+
   }
 
   Flow.prototype = {
@@ -697,6 +705,12 @@
      * @type {Flow}
      */
     this.flowObj = flowObj;
+    
+    /**
+     * Used to store the bytes read
+     * @type {Blob|string}
+     */
+    this.bytes = null;
 
     /**
      * Reference to file
@@ -714,7 +728,7 @@
      * File size
      * @type {number}
      */
-    this.size = file.size;
+    this.size = this.fileProxy.size;
 
     /**
      * Relative file path
@@ -912,7 +926,7 @@
       this._prevProgress = 0;
       var round = this.flowObj.opts.forceChunkSize ? Math.ceil : Math.floor;
       var chunks = Math.max(
-        round(this.file.size / this.flowObj.opts.chunkSize), 1
+        round(this.size / this.flowObj.opts.chunkSize), 1
       );
       for (var offset = 0; offset < chunks; offset++) {
         this.chunks.push(
@@ -971,7 +985,7 @@
       var outstanding = false;
       each(this.chunks, function (chunk) {
         var status = chunk.status();
-        if (status === 'pending' || status === 'uploading' || chunk.preprocessState === 1) {
+        if (status === 'pending' || status === 'uploading' || status === 'reading' || chunk.preprocessState === 1 || chunk.readState === 1) {
           outstanding = true;
           return false;
         }
@@ -1021,21 +1035,21 @@
       return this.file.type && this.file.type.split('/')[1];
     },
 
-    /**
-     * Get file extension
-     * @function
-     * @returns {string}
-     */
-    getExtension: function () {
-      return this.name.substr((~-this.name.lastIndexOf(".") >>> 0) + 2).toLowerCase();
-    }
   };
 
-
-
-
-
-
+  /**
+   * Default read function using the webAPI
+   *
+   * @function webAPIFileRead(chunk, startByte, endByte, fileType)
+   *
+   */
+  function webAPIFileRead(chunk, startByte, endByte, fileType) {
+    var function_name = (chunk.fileObj.file.slice ? 'slice' :
+      (chunk.fileObj.file.mozSlice ? 'mozSlice' :
+        (chunk.fileObj.file.webkitSlice ? 'webkitSlice' :
+          'slice')));
+    chunk.readFinished(chunk.fileObj.file[function_name](startByte, endByte, fileType));
+  }
 
 
   /**
@@ -1059,12 +1073,6 @@
      * @type {FlowFile}
      */
     this.fileObj = fileObj;
-
-    /**
-     * File size
-     * @type {number}
-     */
-    this.fileObjSize = fileObj.size;
 
     /**
      * File offset
@@ -1097,6 +1105,13 @@
     this.preprocessState = 0;
 
     /**
+     * Read state
+     * @type {number} 0 = not read, 1 = reading, 2 = finished
+     */
+    this.readState = 0;
+
+
+    /**
      * Bytes transferred from total request size
      * @type {number}
      */
@@ -1124,20 +1139,15 @@
      * Chunk end byte in a file
      * @type {number}
      */
-    this.endByte = Math.min(this.fileObjSize, (this.offset + 1) * chunkSize);
+    this.endByte = Math.min(this.fileObj.size, (this.offset + 1) * chunkSize);
+
+    this.data = null;
 
     /**
      * XMLHttpRequest
      * @type {XMLHttpRequest}
      */
     this.xhr = null;
-
-    if (this.fileObjSize - this.endByte < chunkSize &&
-        !this.flowObj.opts.forceChunkSize) {
-      // The last chunk will be bigger than the chunk size,
-      // but less than 2*chunkSize
-      this.endByte = this.fileObjSize;
-    }
 
     var $ = this;
 
@@ -1192,6 +1202,7 @@
     this.doneHandler = function(event) {
       var status = $.status();
       if (status === 'success' || status === 'error') {
+        delete this.data;
         $.event(status, $.message());
         $.flowObj.uploadNextChunk();
       } else {
@@ -1221,7 +1232,7 @@
         flowChunkNumber: this.offset + 1,
         flowChunkSize: this.flowObj.opts.chunkSize,
         flowCurrentChunkSize: this.endByte - this.startByte,
-        flowTotalSize: this.fileObjSize,
+        flowTotalSize: this.fileObj.size,
         flowIdentifier: this.fileObj.uniqueIdentifier,
         flowFilename: this.fileObj.name,
         flowRelativePath: this.fileObj.relativePath,
@@ -1264,21 +1275,52 @@
      * @function
      */
     preprocessFinished: function () {
+      // Compute the endByte after the preprocess function to allow an
+      // implementer of preprocess to set the fileObj size
+      this.endByte = Math.min(this.fileObj.size, (this.offset + 1) * chunkSize);
+      if (this.fileObj.size - this.endByte < chunkSize &&
+          !this.flowObj.opts.forceChunkSize) {
+        // The last chunk will be bigger than the chunk size,
+        // but less than 2*chunkSize
+        this.endByte = this.fileObj.size;
+      }
       this.preprocessState = 2;
       this.send();
     },
+
+    /**
+     * Finish read state
+     * @function
+     */
+    readFinished: function (bytes) {
+      this.readState = 2;
+      this.bytes = bytes;
+      this.send();
+    },
+
 
     /**
      * Uploads the actual data in a POST call
      * @function
      */
     send: function () {
-      var preprocess = this.flowObj.opts.preprocess;
+      var preprocess = this.flowObj.opts.preprocess,
+        read = this.flowObj.opts.read;
       if (typeof preprocess === 'function') {
         switch (this.preprocessState) {
           case 0:
             this.preprocessState = 1;
             preprocess(this);
+            return;
+          case 1:
+            return;
+        }
+      }
+      if (typeof this.read === 'function') {
+        switch (this.readState) {
+          case 0:
+            this.readState = 1;
+            read(this, this.startByte, this.endByte, this.fileType);
             return;
           case 1:
             return;
@@ -1293,12 +1335,6 @@
       this.total = 0;
       this.pendingRetry = false;
 
-      var func = (this.fileObj.file.slice ? 'slice' :
-        (this.fileObj.file.mozSlice ? 'mozSlice' :
-          (this.fileObj.file.webkitSlice ? 'webkitSlice' :
-            'slice')));
-      var bytes = this.fileObj.file[func](this.startByte, this.endByte, this.fileObj.file.type);
-
       // Set up request and listen for event
       this.xhr = new XMLHttpRequest();
       this.xhr.upload.addEventListener('progress', this.progressHandler, false);
@@ -1306,7 +1342,7 @@
       this.xhr.addEventListener("error", this.doneHandler, false);
 
       var uploadMethod = evalOpts(this.flowObj.opts.uploadMethod, this.fileObj, this);
-      var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, bytes);
+      var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, this.bytes);
       this.xhr.send(data);
     },
 
@@ -1329,7 +1365,9 @@
      * @returns {string} 'pending', 'uploading', 'success', 'error'
      */
     status: function (isTest) {
-      if (this.pendingRetry || this.preprocessState === 1) {
+      if (this.readState === 1) {
+        return 'reading';
+      } else if (this.pendingRetry || this.preprocessState === 1) {
         // if pending retry then that's effectively the same as actively uploading,
         // there might just be a slight delay before the retry starts
         return 'uploading';
