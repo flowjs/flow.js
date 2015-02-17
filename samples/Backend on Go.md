@@ -1,5 +1,10 @@
 # Backend in Go
 
+## Libraries
+ * http://godoc.org/github.com/patdek/gongflow
+ * https://github.com/stuartnelson3/golang-flowjs-upload
+
+## Exmaple 
 1. A `GET` request is sent to see if a chunk exists on disk. If it isn't found, the chunk is uploaded.
 2. Each `POST` request is parsed and then saved to disk.
 3. After the final chunk is uploaded, the chunks are stitched together in a separate go routine.
