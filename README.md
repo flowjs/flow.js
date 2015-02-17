@@ -1,4 +1,4 @@
-# Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.png)](https://travis-ci.org/flowjs/flow.js) [![Coverage Status](https://coveralls.io/repos/flowjs/flow.js/badge.png?branch=master)](https://coveralls.io/r/flowjs/flow.js?branch=master)
+# Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.png)](https://travis-ci.org/flowjs/flow.js) [![Coverage Status](https://coveralls.io/repos/flowjs/flow.js/badge.png?branch=master)](https://coveralls.io/r/flowjs/flow.js?branch=master) [![Inline docs](http://inch-ci.org/github/flowjs/flow.js.svg?branch=master)](http://inch-ci.org/github/flowjs/flow.js)
 
 Flow.js is a JavaScript library providing multiple simultaneous, stable and resumable uploads via the HTML5 File API. 
 
