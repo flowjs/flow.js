@@ -34,4 +34,5 @@ describe('FlowFile functions', function() {
     file.name = '.dwq.dq.wd.qdw.E';
     expect(file.getExtension()).toBe('e');
   });
+
 });
