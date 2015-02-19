@@ -4,7 +4,6 @@ so please contribute. All crazy ideas are welcome!
 
 Feature list:
 
-  * Batch uploads (can upload many files in one request)
   * Chunk uploads (Chunk size depends on connection speed)
   * Preprocessing (Zip, Resize, ...)
   * Client side validation (Invalid extension, ...)
@@ -12,8 +11,8 @@ Feature list:
   * Fault tolerance (Checksum validation, Retry on server crash, ...)
   * Pause, Resume, Avg. file speed calculation, Progress
   * (Optional, for later) Files balancing and uploading to multiple targets(servers) at once.
-
-Read more at our [General discussion](https://github.com/flowjs/flow.js/issues/4)
+  * Server side api should be simple and easy to adapt with any other client side language
+  * ~~Batch uploads (can upload many files in one request)~~ useless, adds lots of compexity without any benefits
 
 ## Flow.js
 
@@ -48,6 +47,10 @@ To ensure consistency throughout the source code, keep these rules in mind as yo
 3. To add node.js dependencies
 
         npm install
+
+## Build
+ 
+    grunt build
 
 ## Testing
 
