@@ -145,11 +145,6 @@
      */
     this.opts = Flow.extend({}, this.defaults, opts || {});
 
-    if (!this.opts.fileFactory.supportsPrioritizeFirstAndLastChunk &&
-        this.defaults.prioritizeFirstAndLastChunk) {
-      throw Error("Cannot use prioritizeFirstAndLastChunk and with this fileFactory.");
-    }
-
   }
 
   Flow.prototype = {
