@@ -723,7 +723,7 @@
      * File size
      * @type {number}
      */
-    this.size = this.fileProxy.size;
+    this.size = file.size;
 
     /**
      * Relative file path
@@ -1122,19 +1122,19 @@
      * Size of a chunk
      * @type {number}
      */
-    var chunkSize = this.flowObj.opts.chunkSize;
+    this.chunkSize = this.flowObj.opts.chunkSize;
 
     /**
      * Chunk start byte in a file
      * @type {number}
      */
-    this.startByte = this.offset * chunkSize;
+    this.startByte = this.offset * this.chunkSize;
 
     /**
      * Chunk end byte in a file
      * @type {number}
      */
-    this.endByte = Math.min(this.fileObj.size, (this.offset + 1) * chunkSize);
+    this.endByte = Math.min(this.fileObj.size, (this.offset + 1) * this.chunkSize);
 
     this.data = null;
 
@@ -1272,11 +1272,11 @@
     preprocessFinished: function () {
       // Compute the endByte after the preprocess function to allow an
       // implementer of preprocess to set the fileObj size
-      this.endByte = Math.min(this.fileObj.size, (this.offset + 1) * chunkSize);
-      if (this.fileObj.size - this.endByte < chunkSize &&
+      this.endByte = Math.min(this.fileObj.size, (this.offset + 1) * this.chunkSize);
+      if (this.fileObj.size - this.endByte < this.chunkSize &&
           !this.flowObj.opts.forceChunkSize) {
         // The last chunk will be bigger than the chunk size,
-        // but less than 2*chunkSize
+        // but less than 2*this.chunkSize
         this.endByte = this.fileObj.size;
       }
       this.preprocessState = 2;
