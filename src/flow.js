@@ -1311,7 +1311,7 @@
             return;
         }
       }
-      if (typeof this.read === 'function') {
+      if (typeof read === 'function') {
         switch (this.readState) {
           case 0:
             this.readState = 1;
