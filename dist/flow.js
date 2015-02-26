@@ -1279,6 +1279,8 @@
      */
     readFinished: function (bytes) {
       this.readState = 2;
+      console.log(bytes);
+      console.log("Finished read");
       this.bytes = bytes;
       this.send();
     },
@@ -1301,7 +1303,7 @@
             return;
         }
       }
-      if (typeof this.read === 'function') {
+      if (typeof read === 'function') {
         switch (this.readState) {
           case 0:
             this.readState = 1;
@@ -1431,6 +1433,8 @@
      * @returns {FormData|Blob|Null} data to send
      */
     prepareXhrRequest: function(method, isTest, paramsMethod, blob) {
+      console.log("Preparing XHR request");
+      console.log(blob);
       // Add data from the query options
       var query = evalOpts(this.flowObj.opts.query, this.fileObj, this, isTest);
       query = extend(this.getParams(), query);
