@@ -1030,6 +1030,14 @@
       return this.file.type && this.file.type.split('/')[1];
     },
 
+    /**
+     * Get file extension
+     * @function
+     * @returns {string}
+     */
+    getExtension: function () {
+      return this.name.substr((~-this.name.lastIndexOf(".") >>> 0) + 2).toLowerCase();
+    }
   };
 
   /**
