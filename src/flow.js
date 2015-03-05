@@ -160,6 +160,7 @@
         this.events[event] = [];
       }
       this.events[event].push(callback);
+      return this;
     },
 
     /**
@@ -181,6 +182,7 @@
       } else {
         this.events = {};
       }
+      return this;
     },
 
     /**
