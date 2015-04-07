@@ -63,11 +63,6 @@
     this.files = [];
 
     /**
-     * all parsedFiles hashMap
-     * @type {HashMap}
-     */
-    // this._parsedFilesHashMap = new HashMap();
-    /**
      * List of FlowFile|FlowFolder objects
      * @type {Array.<FlowFile|FlowFolder>}
      */
@@ -637,7 +632,6 @@
      * @return {Array} parsedFiles
      */
     getParsedFiles: function(hashMap) {
-      // var parsedFilesHashMap = this._parsedFilesHashMap;
       var parsedFiles = [];
       var f;
       each(hashMap.items, function(k) {
@@ -646,7 +640,6 @@
           // is a folder
           f = new FlowFolder(this, f, k);
         }
-        // parsedFilesHashMap.setItem(k, f);
         parsedFiles.push(f);
       }, this);
       return parsedFiles;
@@ -683,7 +676,6 @@
           this.parsedFiles.splice(i, 1);
         }
       }
-      // this._parsedFilesHashMap.removeItem(file);
     },
 
     /**
