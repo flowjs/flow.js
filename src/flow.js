@@ -101,31 +101,16 @@
       permanentErrors: [404, 415, 500, 501],
       successStatuses: [200, 201, 202],
       onDropStopPropagation: false,
-      getFolderTarget: function(paths, flowFolderObj, callback) {
+      getFolderPathsInfo: function(paths, folderObj, callback) {
         /**
          * paths: ['a/', 'a/b/']
-         * should be async
-         * and the parameter must be like this:
+         * the callback's parameter will be like this:
          {
-            'a/': 'entryId or some other things',
-            'a/b/': 'entryId or some other things'
+            'a/': entryId or some other things,
+            'a/b/': entryId or some other things
          }
          */
         callback({})
-      },
-      parseTarget: function(target, fileObj) {
-        /**
-         * fileObj.flowFolderObj will be an object if fileObj.file is in a folder.
-         * and the fileObj.flowFolderObj.pathsInfo will be:
-         pathsInfo => {
-          'a/': 'entryId1',
-          'a/b/': 'entryId2',
-          'a/b/c/': 'entryId3',
-          'a/c/': 'entryId4'
-         }
-         * so the real target may be like this: `target + pathsInfo[fileObj.path]`
-         */
-        return target;
       }
     };
 
@@ -229,8 +214,25 @@
      * returned false. Otherwise it returns true.
      */
     fire: function (event, args) {
+      var args = Array.prototype.slice.call(arguments);
+      args.unshift(true);
+      return this._fire.apply(this, args);
+    },
+
+    /**
+     * Fire an event
+     * @function
+     * @param {Boolean} catchall or not
+     * @param {string} event event name
+     * @param {...} args arguments of a callback
+     * @return {bool} value is false if at least one of the event handlers which handled this event
+     * returned false. Otherwise it returns true.
+     * @private
+     */
+    _fire: function (catchall, event, args) {
       // `arguments` is an object, not array, in FF, so:
       args = Array.prototype.slice.call(arguments);
+      args.shift();
       event = event.toLowerCase();
       var preventDefault = false;
       if (this.events.hasOwnProperty(event)) {
@@ -238,7 +240,7 @@
           preventDefault = callback.apply(this, args.slice(1)) === false || preventDefault;
         }, this);
       }
-      if (event != 'catchall') {
+      if (catchall && event != 'catchall') {
         args.unshift('catchAll');
         preventDefault = this.fire.apply(this, args) === false || preventDefault;
       }
@@ -659,9 +661,9 @@
       for (var i = this.files.length - 1; i >= 0; i--) {
         if (this.files[i] === file) {
           this.files.splice(i, 1);
-          if (file.flowFolderObj) {
-            // remove file from flowFolderObj.files
-            file.flowFolderObj.removeFile(file);
+          if (file.folderObj) {
+            // remove file from folderObj.files
+            file.folderObj.removeFile(file);
           } else {
             file.abort();
           }
@@ -878,14 +880,14 @@
   };
 
   // get all flowFiles in hashmap
-  function getFlowFilesByHM(hashmap, flowFolderObj, ret) {
+  function getFlowFilesByHM(hashmap, folderObj, ret) {
     each(hashmap.items, function(k) {
       var v = hashmap.getItem(k);
       if (v.constructor == HashMap) {
-        getFlowFilesByHM(v, flowFolderObj, ret);
+        getFlowFilesByHM(v, folderObj, ret);
       } else {
         // in a folder
-        flowFolderObj && (v.flowFolderObj = flowFolderObj);
+        folderObj && (v.folderObj = folderObj);
         ret.push(v);
       }
     });
@@ -953,7 +955,10 @@
     var $ = this;
     var inited = false;
 
-    this.flowObj.opts.getFolderTarget(allPaths, this, function(data) {
+    this.waiting = true;
+
+    // getFolderPathsInfo
+    this.flowObj.opts.getFolderPathsInfo(allPaths, this, function(data) {
       if (!inited) {
         inited = true;
         init();
@@ -961,12 +966,12 @@
 
       $.setPathsInfo(data);
 
-      var parseTarget = $.flowObj.opts.parseTarget;
-      $.files.forEach(function(flowFile) {
-        flowFile.target = parseTarget(flowFile.flowObj.opts.target, flowFile);
-        // upload now
-        flowFile.resume();
-      });
+      $.waiting = false;
+
+      // upload now
+      $.resume();
+
+      $.flowObj._fire(false, '_gotPathsInfo', $);
       
     });
 
@@ -984,7 +989,7 @@
       getFlowFilesByHM(hashMap, $, $.files);
 
       // pause for now
-      // because we will fix the flowFile's target
+      // because getFolderPathsInfo may be async
       $.pause(true);
     }
 
@@ -1262,7 +1267,7 @@
      * Reference to parent FlowFolder instance
      * @type {FlowFolder}
      */
-    this.flowFolderObj = null;
+    this.folderObj = null;
 
     /**
      * Reference to file
@@ -1287,6 +1292,12 @@
      * @type {string}
      */
     this.relativePath = file.relativePath || file.webkitRelativePath || this.name;
+
+    /**
+     * File path, it will be rewrited if the file is in a folder.
+     * @type {string}
+     */
+    this.path = '';
 
     /**
      * File unique identifier
@@ -1351,8 +1362,6 @@
      */
     this._prevProgress = 0;
 
-    this.target = this.flowObj.opts.parseTarget(this.flowObj.opts.target, this);
-
     this.bootstrap();
   }
 
@@ -1383,8 +1392,8 @@
       this.currentSpeed = Math.max((uploaded - this._prevUploadedSize) / timeSpan * 1000, 0);
       this.averageSpeed = smoothingFactor * this.currentSpeed + (1 - smoothingFactor) * this.averageSpeed;
       this._prevUploadedSize = uploaded;
-      if (this.flowFolderObj) {
-        this.flowFolderObj.measureSpeed();
+      if (this.folderObj) {
+        this.folderObj.measureSpeed();
       }
     },
 
@@ -1459,6 +1468,9 @@
     resume: function() {
       this.paused = false;
       if (this.started) {
+        if (this.folderObj && this.folderObj.waiting) {
+          return;
+        }
         this.flowObj.upload();
       }
     },
@@ -1470,6 +1482,7 @@
     abort: function (reset) {
       this.currentSpeed = 0;
       this.averageSpeed = 0;
+      this.started = false;
       var chunks = this.chunks;
       if (reset) {
         this.chunks = [];
@@ -1870,7 +1883,7 @@
      */
     test: function () {
       // Set up request and listen for event
-      this.xhr = new XMLHttpRequest();
+      if (!this.xhr) this.xhr = new XMLHttpRequest();
       this.xhr.addEventListener("load", this.testHandler, false);
       this.xhr.addEventListener("error", this.testHandler, false);
       var testMethod = evalOpts(this.flowObj.opts.testMethod, this.fileObj, this);
@@ -1892,8 +1905,24 @@
      * @function
      */
     send: function () {
-      var preprocess = this.flowObj.opts.preprocess;
       this.fileObj.started = true;
+      var $ = this;
+      var folderObj = this.fileObj.folderObj;
+      if (folderObj && folderObj.waiting) {
+        this.xhr = new XMLHttpRequest();
+        this.flowObj.on('_gotPathsInfo', function(_folderObj) {
+          if (_folderObj === folderObj) {
+            $._doSend();
+          }
+        });
+        return;
+      }
+
+      this._doSend();  
+    },
+
+    _doSend: function () {
+      var preprocess = this.flowObj.opts.preprocess;
       if (typeof preprocess === 'function') {
         switch (this.preprocessState) {
           case 0:
@@ -1920,7 +1949,7 @@
       var bytes = this.fileObj.file[func](this.startByte, this.endByte, this.fileObj.file.type);
 
       // Set up request and listen for event
-      this.xhr = new XMLHttpRequest();
+      if (!this.xhr) this.xhr = new XMLHttpRequest();
       this.xhr.upload.addEventListener('progress', this.progressHandler, false);
       this.xhr.addEventListener("load", this.doneHandler, false);
       this.xhr.addEventListener("error", this.doneHandler, false);

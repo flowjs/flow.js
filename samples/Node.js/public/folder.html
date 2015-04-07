@@ -49,25 +49,38 @@
         (function () {
           var showed = false;
           var r = new Flow({
-            target: '/upload',
+            target: function(fileObj) {
+              if (fileObj.folderObj) {
+                // in a folder
+                // the target may be : '/upload/' + fileObj.folderObj.pathsInfo[fileObj.path]
+                !showed && console.log('pathsInfo', fileObj.folderObj.pathsInfo);
+                showed = true;
+              }
+              return '/upload';
+            },
+            query: function(fileObj) {
+              if (fileObj.folderObj) {
+                // in a folder
+                // we may be need to add the `parentId`
+                //    pathsInfo: see getPathsInfo
+                return {
+                  'parentId': fileObj.folderObj.pathsInfo[fileObj.path]
+                };
+              }
+              return {};
+            },
             chunkSize: 1024*1024,
             testChunks: false,
-            getFolderTarget: function(paths, flowFolderObj, callback) {
+            getFolderPathsInfo: function(paths, folderObj, callback) {
               console.log('allPaths', paths);
               setTimeout(function() {
+                console.log('got');
                 var ret = {};
                 paths.forEach(function(path) {
                   ret[path] = ~~(Math.random() * 100);
                 });
                 callback(ret)
-              }, 100);
-            },
-            parseTarget: function(target, fileObj) {
-              if (fileObj.flowFolderObj) {
-                !showed && console.log('pathsInfo', fileObj.flowFolderObj.pathsInfo);
-                showed = true;
-              }
-              return target;
+              }, 500);
             }
           });
           // Flow.js isn't supported, fall back on a different method
@@ -137,9 +150,9 @@
             $('.flow-progress .progress-resume-link, .flow-progress .progress-pause-link').hide();
           });
           r.on('fileSuccess', function(file,message){
-            if (file.flowFolderObj) {
-              if (file.flowFolderObj.isComplete()) {
-                file = file.flowFolderObj;
+            if (file.folderObj) {
+              if (file.folderObj.isComplete()) {
+                file = file.folderObj;
               } else {
                 return;
               }
@@ -151,9 +164,9 @@
             $self.find('.flow-file-download').attr('href', '/download/' + file.__id__).show();
           });
           r.on('fileError', function(file, message){
-            if (file.flowFolderObj) {
-              if (file.flowFolderObj.hasError()) {
-                file = file.flowFolderObj;
+            if (file.folderObj) {
+              if (file.folderObj.hasError()) {
+                file = file.folderObj;
               } else {
                 return;
               }
@@ -162,8 +175,8 @@
             $('.flow-file-'+file.__id__+' .flow-file-progress').html('(file could not be uploaded: '+message+')');
           });
           r.on('fileProgress', function(file){
-            if (file.flowFolderObj) {
-              file = file.flowFolderObj;
+            if (file.folderObj) {
+              file = file.folderObj;
             }
             // Handle progress for both the file and the overall upload
             $('.flow-file-'+file.__id__+' .flow-file-progress')

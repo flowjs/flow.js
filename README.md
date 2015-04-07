@@ -131,7 +131,7 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 * `successStatuses` Response is success if response status is in this list (Default: `[200,201,
 202]`)
 * `permanentErrors` Response fails if response status is in this list (Default: `[404, 415, 500, 501]`)
-
+* `getFolderPathsInfo` function to get all files paths's info. It will be passed a paths array, a FlowFolder object and a callback function.And the callback function should be passed an Object(`{"a/": entryId or some other things, "a/c/": entryId or some other things}`) as parameter.
 
 #### Properties
 
@@ -139,6 +139,7 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 * `.supportDirectory` A boolean value, which indicates if browser supports directory uploads.
 * `.opts` A hash object of the configuration of the Flow.js instance.
 * `.files` An array of `FlowFile` file objects added by the user (see full docs for this object type below).
+* `.parsedFiles` An array of `FlowFile` or `FlowFolder` file objects added by the user (see full docs for this object type below).
 
 #### Methods
 
@@ -181,8 +182,8 @@ This event is also called before file is added to upload queue,
 this means that calling `flow.upload()` function will not start current file upload.
 Optionally, you can use the browser `event` object from when the file was
 added.
-* `.filesAdded(array, event)` Same as fileAdded, but used for multiple file validation.
-* `.filesSubmitted(array, event)` Can be used to start upload of currently added files.
+* `.filesAdded(array/*FlowFile*/, array/*FlowFolder*/, event)` Same as fileAdded, but used for multiple file validation.
+* `.filesSubmitted(array/*FlowFile*/, array/*FlowFolder*/, event)` Can be used to start upload of currently added files.
 * `.fileRetry(file, chunk)` Something went wrong during upload of a specific file, uploading is being 
 retried.
 * `.fileError(file, message, chunk)` An error occurred during upload of a specific file.
