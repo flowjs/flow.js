@@ -131,7 +131,7 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 * `successStatuses` Response is success if response status is in this list (Default: `[200,201,
 202]`)
 * `permanentErrors` Response fails if response status is in this list (Default: `[404, 415, 500, 501]`)
-* `getFolderPathsInfo` function to get all files paths's info. It will be passed a paths array, a FlowFolder object and a callback function.And the callback function should be passed an Object(`{"a/": entryId or some other things, "a/c/": entryId or some other things}`) as parameter.
+* `getFolderPathsInfo` function to get all files paths info. It will be passed a paths(string) array, a FlowFolder object and a callback function.And the callback function should be passed an Object(`{"a/": entryId or some other things, "a/c/": entryId or some other things}`) as parameter.
 
 #### Properties
 
@@ -198,6 +198,7 @@ FlowFile constructor can be accessed in `Flow.FlowFile`.
 #### Properties
 
 * `.flowObj` A back-reference to the parent `Flow` object.
+* `.folderObj` A back-reference to the parent `FlowFolder` object if the file is in a file.
 * `.file` The correlating HTML5 `File` object.
 * `.name` The name of the file.
 * `.relativePath` The relative path to the file (defaults to file name if relative path doesn't exist)
@@ -208,21 +209,53 @@ FlowFile constructor can be accessed in `Flow.FlowFile`.
 * `.chunks` An array of `FlowChunk` items. You shouldn't need to dig into these.
 * `.paused` Indicated if file is paused.
 * `.error` Indicated if file has encountered an error.
+* `.started` Indicated if file has started uploading.
 
 #### Methods
 
-* `.progress(relative)` Returns a float between 0 and 1 indicating the current upload progress of the file. If `relative` is `true`, the value is returned relative to all files in the Flow.js instance.
+* `.progress()` Returns a float between 0 and 1 indicating the current upload progress of the file.
 * `.pause()` Pause uploading the file.
 * `.resume()` Resume uploading the file.
 * `.cancel()` Abort uploading the file and delete it from the list of files to upload.
 * `.retry()` Retry uploading the file.
 * `.bootstrap()` Rebuild the state of a `FlowFile` object, including reassigning chunks and XMLHttpRequest instances.
+* `.isStarted()` Returns a boolean indicating whether file has started uploading.
 * `.isUploading()` Returns a boolean indicating whether file chunks is uploading.
 * `.isComplete()` Returns a boolean indicating whether the file has completed uploading and received a server response.
+* `.isPaused()` Returns a boolean indicating whether file is paused.
 * `.sizeUploaded()` Returns size uploaded in bytes.
 * `.timeRemaining()` Returns remaining time to finish upload file in seconds. Accuracy is based on average speed. If speed is zero, time remaining will be equal to positive infinity `Number.POSITIVE_INFINITY`
 * `.getExtension()` Returns file extension in lowercase.
 * `.getType()` Returns file type.
+* `.getSize()` Returns file size.
+* `.hasError()` Returns a boolean indicating whether file has an error.
+
+### FlowFolder
+FlowFolder constructor can be accessed in `Flow.FlowFolder`.
+#### Properties
+
+* `.flowObj` A back-reference to the parent `Flow` object.
+* `.files` An array of FlowFile file objects in the folder.
+* `.name` The name of the folder.
+* `.pathsInfo` The paths info of the folder.
+* `.averageSpeed` Average upload speed, bytes per second.
+* `.currentSpeed` Current upload speed, bytes per second.
+
+#### Methods
+
+* `.progress(relative)` Returns a float between 0 and 1 indicating the current upload progress of the folder files.
+* `.pause()` Pause uploading the folder files.
+* `.resume()` Resume uploading the folder files.
+* `.cancel()` Abort uploading the folder files and delete them from the list of files to upload.
+* `.retry()` Retry uploading the folder files.
+* `.isStarted()` Returns a boolean indicating whether folder files has started uploading.
+* `.isUploading()` Returns a boolean indicating whether folder files is uploading.
+* `.isComplete()` Returns a boolean indicating whether the folder files has completed uploading and received a server response.
+* `.isPaused()` Returns a boolean indicating whether file is paused.
+* `.sizeUploaded()` Returns size uploaded in bytes.
+* `.timeRemaining()` Returns remaining time to finish upload folder files file in seconds. Accuracy is based on average speed. If speed is zero, time remaining will be equal to positive infinity `Number.POSITIVE_INFINITY`
+* `.getSize()` Returns folder files size.
+* `.hasError()` Returns a boolean indicating whether file has an error.
 
 ## Contribution
 

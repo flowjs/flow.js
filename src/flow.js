@@ -957,6 +957,12 @@
 
     this.waiting = true;
 
+    /**
+     * all files in the folder
+     * @type {Array}
+     */
+    this.files = [];
+
     // getFolderPathsInfo
     this.flowObj.opts.getFolderPathsInfo(allPaths, this, function(data) {
       if (!inited) {
@@ -972,7 +978,7 @@
       $.resume();
 
       $.flowObj._fire(false, '_gotPathsInfo', $);
-      
+
     });
 
     if (!inited) {
@@ -981,13 +987,7 @@
     }
 
     function init() {
-      /**
-       * all files in the folder
-       * @type {Array}
-       */
-      $.files = [];
       getFlowFilesByHM(hashMap, $, $.files);
-
       // pause for now
       // because getFolderPathsInfo may be async
       $.pause(true);
@@ -1027,7 +1027,7 @@
     },
 
     /**
-     * Whether one of the files has errored
+     * Whether one of the files has an error
      * @function
      * @returns {boolean}
      */
@@ -1061,7 +1061,7 @@
     },
 
     /**
-     * Indicates if one of the files has paused
+     * Indicates if one of the files is paused
      * @function
      * @returns {boolean}
      */
@@ -1077,7 +1077,7 @@
     },
 
     /**
-     * Indicates if one of the files has started
+     * Indicates if one of the files is started
      * @function
      * @returns {boolean}
      */
@@ -1199,6 +1199,7 @@
     /**
      * Update speed parameters
      * @function
+     * @private
      */
     measureSpeed: function() {
       var averageSpeeds = 0;
@@ -1368,7 +1369,7 @@
   FlowFile.prototype = {
 
     /**
-     * Whether the file has error
+     * Whether the file has an error
      * @function
      * @returns {boolean}
      */
@@ -1444,7 +1445,7 @@
     },
 
     /**
-     * Indicates if the flowFile has paused
+     * Indicates if the flowFile is paused
      * @function
      * @returns {boolean}
      */
@@ -1577,7 +1578,7 @@
     },
 
     /**
-     * Indicates if the flowFile has started
+     * Indicates if the flowFile is started
      * @function
      * @returns {boolean}
      */
