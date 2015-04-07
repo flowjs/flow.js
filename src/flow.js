@@ -63,6 +63,17 @@
     this.files = [];
 
     /**
+     * all parsedFiles hashMap
+     * @type {HashMap}
+     */
+    // this._parsedFilesHashMap = new HashMap();
+    /**
+     * List of FlowFile|FlowFolder objects
+     * @type {Array.<FlowFile|FlowFolder>}
+     */
+    this.parsedFiles = [];
+
+    /**
      * Default options for flow.js
      * @type {Object}
      */
@@ -89,7 +100,33 @@
       chunkRetryInterval: null,
       permanentErrors: [404, 415, 500, 501],
       successStatuses: [200, 201, 202],
-      onDropStopPropagation: false
+      onDropStopPropagation: false,
+      getFolderTarget: function(paths, flowFolderObj, callback) {
+        /**
+         * paths: ['a/', 'a/b/']
+         * should be async
+         * and the parameter must be like this:
+         {
+            'a/': 'entryId or some other things',
+            'a/b/': 'entryId or some other things'
+         }
+         */
+        callback({})
+      },
+      parseTarget: function(target, fileObj) {
+        /**
+         * fileObj.flowFolderObj will be an object if fileObj.file is in a folder.
+         * and the fileObj.flowFolderObj.pathsInfo will be:
+         pathsInfo => {
+          'a/': 'entryId1',
+          'a/b/': 'entryId2',
+          'a/b/c/': 'entryId3',
+          'a/c/': 'entryId4'
+         }
+         * so the real target may be like this: `target + pathsInfo[fileObj.path]`
+         */
+        return target;
+      }
     };
 
     /**
@@ -502,7 +539,7 @@
      * @function
      */
     resume: function () {
-      each(this.files, function (file) {
+      each(this.parsedFiles, function (file) {
         file.resume();
       });
     },
@@ -512,18 +549,18 @@
      * @function
      */
     pause: function () {
-      each(this.files, function (file) {
+      each(this.parsedFiles, function (file) {
         file.pause();
       });
     },
 
     /**
-     * Cancel upload of all FlowFile objects and remove them from the list.
+     * Cancel upload of all FlowFile|FlowFolder objects and remove them from the list.
      * @function
      */
     cancel: function () {
-      for (var i = this.files.length - 1; i >= 0; i--) {
-        this.files[i].cancel();
+      for (var i = this.parsedFiles.length - 1; i >= 0; i--) {
+        this.parsedFiles[i].cancel();
       }
     },
 
@@ -575,30 +612,76 @@
           }
         }
       }, this);
-      if (this.fire('filesAdded', files, event)) {
+      var hashMap = new HashMap();
+      parseFlowFiles(hashMap, files);
+      var newParsedFiles = this.getParsedFiles(hashMap);
+
+      if (this.fire('filesAdded', files, newParsedFiles, event)) {
         each(files, function (file) {
           if (this.opts.singleFile && this.files.length > 0) {
             this.removeFile(this.files[0]);
           }
           this.files.push(file);
         }, this);
+        newParsedFiles.push.apply(this.parsedFiles, newParsedFiles);
       }
-      this.fire('filesSubmitted', files, event);
+      this.fire('filesSubmitted', files, newParsedFiles, event);
     },
 
+    /**
+     * get parsedFiles list.
+     * @function
+     * @param {FlowFile} file
+     * @return {Array} parsedFiles
+     */
+    getParsedFiles: function(hashMap) {
+      // var parsedFilesHashMap = this._parsedFilesHashMap;
+      var parsedFiles = [];
+      var f;
+      each(hashMap.items, function(k) {
+        f = hashMap.getItem(k);
+        if (f.constructor == HashMap) {
+          // is a folder
+          f = new FlowFolder(this, f, k);
+        }
+        // parsedFilesHashMap.setItem(k, f);
+        parsedFiles.push(f);
+      }, this);
+      return parsedFiles;
+    },
 
     /**
      * Cancel upload of a specific FlowFile object from the list.
      * @function
      * @param {FlowFile} file
      */
-    removeFile: function (file) {
+    removeFile: function(file) {
       for (var i = this.files.length - 1; i >= 0; i--) {
         if (this.files[i] === file) {
           this.files.splice(i, 1);
-          file.abort();
+          if (file.flowFolderObj) {
+            // remove file from flowFolderObj.files
+            file.flowFolderObj.removeFile(file);
+          } else {
+            file.abort();
+          }
         }
       }
+    },
+
+    /**
+     * Cancel upload of a specific FlowFolder object from the parsedFiles list.
+     * @function
+     * @param {FlowFolder} file
+     */
+    removeParsedFile: function(file) {
+      for (var i = this.parsedFiles.length - 1, k; i >= 0; i--) {
+        k = this.parsedFiles[i];
+        if (k === file) {
+          this.parsedFiles.splice(i, 1);
+        }
+      }
+      // this._parsedFilesHashMap.removeItem(file);
     },
 
     /**
@@ -669,7 +752,494 @@
   };
 
 
+  /**
+   * parse relativePath to paths
+   * @function
+   * @return {Array} parsed paths
+   * @example
+   * 'a/b/c/dd.jpg' => ['a/', 'a/b/', 'a/b/c/']
+   */
+  function parsePaths(path) {
+    var ret = [];
+    var paths = path.split('/');
+    var len = paths.length;
+    var i = 1;
+    paths.splice(len - 1, 1);
+    len--;
+    if (paths.length) {
+      while (i <= len) {
+        ret.push(paths.slice(0, i++).join('/') + '/');
+      }
+    }
+    return ret;
+  }
 
+  /**
+   * update the result hashMap by checking the flowFiles
+   * @function
+   * @param {HashMap} ret
+   * @param {Array<FlowFile>} flowFiles
+   */
+  function parseFlowFiles(ret, flowFiles) {
+    if (!flowFiles.length) return;
+    each(flowFiles, function(flowFile) {
+      var ppaths = parsePaths(flowFile.relativePath);
+      if (ppaths.length) {
+        // in a folder
+        each(ppaths, function(path, i) {
+          var item = ret.getItem(path);
+          if (!item) {
+            item = new HashMap();
+            ret.setItem(path, item);
+          }
+          if (ppaths[i + 1]) {
+            // a folder
+            // do nothing
+          } else {
+            // a file
+            item.setItem(flowFile.relativePath, flowFile);
+          }
+        });
+        flowFile.path = ppaths[ppaths.length - 1];
+      } else {
+        // a file
+        ret.setItem(flowFile.relativePath, flowFile);
+      }
+    });
+    for (var i = 0, len = ret.items.length, k, v, ppaths; i < len; i++) {
+      k = ret.items[i];
+      v = ret.getItem(k);
+      if (v.constructor == HashMap) {
+        // folder
+        ppaths = parsePaths(k);
+        if (ppaths[0] && ppaths[0] !== k) {
+          // add sub folder to root folder
+          // so the ret hashMap will be a chain
+          ret.getItem(ppaths[0]).setItem(k, v);
+          if (ret.delItem(k)) {
+            i--;
+            len--;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * HashMap class
+   * @name HashMap
+   * @constructor
+   */
+  function HashMap() {
+    this.items = [];
+    this.itemsObj = {};
+  }
+
+  HashMap.prototype = {
+
+    constructor: HashMap,
+
+    setItem: function(item, obj) {
+      if (!this.itemsObj[item] && this.itemsObj[item] !== obj) {
+        this.itemsObj[item] = obj;
+        this.items.push(item);
+      }
+      return this;
+    },
+
+    getItem: function(k) {
+      return this.itemsObj[k];
+    },
+
+    removeItem: function(v) {
+      var ret = false;
+      each(this.items, function(k1, i) {
+        if (this.itemsObj[k1] === v) {
+          delete this.itemsObj[k1];
+          this.items.splice(i , 1);
+          ret = true;
+        }
+      }, this);
+      return ret;
+    },
+
+    delItem: function(k) {
+      var ret = false;
+      each(this.items, function(k1, i) {
+        if (k1 === k) {
+          delete this.itemsObj[k];
+          this.items.splice(i , 1);
+          ret = true;
+        }
+      }, this);
+      return ret;
+    }
+
+  };
+
+  // get all flowFiles in hashmap
+  function getFlowFilesByHM(hashmap, flowFolderObj, ret) {
+    each(hashmap.items, function(k) {
+      var v = hashmap.getItem(k);
+      if (v.constructor == HashMap) {
+        getFlowFilesByHM(v, flowFolderObj, ret);
+      } else {
+        // in a folder
+        flowFolderObj && (v.flowFolderObj = flowFolderObj);
+        ret.push(v);
+      }
+    });
+  }
+
+  // get all paths in items(hash.items) without no repeat
+  function getFolderPaths(items, rObj) {
+    var ret = [];
+    if (!rObj) rObj = {};
+    each(items, function(k) {
+      if (!rObj[k]) {
+        var paths = parsePaths(k);
+        each(paths, function(path) {
+          if (!rObj[path]) {
+            rObj[path] = 1;
+            ret.push(path);
+          }
+        });
+        rObj[k] = 1;
+      }
+    });
+    return ret;
+  }
+
+
+
+  /**
+   * FlowFolder class
+   * @name FlowFolder
+   * @param {Flow} flowObj
+   * @param {hashMap} hashMap
+   * @param {pathname} pathname
+   * @constructor
+   */
+  function FlowFolder(flowObj, hashMap, pathname) {
+    
+    /**
+     * Reference to parent Flow instance
+     * @type {Flow}
+     */
+    this.flowObj = flowObj;
+
+    this.name = pathname.substr(0, pathname.length - 1);
+
+    this.isFolder = true;
+
+    /**
+     * Average upload speed
+     * @type {number}
+     */
+    this.averageSpeed = 0;
+
+    /**
+     * Current upload speed
+     * @type {number}
+     */
+    this.currentSpeed = 0;
+
+    this.pathsInfo = {};
+
+    var allPaths = getFolderPaths(hashMap.items);
+
+    allPaths.sort();
+
+    var $ = this;
+    var inited = false;
+
+    this.flowObj.opts.getFolderTarget(allPaths, this, function(data) {
+      if (!inited) {
+        inited = true;
+        init();
+      }
+
+      $.setPathsInfo(data);
+
+      var parseTarget = $.flowObj.opts.parseTarget;
+      $.files.forEach(function(flowFile) {
+        flowFile.target = parseTarget(flowFile.flowObj.opts.target, flowFile);
+        // upload now
+        flowFile.resume();
+      });
+      
+    });
+
+    if (!inited) {
+      inited = true;
+      init();
+    }
+
+    function init() {
+      /**
+       * all files in the folder
+       * @type {Array}
+       */
+      $.files = [];
+      getFlowFilesByHM(hashMap, $, $.files);
+
+      // pause for now
+      // because we will fix the flowFile's target
+      $.pause(true);
+    }
+
+  }
+
+  FlowFolder.prototype = {
+
+    /**
+     * Returns a boolean indicating whether or not the instance is currently
+     * uploading anything.
+     * @function
+     * @returns {boolean}
+     */
+    isUploading: function () {
+      if (!this.isPaused() && !this.isComplete()) {
+        return true;
+      }
+      return false;
+    },
+
+    /**
+     * Indicates if the files has finished
+     * @function
+     * @returns {boolean}
+     */
+    isComplete: function () {
+      var isComplete = true;
+      each(this.files, function (file) {
+        if (!file.isComplete()) {
+          isComplete = false;
+          return false;
+        }
+      });
+      return isComplete;
+    },
+
+    /**
+     * Whether one of the files has errored
+     * @function
+     * @returns {boolean}
+     */
+    hasError: function() {
+      var nerr = false;
+      each(this.files, function (file) {
+        if (!file.error) {
+          nerr = true;
+          return false;
+        }
+      });
+      return !nerr;
+    },
+
+    /**
+     * Cancel upload of a specific FlowFile object from the files list.
+     * @function
+     * @param {FlowFile} file
+     */
+    removeFile: function(file) {
+      for (var i = this.files.length - 1; i >= 0; i--) {
+        if (this.files[i] === file) {
+          this.files.splice(i, 1);
+          file.abort();
+        }
+      }
+      if (this.files.length <= 0) {
+        // now remove the current FlowFolder Object
+        this.flowObj.removeParsedFile(this);
+      }
+    },
+
+    /**
+     * Indicates if one of the files has paused
+     * @function
+     * @returns {boolean}
+     */
+    isPaused: function() {
+      var paused = false;
+      each(this.files, function (file) {
+        if (file.paused) {
+          paused = true;
+          return false;
+        }
+      });
+      return paused;
+    },
+
+    /**
+     * Indicates if one of the files has started
+     * @function
+     * @returns {boolean}
+     */
+    isStarted: function() {
+      var started = false;
+      each(this.files, function (file) {
+        if (file.started) {
+          started = true;
+          return false;
+        }
+      });
+      return started;
+    },
+
+    /**
+     * Retry aborted file upload
+     * @function
+     */
+    retry: function (single) {
+      if (single) {
+        single.bootstrap()
+      } else {
+        each(this.files, function (file) {
+          file.bootstrap()
+        })
+      }
+      this.flowObj.upload();
+    },
+
+    /**
+     * Set pathsInfo
+     * @function
+     * @param {Object} data
+     */
+    setPathsInfo: function(data) {
+      var pathsInfo = this.pathsInfo;
+      each(data, function(v, key) {
+        pathsInfo[key] = v;
+      });
+    },
+
+    /**
+     * Resume uploading.
+     * @function
+     */
+    resume: function () {
+      each(this.files, function (file) {
+        file.resume();
+      });
+    },
+
+    /**
+     * Pause uploading.
+     * @function
+     * @param {Boolean|Undefined} isAbort
+     */
+    pause: function (isAbort) {
+      var funcName = isAbort ? 'abort' : 'pause';
+      each(this.files, function (file) {
+        file[funcName]();
+      });
+    },
+
+    /**
+     * Cancel upload of the files and remove them from the files list.
+     * @function
+     */
+    cancel: function () {
+      for (var i = this.files.length - 1; i >= 0; i--) {
+        this.files[i].cancel(true);
+      }
+      this.flowObj.removeParsedFile(this);
+    },
+
+    /**
+     * Returns a number between 0 and 1 indicating the current upload progress
+     * of all files.
+     * @function
+     * @returns {number}
+     */
+    progress: function () {
+      var totalDone = 0;
+      var totalSize = 0;
+      // Resume all chunks currently being uploaded
+      each(this.files, function (file) {
+        totalDone += file.progress() * file.size;
+        totalSize += file.size;
+      });
+      return totalSize > 0 ? totalDone / totalSize : 
+              this.isComplete() ? 1 : 0;;
+    },
+
+    /**
+     * Returns the total size of all files in bytes.
+     * @function
+     * @returns {number}
+     */
+    getSize: function () {
+      var totalSize = 0;
+      each(this.files, function (file) {
+        totalSize += file.size;
+      });
+      return totalSize;
+    },
+
+    /**
+     * Returns the total size uploaded of all files in bytes.
+     * @function
+     * @returns {number}
+     */
+    sizeUploaded: function () {
+      var size = 0;
+      each(this.files, function (file) {
+        size += file.sizeUploaded();
+      });
+      return size;
+    },
+
+    /**
+     * Update speed parameters
+     * @function
+     */
+    measureSpeed: function() {
+      var averageSpeeds = 0;
+      var currentSpeeds = 0;
+      var num = 0;
+      each(this.files, function (file) {
+        if (!file.paused && !file.error) {
+          num += 1;
+          averageSpeeds += file.averageSpeed || 0;
+          currentSpeeds += file.currentSpeed || 0;
+        }
+      });
+      if (num) {
+        this.averageSpeed = averageSpeeds / num;
+        this.currentSpeed = currentSpeeds / num;
+      } else {
+        this.averageSpeed = 0;
+        this.currentSpeed = 0;
+      }
+    },
+
+    /**
+     * Returns remaining time to upload all files in seconds. Accuracy is based on average speed.
+     * If speed is zero, time remaining will be equal to positive infinity `Number.POSITIVE_INFINITY`
+     * @function
+     * @returns {number}
+     */
+    timeRemaining: function () {
+      var sizeDelta = 0;
+      var averageSpeed = 0;
+      each(this.files, function (file) {
+        if (!file.paused && !file.error) {
+          sizeDelta += file.size - file.sizeUploaded();
+          averageSpeed += file.averageSpeed;
+        }
+      });
+      if (sizeDelta && !averageSpeed) {
+        return Number.POSITIVE_INFINITY;
+      }
+      if (!sizeDelta && !averageSpeed) {
+        return 0;
+      }
+      return Math.floor(sizeDelta / averageSpeed);
+    }
+
+  };
 
 
 
@@ -687,6 +1257,12 @@
      * @type {Flow}
      */
     this.flowObj = flowObj;
+
+    /**
+     * Reference to parent FlowFolder instance
+     * @type {FlowFolder}
+     */
+    this.flowFolderObj = null;
 
     /**
      * Reference to file
@@ -723,6 +1299,12 @@
      * @type {Array.<FlowChunk>}
      */
     this.chunks = [];
+
+    /**
+     * Indicated if file is started
+     * @type {boolean}
+     */
+    this.started = false;
 
     /**
      * Indicated if file is paused
@@ -769,10 +1351,22 @@
      */
     this._prevProgress = 0;
 
+    this.target = this.flowObj.opts.parseTarget(this.flowObj.opts.target, this);
+
     this.bootstrap();
   }
 
   FlowFile.prototype = {
+
+    /**
+     * Whether the file has error
+     * @function
+     * @returns {boolean}
+     */
+    hasError: function() {
+      return this.error;
+    },
+
     /**
      * Update speed parameters
      * @link http://stackoverflow.com/questions/2779600/how-to-estimate-download-time-remaining-accurately
@@ -789,6 +1383,9 @@
       this.currentSpeed = Math.max((uploaded - this._prevUploadedSize) / timeSpan * 1000, 0);
       this.averageSpeed = smoothingFactor * this.currentSpeed + (1 - smoothingFactor) * this.averageSpeed;
       this._prevUploadedSize = uploaded;
+      if (this.flowFolderObj) {
+        this.flowFolderObj.measureSpeed();
+      }
     },
 
     /**
@@ -838,6 +1435,15 @@
     },
 
     /**
+     * Indicates if the flowFile has paused
+     * @function
+     * @returns {boolean}
+     */
+    isPaused: function() {
+      return this.paused;
+    },
+
+    /**
      * Pause file upload
      * @function
      */
@@ -852,7 +1458,9 @@
      */
     resume: function() {
       this.paused = false;
-      this.flowObj.upload();
+      if (this.started) {
+        this.flowObj.upload();
+      }
     },
 
     /**
@@ -878,8 +1486,11 @@
      * Cancel current upload and remove from a list
      * @function
      */
-    cancel: function () {
+    cancel: function (iFolder) {
       this.flowObj.removeFile(this);
+      if (!iFolder) {
+        this.flowObj.removeParsedFile(this);
+      }
     },
 
     /**
@@ -953,6 +1564,15 @@
     },
 
     /**
+     * Indicates if the flowFile has started
+     * @function
+     * @returns {boolean}
+     */
+    isStarted: function() {
+      return this.started;
+    },
+
+    /**
      * Indicates if file is has finished uploading and received a response
      * @function
      * @returns {boolean}
@@ -1000,6 +1620,15 @@
         return 0;
       }
       return Math.floor(delta / this.averageSpeed);
+    },
+
+    /**
+     * Returns the file's size in bytes.
+     * @function
+     * @returns {number}
+     */
+    getSize: function () {
+      return this.size;
     },
 
     /**
@@ -1264,6 +1893,7 @@
      */
     send: function () {
       var preprocess = this.flowObj.opts.preprocess;
+      this.fileObj.started = true;
       if (typeof preprocess === 'function') {
         switch (this.preprocessState) {
           case 0:
@@ -1332,7 +1962,7 @@
       } else {
         if (this.flowObj.opts.successStatuses.indexOf(this.xhr.status) > -1) {
           // HTTP 200, perfect
-		      // HTTP 202 Accepted - The request has been accepted for processing, but the processing has not been completed.
+          // HTTP 202 Accepted - The request has been accepted for processing, but the processing has not been completed.
           return 'success';
         } else if (this.flowObj.opts.permanentErrors.indexOf(this.xhr.status) > -1 ||
             !isTest && this.retries >= this.flowObj.opts.maxChunkRetries) {
@@ -1524,6 +2154,12 @@
    * @type {FlowFile}
    */
   Flow.FlowFile = FlowFile;
+
+  /**
+   * FlowFolder constructor
+   * @type {FlowFolder}
+   */
+  Flow.FlowFolder = FlowFolder;
 
   /**
    * FlowFile constructor
