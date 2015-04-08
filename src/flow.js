@@ -755,6 +755,8 @@
    */
   function parsePaths(path) {
     var ret = [];
+    if (!path) return ret;
+    
     var paths = path.split('/');
     var len = paths.length;
     var i = 1;
@@ -2177,6 +2179,11 @@
    */
   Flow.FlowFile = FlowFile;
 
+  /**
+   * HashMap constructor
+   * @type {HashMap}
+   */
+  Flow.HashMap = HashMap;
   /**
    * FlowFolder constructor
    * @type {FlowFolder}
