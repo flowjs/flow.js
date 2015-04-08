@@ -21,6 +21,11 @@ describe('setup', function() {
     expect(flow.files.length).toBe(0);
   });
 
+  it('parsedFiles should be empty', function() {
+    expect(flow.parsedFiles).toBeDefined();
+    expect(flow.parsedFiles.length).toBe(0);
+  });
+
   it('events should be empty', function() {
     expect(flow.events).toBeDefined();
     expect(Object.keys(flow.events).length).toBe(0);
