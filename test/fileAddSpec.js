@@ -30,8 +30,8 @@ describe('fileAdd event', function() {
       count2 = parsedFiles.length;
     });
     flow.addFiles([
-      new Blob(['file part']),
-      new Blob(['file 2 part'])
+      new File(['file part'], 'file1'),
+      new File(['file 2 part'], 'file2')
     ]);
     expect(count).toBe(2);
     expect(count2).toBe(2);
