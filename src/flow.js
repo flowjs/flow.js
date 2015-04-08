@@ -659,21 +659,30 @@
             file.folderObj.removeFile(file);
           } else {
             file.abort();
+            this.removeParsedFile(file, true);
           }
         }
       }
     },
 
     /**
-     * Cancel upload of a specific FlowFolder object from the parsedFiles list.
+     * Cancel upload of a specific FlowFolder|FlowFole object from the parsedFiles list.
      * @function
-     * @param {FlowFolder} file
+     * @param {FlowFolder|FlowFile} file
+     * @param {Boolean} fromRemoveFile
      */
-    removeParsedFile: function(file) {
+    removeParsedFile: function(file, fromRemoveFile) {
       for (var i = this.parsedFiles.length - 1, k; i >= 0; i--) {
         k = this.parsedFiles[i];
         if (k === file) {
           this.parsedFiles.splice(i, 1);
+          if (file.files) {
+            each(file.files, function(_file) {
+              this.removeFile(_file);
+            }, this);
+          } else {
+            !fromRemoveFile && this.removeFile(file);
+          }
         }
       }
     },
@@ -1045,9 +1054,10 @@
       for (var i = this.files.length - 1; i >= 0; i--) {
         if (this.files[i] === file) {
           this.files.splice(i, 1);
-          file.abort();
+          file.folderObj = null;
         }
       }
+      this.flowObj.removeFile(file);
       if (this.files.length <= 0) {
         // now remove the current FlowFolder Object
         this.flowObj.removeParsedFile(this);
