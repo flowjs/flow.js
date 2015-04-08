@@ -209,7 +209,6 @@ FlowFile constructor can be accessed in `Flow.FlowFile`.
 * `.chunks` An array of `FlowChunk` items. You shouldn't need to dig into these.
 * `.paused` Indicated if file is paused.
 * `.error` Indicated if file has encountered an error.
-* `.started` Indicated if file has started uploading.
 
 #### Methods
 
@@ -219,7 +218,6 @@ FlowFile constructor can be accessed in `Flow.FlowFile`.
 * `.cancel()` Abort uploading the file and delete it from the list of files to upload.
 * `.retry()` Retry uploading the file.
 * `.bootstrap()` Rebuild the state of a `FlowFile` object, including reassigning chunks and XMLHttpRequest instances.
-* `.isStarted()` Returns a boolean indicating whether file has started uploading.
 * `.isUploading()` Returns a boolean indicating whether file chunks is uploading.
 * `.isComplete()` Returns a boolean indicating whether the file has completed uploading and received a server response.
 * `.isPaused()` Returns a boolean indicating whether file is paused.
@@ -248,7 +246,6 @@ FlowFolder constructor can be accessed in `Flow.FlowFolder`.
 * `.resume()` Resume uploading the folder files.
 * `.cancel()` Abort uploading the folder files and delete them from the list of files to upload.
 * `.retry()` Retry uploading the folder files.
-* `.isStarted()` Returns a boolean indicating whether folder files has started uploading.
 * `.isUploading()` Returns a boolean indicating whether folder files is uploading.
 * `.isComplete()` Returns a boolean indicating whether the folder files has completed uploading and received a server response.
 * `.isPaused()` Returns a boolean indicating whether file is paused.

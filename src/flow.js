@@ -1081,22 +1081,6 @@
     },
 
     /**
-     * Indicates if one of the files is started
-     * @function
-     * @returns {boolean}
-     */
-    isStarted: function() {
-      var started = false;
-      each(this.files, function (file) {
-        if (file.started) {
-          started = true;
-          return false;
-        }
-      });
-      return started;
-    },
-
-    /**
      * Retry aborted file upload
      * @function
      */
@@ -1317,12 +1301,6 @@
     this.chunks = [];
 
     /**
-     * Indicated if file is started
-     * @type {boolean}
-     */
-    this.started = false;
-
-    /**
      * Indicated if file is paused
      * @type {boolean}
      */
@@ -1472,12 +1450,10 @@
      */
     resume: function() {
       this.paused = false;
-      if (this.started) {
-        if (this.folderObj && this.folderObj.waiting) {
-          return;
-        }
-        this.flowObj.upload();
+      if (this.folderObj && this.folderObj.waiting) {
+        return;
       }
+      this.flowObj.upload();
     },
 
     /**
@@ -1487,7 +1463,6 @@
     abort: function (reset) {
       this.currentSpeed = 0;
       this.averageSpeed = 0;
-      this.started = false;
       var chunks = this.chunks;
       if (reset) {
         this.chunks = [];
@@ -1579,15 +1554,6 @@
         }
       });
       return uploading;
-    },
-
-    /**
-     * Indicates if the flowFile is started
-     * @function
-     * @returns {boolean}
-     */
-    isStarted: function() {
-      return this.started;
     },
 
     /**
@@ -1910,7 +1876,6 @@
      * @function
      */
     send: function () {
-      this.fileObj.started = true;
       var $ = this;
       var folderObj = this.fileObj.folderObj;
       if (folderObj && folderObj.waiting) {
