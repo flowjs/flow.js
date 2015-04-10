@@ -371,7 +371,9 @@
           // display:none - not working in opera 12
           extend(input.style, {
             visibility: 'hidden',
-            position: 'absolute'
+            position: 'absolute',
+            width: '1px',
+            height: '1px'
           });
           // for opera 12 browser, input must be assigned to a document
           domNode.appendChild(input);
