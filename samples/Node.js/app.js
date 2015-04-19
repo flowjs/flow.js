@@ -44,7 +44,7 @@ app.get('/upload', function(req, res) {
     if (status == 'found') {
       status = 200;
     } else {
-      status = 404;
+      status = 204;
     }
 
     res.status(status).send();
