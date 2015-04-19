@@ -40,7 +40,7 @@ Generally, all Resumable.js request are handled through a single method:
             if { [file exists $filename] && [file size $filename]==$resumableChunkSize } {
                 doc_return 200 text/plain "ok"
             } else {
-                doc_return 404 text/plain "not found"
+                doc_return 204 text/plain "not found"
             }
             ad_script_abort
         }
