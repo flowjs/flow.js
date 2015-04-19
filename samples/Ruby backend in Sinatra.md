@@ -64,7 +64,7 @@ class FlowController
   end
 
   def get
-    File.exists?(chunk_file_path) ? 200 : 404
+    File.exists?(chunk_file_path) ? 200 : 204
   end
 
   def post!
