@@ -76,7 +76,7 @@ func (fn streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func continueUpload(w http.ResponseWriter, r *http.Request) {
 	chunkDirPath := "./incomplete/" + r.FormValue("flowFilename") + "/" + r.FormValue("flowChunkNumber")
 	if _, err := os.Stat(chunkDirPath); err != nil {
-		w.WriteHeader(404)
+		w.WriteHeader(204)
 		return
 	}
 }
