@@ -70,7 +70,7 @@ module.exports = function(grunt) {
           dir: "coverage/"
         },
         // Buggiest browser
-        browsers: browsers || ['sl_chorme'],
+        browsers: browsers || ['sl_chrome'],
         // global config for SauceLabs
         sauceLabs: {
           username: grunt.option('sauce-username') || process.env.SAUCE_USERNAME,

@@ -267,7 +267,7 @@ Automated tests is running after every commit at travis-ci.
 1. Connect to sauce labs https://saucelabs.com/docs/connect
 2. `grunt  test --sauce-local=true --sauce-username=**** --sauce-access-key=***`
 
-other browsers can be used with `--browsers` flag, available browsers: sl_opera,sl_iphone,sl_safari,sl_ie10,sl_chorme,sl_firefox
+other browsers can be used with `--browsers` flag, available browsers: sl_opera,sl_iphone,sl_safari,sl_ie10,sl_chrome,sl_firefox
 
 ## Origin
 Flow.js was inspired by and evolved from https://github.com/23/resumable.js. Library has been supplemented with tests and features, such as drag and drop for folders, upload speed, time remaining estimation, separate files pause, resume and more.

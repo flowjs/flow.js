@@ -92,7 +92,7 @@ module.exports = function(config) {
         platform: 'Windows 8',
         version: '10'
       },
-      sl_chorme: {
+      sl_chrome: {
         base: 'SauceLabs',
         browserName: 'chrome',
         platform: 'Windows 7'
