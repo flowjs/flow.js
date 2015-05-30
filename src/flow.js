@@ -226,22 +226,28 @@
           // due to a bug in Chrome's File System API impl - #149735
           fileReadSuccess(item.getAsFile(), entry.fullPath);
         } else {
-          entry.createReader().readEntries(readSuccess, readError);
+          readDirectory(entry.createReader());
         }
       });
-      function readSuccess(entries) {
-        queue += entries.length;
-        each(entries, function(entry) {
-          if (entry.isFile) {
-            var fullPath = entry.fullPath;
-            entry.file(function (file) {
-              fileReadSuccess(file, fullPath);
-            }, readError);
-          } else if (entry.isDirectory) {
-            entry.createReader().readEntries(readSuccess, readError);
+      function readDirectory(reader) {
+        reader.readEntries(function (entries) {
+          if (entries.length) {
+            queue += entries.length;
+            each(entries, function(entry) {
+              if (entry.isFile) {
+                var fullPath = entry.fullPath;
+                entry.file(function (file) {
+                  fileReadSuccess(file, fullPath);
+                }, readError);
+              } else if (entry.isDirectory) {
+                readDirectory(entry.createReader());
+              }
+            });
+            readDirectory(reader);
+          } else {
+            decrement();
           }
-        });
-        decrement();
+        }, readError);
       }
       function fileReadSuccess(file, fullPath) {
         // relative path should not start with "/"
