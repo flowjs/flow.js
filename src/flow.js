@@ -572,7 +572,7 @@
         // Directories have size `0` and name `.`
         // Ignore already added files if opts.allowDuplicateUploads is set to false
         if ((!ie10plus || ie10plus && file.size > 0) && !(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.')) &&
-          (opts.allowDuplicateUploads || !this.getFromUniqueIdentifier(this.generateUniqueIdentifier(file)))) {
+          (this.opts.allowDuplicateUploads || !this.getFromUniqueIdentifier(this.generateUniqueIdentifier(file)))) {
           var f = new FlowFile(this, file);
           if (this.fire('fileAdded', f, event)) {
             files.push(f);
