@@ -1,3 +1,6 @@
+# Other JAVA demos
+https://github.com/jdc18/ng-flow-with-java
+
 ## Java Demo for Resumable.js
 
 This sample might be outdated, note that resumable.js was renamed to flow.js.
