@@ -403,8 +403,10 @@
         // When new files are added, simply append them to the overall list
         var $ = this;
         input.addEventListener('change', function (e) {
-          $.addFiles(e.target.files, e);
-          e.target.value = '';
+       	  if (e.target.value) {
+            $.addFiles(e.target.files, e);
+            e.target.value = '';
+       	  }
         }, false);
       }, this);
     },
