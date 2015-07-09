@@ -69,7 +69,7 @@ describe('setup', function() {
       var event = document.createEvent('MouseEvents');
       event.initEvent('change', true, true);
       input.dispatchEvent(event);
-      expect(addFiles).toHaveBeenCalled();
+      expect(addFiles).not.toHaveBeenCalled();
     });
 
     it('assign to div', function() {
@@ -83,7 +83,7 @@ describe('setup', function() {
       var event = document.createEvent('MouseEvents');
       event.initEvent('change', true, true);
       input.dispatchEvent(event);
-      expect(addFiles).toHaveBeenCalled();
+      expect(addFiles).not.toHaveBeenCalled();
     });
 
     it('single file', function() {
