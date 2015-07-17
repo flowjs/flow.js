@@ -1317,15 +1317,13 @@
             return;
         }
       }
-      if (typeof read === 'function') {
-        switch (this.readState) {
-          case 0:
-            this.readState = 1;
-            read(this, this.startByte, this.endByte, this.fileType);
-            return;
-          case 1:
-            return;
-        }
+      switch (this.readState) {
+        case 0:
+          this.readState = 1;
+          read(this, this.startByte, this.endByte, this.fileType);
+          return;
+        case 1:
+          return;
       }
       if (this.flowObj.opts.testChunks && !this.tested) {
         this.test();
