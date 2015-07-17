@@ -93,7 +93,8 @@
       permanentErrors: [404, 415, 500, 501],
       successStatuses: [200, 201, 202],
       onDropStopPropagation: false,
-      read: webAPIFileRead
+      initFileFn: null,
+      readFileFn: webAPIFileRead
     };
     
     /**
@@ -915,6 +916,8 @@
      * @function
      */
     bootstrap: function () {
+      evalOpts(this.flowObj.opts.initFileFn, this.fileObj, this);
+
       this.abort(true);
       this.error = false;
       // Rebuild stack of chunks from file
@@ -1306,7 +1309,7 @@
      */
     send: function () {
       var preprocess = this.flowObj.opts.preprocess;
-      var read = this.flowObj.opts.read;
+      var read = this.flowObj.opts.readFileFn;
       if (typeof preprocess === 'function') {
         switch (this.preprocessState) {
           case 0:
