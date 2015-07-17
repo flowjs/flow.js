@@ -917,7 +917,9 @@
      * @function
      */
     bootstrap: function () {
-      evalOpts(this.flowObj.opts.initFileFn, this.fileObj, this);
+      if (typeof this.flowObj.opts.initFileFn === "function") {
+        this.flowObj.opts.initFileFn(this);
+      }
 
       this.abort(true);
       this.error = false;
@@ -1047,15 +1049,20 @@
   /**
    * Default read function using the webAPI
    *
-   * @function webAPIFileRead(chunk, startByte, endByte, fileType)
+   * @function webAPIFileRead(fileObj, fileType, startByte, endByte, chunk)
    *
    */
-  function webAPIFileRead(chunk, startByte, endByte, fileType) {
-    var function_name = (chunk.fileObj.file.slice ? 'slice' :
-      (chunk.fileObj.file.mozSlice ? 'mozSlice' :
-        (chunk.fileObj.file.webkitSlice ? 'webkitSlice' :
-          'slice')));
-    chunk.readFinished(chunk.fileObj.file[function_name](startByte, endByte, fileType));
+  function webAPIFileRead(fileObj, fileType, startByte, endByte, chunk) {
+    var function_name = 'slice';
+
+    if (fileObj.file.slice)
+      function_name =  'slice';
+    else if (fileObj.file.mozSlice)
+      function_name = 'mozSlice';
+    else if (fileObj.file.webkitSlice)
+      function_name = 'webkitSlice';
+
+    chunk.readFinished(fileObj.file[function_name](startByte, endByte, fileType));
   }
 
 
@@ -1324,7 +1331,7 @@
       switch (this.readState) {
         case 0:
           this.readState = 1;
-          read(this, this.startByte, this.endByte, this.fileType);
+          read(this.fileObj, this.startByte, this.endByte, this.fileType, this);
           return;
         case 1:
           return;
