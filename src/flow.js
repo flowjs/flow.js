@@ -93,7 +93,7 @@
       permanentErrors: [404, 415, 500, 501],
       successStatuses: [200, 201, 202],
       onDropStopPropagation: false,
-      read: webAPIFileRead,
+      read: webAPIFileRead
     };
     
     /**
