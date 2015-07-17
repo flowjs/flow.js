@@ -1305,8 +1305,8 @@
      * @function
      */
     send: function () {
-      var preprocess = this.flowObj.opts.preprocess,
-        read = this.flowObj.opts.read;
+      var preprocess = this.flowObj.opts.preprocess;
+      var read = this.flowObj.opts.read;
       if (typeof preprocess === 'function') {
         switch (this.preprocessState) {
           case 0:
