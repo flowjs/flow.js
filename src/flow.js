@@ -29,7 +29,8 @@
    * @param {number} [opts.chunkRetryInterval]
    * @param {Array.<number>} [opts.permanentErrors]
    * @param {Array.<number>} [opts.successStatuses]
-   * @param {Function} [opts.read]
+   * @param {Function} [opts.initFileFn]
+   * @param {Function} [opts.readFileFn]
    * @param {Function} [opts.generateUniqueIdentifier]
    * @constructor
    */
