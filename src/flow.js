@@ -1144,8 +1144,6 @@
      */
     this.endByte = Math.min(this.fileObj.size, (this.offset + 1) * this.chunkSize);
 
-    this.data = null;
-
     /**
      * XMLHttpRequest
      * @type {XMLHttpRequest}
