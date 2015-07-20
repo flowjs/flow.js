@@ -295,15 +295,13 @@
       if (this.opts.prioritizeFirstAndLastChunk) {
         each(this.files, function (file) {
           if (!file.paused && file.chunks.length &&
-            file.chunks[0].status() === 'pending' &&
-            file.chunks[0].preprocessState === 0) {
+            file.chunks[0].status() === 'pending') {
             file.chunks[0].send();
             found = true;
             return false;
           }
           if (!file.paused && file.chunks.length > 1 &&
-            file.chunks[file.chunks.length - 1].status() === 'pending' &&
-            file.chunks[0].preprocessState === 0) {
+            file.chunks[file.chunks.length - 1].status() === 'pending') {
             file.chunks[file.chunks.length - 1].send();
             found = true;
             return false;
@@ -318,7 +316,7 @@
       each(this.files, function (file) {
         if (!file.paused) {
           each(file.chunks, function (chunk) {
-            if (chunk.status() === 'pending' && chunk.preprocessState === 0) {
+            if (chunk.status() === 'pending') {
               chunk.send();
               found = true;
               return false;
