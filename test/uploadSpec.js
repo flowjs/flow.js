@@ -431,6 +431,30 @@ describe('upload file', function() {
     expect(preprocess).wasNotCalledWith(secondFile.chunks[0]);
   });
 
+  it('should resume preprocess chunks after pause', function () {
+    flow.opts.chunkSize = 1;
+    flow.opts.simultaneousUploads = 1;
+    flow.opts.testChunks = false;
+    var preprocess = jasmine.createSpy('preprocess');
+    var error = jasmine.createSpy('error');
+    var success = jasmine.createSpy('success');
+    flow.on('fileError', error);
+    flow.on('fileSuccess', success);
+    flow.opts.preprocess = preprocess;
+    flow.addFile(new Blob(['abc']));
+    var file = flow.files[0];
+    flow.upload();
+    for(var i=0; i<file.chunks.length; i++) {
+      expect(preprocess).wasCalledWith(file.chunks[i]);
+      file.chunks[i].preprocessFinished();
+      file.pause();
+      file.resume();
+      requests[requests.length-1].respond(200, [], "response");
+    }
+    expect(success).wasCalledWith(file, "response", file.chunks[file.chunks.length-1]);
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it('should set chunk as a third event parameter', function () {
     var success = jasmine.createSpy('success');
     flow.on('fileSuccess', success);
