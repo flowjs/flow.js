@@ -30,6 +30,7 @@
    * @param {Array.<number>} [opts.permanentErrors]
    * @param {Array.<number>} [opts.successStatuses]
    * @param {Function} [opts.generateUniqueIdentifier]
+   * @param {number} [opts.queueLimit]
    * @constructor
    */
   function Flow(opts) {
@@ -91,7 +92,8 @@
       chunkRetryInterval: null,
       permanentErrors: [404, 415, 500, 501],
       successStatuses: [200, 201, 202],
-      onDropStopPropagation: false
+      onDropStopPropagation: false,
+      queueLimit: Infinity
     };
 
     /**
@@ -572,6 +574,12 @@
      */
     addFiles: function (fileList, event) {
       var files = [];
+      var numberOverLimit = (this.opts.queueLimit - (this.files.length + fileList.length)) * (-1)
+
+      if(numberOverLimit > 0){
+        return this.fire('queueLimitExceeded', numberOverLimit);
+      }
+
       each(fileList, function (file) {
         // Uploading empty file IE10/IE11 hangs indefinitely
         // see https://connect.microsoft.com/IE/feedback/details/813443/uploading-empty-file-ie10-ie11-hangs-indefinitely
@@ -579,6 +587,7 @@
         // Ignore already added files if opts.allowDuplicateUploads is set to false
         if ((!ie10plus || ie10plus && file.size > 0) && !(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.')) &&
           (this.opts.allowDuplicateUploads || !this.getFromUniqueIdentifier(this.generateUniqueIdentifier(file)))) {
+
           var f = new FlowFile(this, file);
           if (this.fire('fileAdded', f, event)) {
             files.push(f);
