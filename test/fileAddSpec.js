@@ -62,4 +62,23 @@ describe('fileAdd event', function() {
     flow.addFile(new Blob(['file part']));
     expect(valid).toBeTruthy();
   });
+
+  it('should only add files up to the queue limit', function(){
+    flow.opts.queueLimit = 1
+    flow.addFile(new Blob(['file part']));
+    flow.addFile(new Blob(['another file part']));
+
+    expect(flow.files.length).toBe(1)
+  });
+
+  it('should trigger an error on file upload limit reached', function(){
+    var eventHandler = jasmine.createSpy('event');
+    flow.opts.queueLimit = 1
+    flow.on('queueLimitExceeded', eventHandler);
+      
+    flow.addFile(new Blob(['file part']));
+    flow.addFile(new Blob(['another file part']));
+
+    expect(eventHandler).toHaveBeenCalled();
+  });
 });
