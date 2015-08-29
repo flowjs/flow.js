@@ -24,15 +24,19 @@ describe('fileAdd event', function() {
 
   it('should call filesAdded event', function() {
     var count = 0;
-    flow.on('filesAdded', function (files) {
+    var count2 = 0;
+    flow.on('filesAdded', function (files, parsedFiles) {
       count = files.length;
+      count2 = parsedFiles.length;
     });
     flow.addFiles([
-      new Blob(['file part']),
-      new Blob(['file 2 part'])
+      new File(['file part'], 'file1'),
+      new File(['file 2 part'], 'file2')
     ]);
     expect(count).toBe(2);
+    expect(count2).toBe(2);
     expect(flow.files.length).toBe(2);
+    expect(flow.parsedFiles.length).toBe(2);
   });
 
   it('should validate fileAdded', function() {
@@ -41,6 +45,7 @@ describe('fileAdd event', function() {
     });
     flow.addFile(new Blob(['file part']));
     expect(flow.files.length).toBe(0);
+    expect(flow.parsedFiles.length).toBe(0);
   });
 
   it('should validate filesAdded', function() {
@@ -49,6 +54,7 @@ describe('fileAdd event', function() {
     });
     flow.addFile(new Blob(['file part']));
     expect(flow.files.length).toBe(0);
+    expect(flow.parsedFiles.length).toBe(0);
   });
 
   it('should validate fileAdded and filesAdded', function() {
@@ -56,8 +62,8 @@ describe('fileAdd event', function() {
       return false;
     });
     var valid = false;
-    flow.on('filesAdded', function (files) {
-      valid = files.length === 0;
+    flow.on('filesAdded', function (files, parsedFiles) {
+      valid = files.length === 0 && parsedFiles.length === 0;
     });
     flow.addFile(new Blob(['file part']));
     expect(valid).toBeTruthy();

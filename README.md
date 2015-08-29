@@ -132,7 +132,7 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 * `successStatuses` Response is success if response status is in this list (Default: `[200,201,
 202]`)
 * `permanentErrors` Response fails if response status is in this list (Default: `[404, 415, 500, 501]`)
-
+* `getFolderPathsInfo` function to get all files paths info. It will be passed a paths(string) array, a FlowFolder object and a callback function.And the callback function should be passed an Object(`{"a/": entryId or some other things, "a/c/": entryId or some other things}`) as parameter.
 
 #### Properties
 
@@ -140,6 +140,7 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 * `.supportDirectory` A boolean value, which indicates if browser supports directory uploads.
 * `.opts` A hash object of the configuration of the Flow.js instance.
 * `.files` An array of `FlowFile` file objects added by the user (see full docs for this object type below).
+* `.parsedFiles` An array of `FlowFile` or `FlowFolder` file objects added by the user (see full docs for this object type below).
 
 #### Methods
 
@@ -182,8 +183,8 @@ This event is also called before file is added to upload queue,
 this means that calling `flow.upload()` function will not start current file upload.
 Optionally, you can use the browser `event` object from when the file was
 added.
-* `.filesAdded(array, event)` Same as fileAdded, but used for multiple file validation.
-* `.filesSubmitted(array, event)` Can be used to start upload of currently added files.
+* `.filesAdded(array/*FlowFile*/, array/*FlowFolder*/, event)` Same as fileAdded, but used for multiple file validation.
+* `.filesSubmitted(array/*FlowFile*/, array/*FlowFolder*/, event)` Can be used to start upload of currently added files.
 * `.fileRetry(file, chunk)` Something went wrong during upload of a specific file, uploading is being 
 retried.
 * `.fileError(file, message, chunk)` An error occurred during upload of a specific file.
@@ -198,6 +199,7 @@ FlowFile constructor can be accessed in `Flow.FlowFile`.
 #### Properties
 
 * `.flowObj` A back-reference to the parent `Flow` object.
+* `.folderObj` A back-reference to the parent `FlowFolder` object if the file is in a file.
 * `.file` The correlating HTML5 `File` object.
 * `.name` The name of the file.
 * `.relativePath` The relative path to the file (defaults to file name if relative path doesn't exist)
@@ -211,7 +213,7 @@ FlowFile constructor can be accessed in `Flow.FlowFile`.
 
 #### Methods
 
-* `.progress(relative)` Returns a float between 0 and 1 indicating the current upload progress of the file. If `relative` is `true`, the value is returned relative to all files in the Flow.js instance.
+* `.progress()` Returns a float between 0 and 1 indicating the current upload progress of the file.
 * `.pause()` Pause uploading the file.
 * `.resume()` Resume uploading the file.
 * `.cancel()` Abort uploading the file and delete it from the list of files to upload.
@@ -219,10 +221,39 @@ FlowFile constructor can be accessed in `Flow.FlowFile`.
 * `.bootstrap()` Rebuild the state of a `FlowFile` object, including reassigning chunks and XMLHttpRequest instances.
 * `.isUploading()` Returns a boolean indicating whether file chunks is uploading.
 * `.isComplete()` Returns a boolean indicating whether the file has completed uploading and received a server response.
+* `.isPaused()` Returns a boolean indicating whether file is paused.
 * `.sizeUploaded()` Returns size uploaded in bytes.
 * `.timeRemaining()` Returns remaining time to finish upload file in seconds. Accuracy is based on average speed. If speed is zero, time remaining will be equal to positive infinity `Number.POSITIVE_INFINITY`
 * `.getExtension()` Returns file extension in lowercase.
 * `.getType()` Returns file type.
+* `.getSize()` Returns file size.
+* `.hasError()` Returns a boolean indicating whether file has an error.
+
+### FlowFolder
+FlowFolder constructor can be accessed in `Flow.FlowFolder`.
+#### Properties
+
+* `.flowObj` A back-reference to the parent `Flow` object.
+* `.files` An array of FlowFile file objects in the folder.
+* `.name` The name of the folder.
+* `.pathsInfo` The paths info of the folder.
+* `.averageSpeed` Average upload speed, bytes per second.
+* `.currentSpeed` Current upload speed, bytes per second.
+
+#### Methods
+
+* `.progress(relative)` Returns a float between 0 and 1 indicating the current upload progress of the folder files.
+* `.pause()` Pause uploading the folder files.
+* `.resume()` Resume uploading the folder files.
+* `.cancel()` Abort uploading the folder files and delete them from the list of files to upload.
+* `.retry()` Retry uploading the folder files.
+* `.isUploading()` Returns a boolean indicating whether folder files is uploading.
+* `.isComplete()` Returns a boolean indicating whether the folder files has completed uploading and received a server response.
+* `.isPaused()` Returns a boolean indicating whether file is paused.
+* `.sizeUploaded()` Returns size uploaded in bytes.
+* `.timeRemaining()` Returns remaining time to finish upload folder files file in seconds. Accuracy is based on average speed. If speed is zero, time remaining will be equal to positive infinity `Number.POSITIVE_INFINITY`
+* `.getSize()` Returns folder files size.
+* `.hasError()` Returns a boolean indicating whether file has an error.
 
 ## Contribution
 
