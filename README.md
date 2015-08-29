@@ -153,6 +153,7 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 
    Note: avoid using `a` and `button` tags as file upload buttons, use span instead.
 * `.assignDrop(domNodes)` Assign one or more DOM nodes as a drop target.
+* `.unAssignDrop(domNodes)` Unassign one or more DOM nodes as a drop target.
 * `.on(event, callback)` Listen for event from Flow.js (see below)
 * `.off([event, [callback]])`:
     * `.off()` All events are removed.
