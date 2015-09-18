@@ -368,6 +368,8 @@
         } else {
           input = document.createElement('input');
           input.setAttribute('type', 'file');
+          //add title for Accessibility
+          input.setAttribute('title', 'file-upload');
           // display:none - not working in opera 12
           extend(input.style, {
             visibility: 'hidden',
