@@ -57,7 +57,7 @@
      * Check if directory upload is supported
      * @type {boolean}
      */
-    this.supportDirectory = /WebKit/.test(window.navigator.userAgent);
+    this.supportDirectory = /Chrome/.test(window.navigator.userAgent);
 
     /**
      * List of FlowFile objects
