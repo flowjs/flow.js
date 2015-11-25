@@ -1,5 +1,4 @@
 module.exports = function(grunt) {
-  var browsers = grunt.option('browsers') && grunt.option('browsers').split(',');
   // Project configuration.
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
@@ -38,8 +37,7 @@ module.exports = function(grunt) {
     },
     karma: {
       options: {
-        configFile: 'karma.conf.js',
-        browsers: browsers || ['Chrome']
+        configFile: 'karma.conf.js'
       },
       watch: {
         autoWatch: true,
@@ -69,8 +67,6 @@ module.exports = function(grunt) {
           type: "lcov",
           dir: "coverage/"
         },
-        // Buggiest browser
-        browsers: browsers || ['sl_chrome'],
         // global config for SauceLabs
         sauceLabs: {
           username: grunt.option('sauce-username') || process.env.SAUCE_USERNAME,

@@ -1,17 +1,98 @@
 module.exports = function(config) {
-  config.set({
+  // define SL browsers
+  var customLaunchers = {
+    sl_ie10: {
+      base: 'SauceLabs',
+      browserName: 'internet explorer',
+      platform: 'Windows 8',
+      version: '10'
+    },
+    sl_ie11: {
+      base: 'SauceLabs',
+      browserName: 'internet explorer',
+      platform: 'Windows 10',
+      version: '11'
+    },
+    sl_ie11: {
+      base: 'SauceLabs',
+      browserName: 'microsoftedge',
+      platform: 'Windows 10',
+      version: '20.10240'
+    },
+    sl_chrome_1: {
+      base: 'SauceLabs',
+      browserName: 'chrome',
+      platform: 'Linux',
+      version: '26'
+    },
+    sl_chrome_2: {
+      base: 'SauceLabs',
+      browserName: 'chrome',
+      platform: 'Linux',
+      version: '46'
+    },
+    sl_firefox_1: {
+      base: 'SauceLabs',
+      browserName: 'firefox',
+      platform: 'Linux',
+      version: '4'
+    },
+    sl_firefox_2: {
+      base: 'SauceLabs',
+      browserName: 'firefox',
+      platform: 'Linux',
+      version: '42'
+    },
+    sl_android_1: {
+      base: 'SauceLabs',
+      browserName: 'android',
+      platform: 'Linux',
+      version: '4.4'
+    },
+    sl_android_2: {
+      base: 'SauceLabs',
+      browserName: 'android',
+      platform: 'Linux',
+      version: '5.1'
+    },
+    sl_iphone_1: {
+      base: 'SauceLabs',
+      browserName: 'iPhone',
+      platform: 'OS X 10.9',
+      deviceName: "iPhone Retina (4-inch 64-bit)",
+      version: '7.1'
+    },
+    sl_iphone_2: {
+      base: 'SauceLabs',
+      browserName: 'iPhone',
+      platform: 'OS X 10.10',
+      deviceName: "iPhone 6 Plus",
+      version: '9.1'
+    },
+    sl_safari: {
+      base: 'SauceLabs',
+      browserName: 'safari',
+      platform: 'OS X 10.8',
+      version: '6.0'
+    },
+    sl_safari: {
+      base: 'SauceLabs',
+      browserName: 'safari',
+      platform: 'OS X 10.11',
+      version: '9.0'
+    }
+  }
 
+  config.set({
     // base path, that will be used to resolve files and exclude
     basePath: '',
-
 
     // frameworks to use
     frameworks: ['jasmine'],
 
-
     // list of files / patterns to load in the browser
     files: [
-      'node_modules/sinon/pkg/sinon-1.7.3.js',
+      'node_modules/sinon/pkg/sinon-1.17.2.js',
       'test/FakeXMLHttpRequestUpload.js',
       'src/*.js',
       'test/*Spec.js'
@@ -41,70 +122,19 @@ module.exports = function(config) {
     // possible values: config.LOG_DISABLE || config.LOG_ERROR || config.LOG_WARN || config.LOG_INFO || config.LOG_DEBUG
     logLevel: config.LOG_INFO,
 
-
     // enable / disable watching file and executing tests whenever any file changes
     autoWatch: false,
 
-
-    // Start these browsers, currently available:
-    // - Chrome
-    // - ChromeCanary
-    // - Firefox
-    // - Opera
-    // - Safari (only Mac)
-    // - PhantomJS
-    // - IE (only Windows)
-    browsers: ['Chrome'],
-
-
     // If browser does not capture in given timeout [ms], kill it
     captureTimeout: 60000,
-
 
     // Continuous Integration mode
     // if true, it capture browsers, run tests and exit
     singleRun: false,
 
+    customLaunchers: customLaunchers,
 
-    // define SL browsers
-    customLaunchers: {
-      sl_opera: {
-        base: 'SauceLabs',
-        browserName: "opera",
-        platform: 'Windows 7',
-        version: "12"
-      },
-      sl_iphone: {
-        base: 'SauceLabs',
-        browserName: 'iphone',
-        platform: 'OS X 10.8',
-        version: '6'
-      },
-      sl_safari: {
-        base: 'SauceLabs',
-        browserName: 'safari',
-        platform: 'OS X 10.8',
-        version: '6'
-      },
-      sl_ie10: {
-        base: 'SauceLabs',
-        browserName: 'internet explorer',
-        platform: 'Windows 8',
-        version: '10'
-      },
-      sl_chrome: {
-        base: 'SauceLabs',
-        browserName: 'chrome',
-        platform: 'Windows 7'
-      },
-      sl_firefox: {
-        base: 'SauceLabs',
-        browserName: 'firefox',
-        platform: 'Windows 7',
-        version: '21'
-      }
-    },
-
+    browsers: Object.keys(customLaunchers),
 
     coverageReporter: {
       type : 'html',
