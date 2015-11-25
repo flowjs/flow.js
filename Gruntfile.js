@@ -69,10 +69,11 @@ module.exports = function(grunt) {
         },
         // global config for SauceLabs
         sauceLabs: {
+          testName: 'flow.js',
           username: grunt.option('sauce-username') || process.env.SAUCE_USERNAME,
           accessKey: grunt.option('sauce-access-key') || process.env.SAUCE_ACCESS_KEY,
-          startConnect: grunt.option('sauce-local') ? false : true ,
-          testName: 'flow.js'
+          tunnelIdentifier: process.env.TRAVIS_JOB_NUMBER,
+          startConnect: false
         }
       }
     },

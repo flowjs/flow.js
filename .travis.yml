@@ -5,6 +5,8 @@ env:
   global:
   - SAUCE_USERNAME=aidaskk
   - SAUCE_ACCESS_KEY=6e96b47e-6665-4f69-beaa-085e5d5b6b9b
+addons:
+  sauce_connect: true
 before_script:
   - sh -e /etc/init.d/xvfb start
   - npm install --quiet -g grunt-cli karma
