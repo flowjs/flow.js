@@ -1,5 +1,7 @@
 # Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.svg)](https://travis-ci.org/flowjs/flow.js) [![Coverage Status](https://coveralls.io/repos/flowjs/flow.js/badge.svg?branch=master)](https://coveralls.io/r/flowjs/flow.js?branch=master)
 
+[![Saucelabs Test Status](https://saucelabs.com/browser-matrix/aidassk.svg)](https://saucelabs.com/u/aidaskk)
+
 Flow.js is a JavaScript library providing multiple simultaneous, stable and resumable uploads via the HTML5 File API. 
 
 The library is designed to introduce fault-tolerance into the upload of large files through HTTP. This is done by splitting each file into small chunks. Then, whenever the upload of a chunk fails, uploading is retried until the procedure completes. This allows uploads to automatically resume uploading after a network connection is lost either locally or to the server. Additionally, it allows for users to pause, resume and even recover uploads without losing state because only the currently uploading chunks will be aborted, not the entire upload.
