@@ -48,6 +48,7 @@ module.exports = function(grunt) {
       },
       coverage: {
         singleRun: true,
+        browsers: ['Firefox'],
         reporters: ['progress', 'coverage'],
         preprocessors: {
           'src/*.js': 'coverage'
@@ -57,9 +58,9 @@ module.exports = function(grunt) {
           dir: "coverage/"
         }
       },
-      travis: {
+      saucelabs: {
         singleRun: true,
-        reporters: ['progress', 'coverage', 'saucelabs'],
+        reporters: ['progress', 'saucelabs'],
         preprocessors: {
           'src/*.js': 'coverage'
         },
@@ -125,5 +126,5 @@ module.exports = function(grunt) {
     grunt.task.run('bump-commit');
   });
   // Development
-  grunt.registerTask('test', ["karma:travis"]);
+  grunt.registerTask('test', ["karma:coverage", "karma:saucelabs"]);
 };
