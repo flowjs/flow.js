@@ -58,15 +58,15 @@ module.exports = function(config) {
     sl_iphone_1: {
       base: 'SauceLabs',
       browserName: 'iPhone',
-      platform: 'OS X 10.9',
-      deviceName: "iPhone Retina (4-inch 64-bit)",
+      platform: 'OS X 10.10',
+      deviceName: "iPad Simulator",
       version: '7.1'
     },
     sl_iphone_2: {
       base: 'SauceLabs',
       browserName: 'iPhone',
       platform: 'OS X 10.10',
-      deviceName: "iPhone 6 Plus",
+      deviceName: "iPad Simulator",
       version: '9.1'
     },
     sl_safari: {
