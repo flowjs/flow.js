@@ -13,14 +13,16 @@ describe('upload file', function() {
   var requests = [];
 
   beforeEach(function () {
+    jasmine.clock().install();
+
     flow = new Flow({
       progressCallbacksInterval: 0,
       generateUniqueIdentifier: function (file) {
         return file.size;
       }
     });
-    requests = [];
 
+    requests = [];
     xhr = sinon.useFakeXMLHttpRequest();
     xhr.onCreate = function (xhr) {
       requests.push(xhr);
@@ -28,6 +30,8 @@ describe('upload file', function() {
   });
 
   afterEach(function () {
+    jasmine.clock().uninstall();
+
     xhr.restore();
   });
 
@@ -93,7 +97,6 @@ describe('upload file', function() {
   });
 
   it('should throw expected events', function () {
-    jasmine.Clock.useMock();
     var events = [];
     flow.on('catchAll', function (event) {
       events.push(event);
@@ -126,7 +129,7 @@ describe('upload file', function() {
     expect(events[9]).toBe('progress');
     expect(events[10]).toBe('fileSuccess');
 
-    jasmine.Clock.tick(1);
+    jasmine.clock().tick(1);
     expect(events.length).toBe(12);
     expect(events[11]).toBe('complete');
 
@@ -135,7 +138,7 @@ describe('upload file', function() {
     expect(events[12]).toBe('uploadStart');
 
     // complete event is always asynchronous
-    jasmine.Clock.tick(1);
+    jasmine.clock().tick(1);
     expect(events.length).toBe(14);
     expect(events[13]).toBe('complete');
   });
@@ -242,9 +245,9 @@ describe('upload file', function() {
     expect(secondChunk.status()).toBe('uploading');
 
     expect(error).not.toHaveBeenCalled();
-    expect(progress.callCount).toBe(1);
+    expect(progress.calls.count()).toBe(1);
     expect(success).not.toHaveBeenCalled();
-    expect(retry.callCount).toBe(1);
+    expect(retry.calls.count()).toBe(1);
 
     requests[2].respond(400);
     expect(requests.length).toBe(4);
@@ -252,19 +255,19 @@ describe('upload file', function() {
     expect(secondChunk.status()).toBe('uploading');
 
     expect(error).not.toHaveBeenCalled();
-    expect(progress.callCount).toBe(1);
+    expect(progress.calls.count()).toBe(1);
     expect(success).not.toHaveBeenCalled();
-    expect(retry.callCount).toBe(2);
+    expect(retry.calls.count()).toBe(2);
 
     requests[3].respond(400, {}, 'Err');
     expect(requests.length).toBe(4);
     expect(file.chunks.length).toBe(0);
 
-    expect(error.callCount).toBe(1);
+    expect(error.calls.count()).toBe(1);
     expect(error).toHaveBeenCalledWith(file, 'Err', secondChunk);
-    expect(progress.callCount).toBe(1);
+    expect(progress.calls.count()).toBe(1);
     expect(success).not.toHaveBeenCalled();
-    expect(retry.callCount).toBe(2);
+    expect(retry.calls.count()).toBe(2);
 
     expect(file.error).toBeTruthy();
     expect(file.isComplete()).toBeTruthy();
@@ -273,7 +276,6 @@ describe('upload file', function() {
   });
 
   it('should retry file with timeout', function () {
-    jasmine.Clock.useMock();
     flow.opts.testChunks = false;
     flow.opts.maxChunkRetries = 1;
     flow.opts.chunkRetryInterval = 100;
@@ -297,7 +299,7 @@ describe('upload file', function() {
     expect(retry).toHaveBeenCalled();
     expect(file.chunks[0].status()).toBe('uploading');
 
-    jasmine.Clock.tick(100);
+    jasmine.clock().tick(100);
     expect(requests.length).toBe(2);
     requests[1].respond(200);
     expect(error).not.toHaveBeenCalled();
@@ -405,12 +407,12 @@ describe('upload file', function() {
     var file = flow.files[0];
     flow.upload();
     expect(requests.length).toBe(0);
-    expect(preprocess).wasCalledWith(file.chunks[0]);
+    expect(preprocess).toHaveBeenCalledWith(file.chunks[0]);
     expect(file.chunks[0].preprocessState).toBe(1);
     file.chunks[0].preprocessFinished();
     expect(requests.length).toBe(1);
     requests[0].respond(200, [], "response");
-    expect(success).wasCalledWith(file, "response", file.chunks[0]);
+    expect(success).toHaveBeenCalledWith(file, "response", file.chunks[0]);
     expect(error).not.toHaveBeenCalled();
   });
 
@@ -424,11 +426,11 @@ describe('upload file', function() {
     var secondFile = flow.files[1];
     flow.upload();
     expect(requests.length).toBe(0);
-    expect(preprocess).wasCalledWith(file.chunks[0]);
-    expect(preprocess).wasNotCalledWith(secondFile.chunks[0]);
+    expect(preprocess).toHaveBeenCalledWith(file.chunks[0]);
+    expect(preprocess).not.toHaveBeenCalledWith(secondFile.chunks[0]);
 
     flow.upload();
-    expect(preprocess).wasNotCalledWith(secondFile.chunks[0]);
+    expect(preprocess).not.toHaveBeenCalledWith(secondFile.chunks[0]);
   });
 
   it('should resume preprocess chunks after pause', function () {
@@ -445,13 +447,13 @@ describe('upload file', function() {
     var file = flow.files[0];
     flow.upload();
     for(var i=0; i<file.chunks.length; i++) {
-      expect(preprocess).wasCalledWith(file.chunks[i]);
+      expect(preprocess).toHaveBeenCalledWith(file.chunks[i]);
       file.chunks[i].preprocessFinished();
       file.pause();
       file.resume();
       requests[requests.length-1].respond(200, [], "response");
     }
-    expect(success).wasCalledWith(file, "response", file.chunks[file.chunks.length-1]);
+    expect(success).toHaveBeenCalledWith(file, "response", file.chunks[file.chunks.length-1]);
     expect(error).not.toHaveBeenCalled();
   });
 
@@ -462,7 +464,7 @@ describe('upload file', function() {
     var file = flow.files[0];
     flow.upload();
     requests[0].respond(200, [], "response");
-    expect(success).wasCalledWith(file, "response", file.chunks[0]);
+    expect(success).toHaveBeenCalledWith(file, "response", file.chunks[0]);
   });
 
   it('should have upload speed', function() {
