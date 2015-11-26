@@ -44,6 +44,6 @@
     "karma-ie-launcher": "*",
     "karma-jasmine": "~0.3",
     "karma-sauce-launcher": "~0.3.0",
-    "sinon": "~1.17.2"
+    "sinon": "~1.7.3"
   }
 }

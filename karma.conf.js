@@ -35,7 +35,7 @@ module.exports = function(config) {
       base: 'SauceLabs',
       browserName: 'firefox',
       platform: 'Linux',
-      version: '4'
+      version: '13'
     },
     sl_firefox_2: {
       base: 'SauceLabs',
@@ -92,7 +92,7 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      'node_modules/sinon/pkg/sinon-1.17.2.js',
+      'node_modules/sinon/pkg/sinon-1.7.3.js',
       'test/FakeXMLHttpRequestUpload.js',
       'src/*.js',
       'test/*Spec.js'

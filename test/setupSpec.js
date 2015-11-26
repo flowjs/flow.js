@@ -112,11 +112,11 @@ describe('setup', function() {
       event.dataTransfer = {files: []};
       div.dispatchEvent(event);
       expect(onDrop).toHaveBeenCalled();
-      expect(onDrop.callCount).toBe(1);
+      expect(onDrop.calls.count()).toBe(1);
 
       flow.unAssignDrop(div);
       div.dispatchEvent(event);
-      expect(onDrop.callCount).toBe(1);
+      expect(onDrop.calls.count()).toBe(1);
     });
   });
 
