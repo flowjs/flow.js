@@ -59,7 +59,7 @@ module.exports = function(grunt) {
       },
       travis: {
         singleRun: true,
-        reporters: ['progress', 'coverage'],
+        reporters: ['progress', 'coverage', 'saucelabs'],
         preprocessors: {
           'src/*.js': 'coverage'
         },
