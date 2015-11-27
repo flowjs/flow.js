@@ -1561,7 +1561,7 @@
     }
     var key;
     // Is Array?
-    if (typeof(obj.length) !== 'undefined') {
+    if (Array.isArray(obj)) {
       for (key = 0; key < obj.length; key++) {
         if (callback.call(context, obj[key], key) === false) {
           return ;
