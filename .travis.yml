@@ -7,8 +7,8 @@ cache:
     - node_modules
 env:
   global:
-  - SAUCE_USERNAME=aidaskk
-  - SAUCE_ACCESS_KEY=6e96b47e-6665-4f69-beaa-085e5d5b6b9b
+  - SAUCE_USERNAME=flowjs
+  - SAUCE_ACCESS_KEY=53e609a9-cb5d-4eac-a888-aa5419836f19
 addons:
   sauce_connect: true
 before_script:

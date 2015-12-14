@@ -1,6 +1,6 @@
 # Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.svg)](https://travis-ci.org/flowjs/flow.js) [![Coverage Status](https://coveralls.io/repos/flowjs/flow.js/badge.svg?branch=master)](https://coveralls.io/r/flowjs/flow.js?branch=master)
 
-[![Saucelabs Test Status](https://saucelabs.com/browser-matrix/aidassk.svg)](https://saucelabs.com/u/aidaskk)
+[![Saucelabs Test Status](https://saucelabs.com/browser-matrix/flowjs.svg)](https://saucelabs.com/u/flowjs)
 
 Flow.js is a JavaScript library providing multiple simultaneous, stable and resumable uploads via the HTML5 File API. 
 
