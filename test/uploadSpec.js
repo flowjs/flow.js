@@ -364,17 +364,24 @@ describe('upload file', function() {
     flow.on('fileSuccess', success);
 
     flow.addFile(new Blob([]));
-    var file = flow.files[0];
-    flow.upload();
-    expect(requests.length).toBe(1);
-    expect(file.progress()).toBe(0);
-    requests[0].respond(200);
-    expect(requests.length).toBe(1);
-    expect(error).not.toHaveBeenCalled();
-    expect(success).toHaveBeenCalled();
-    expect(file.progress()).toBe(1);
-    expect(file.isUploading()).toBe(false);
-    expect(file.isComplete()).toBe(true);
+
+    // https://github.com/flowjs/flow.js/issues/55
+    if (window.navigator.msPointerEnabled) {
+      expect(flow.files.length, 0);
+    } else {
+      expect(flow.files.length, 1);
+      var file = flow.files[0];
+      flow.upload();
+      expect(requests.length).toBe(1);
+      expect(file.progress()).toBe(0);
+      requests[0].respond(200);
+      expect(requests.length).toBe(1);
+      expect(error).not.toHaveBeenCalled();
+      expect(success).toHaveBeenCalled();
+      expect(file.progress()).toBe(1);
+      expect(file.isUploading()).toBe(false);
+      expect(file.isComplete()).toBe(true);
+    }
   });
 
   it('should not upload folder', function () {

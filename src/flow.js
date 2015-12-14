@@ -578,10 +578,7 @@
     addFiles: function (fileList, event) {
       var files = [];
       each(fileList, function (file) {
-        // Uploading empty file IE10/IE11 hangs indefinitely
-        // see https://connect.microsoft.com/IE/feedback/details/813443/uploading-empty-file-ie10-ie11-hangs-indefinitely
-        // Directories have size `0` and name `.`
-        // Ignore already added files if opts.allowDuplicateUploads is set to false
+        // https://github.com/flowjs/flow.js/issues/55
         if ((!ie10plus || ie10plus && file.size > 0) && !(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.')) &&
           (this.opts.allowDuplicateUploads || !this.getFromUniqueIdentifier(this.generateUniqueIdentifier(file)))) {
           var f = new FlowFile(this, file);
