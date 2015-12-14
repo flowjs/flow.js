@@ -13,7 +13,7 @@ module.exports = function(config) {
       platform: 'Windows 10',
       version: '11.0'
     },
-    sl_ie11: {
+    sl_edge: {
       base: 'SauceLabs',
       browserName: 'microsoftedge',
       platform: 'Windows 10',
@@ -69,13 +69,13 @@ module.exports = function(config) {
       deviceName: "iPad Simulator",
       version: '9.1'
     },
-    sl_safari: {
+    sl_safari_1: {
       base: 'SauceLabs',
       browserName: 'safari',
       platform: 'OS X 10.8',
       version: '6.0'
     },
-    sl_safari: {
+    sl_safari_2: {
       base: 'SauceLabs',
       browserName: 'safari',
       platform: 'OS X 10.11',
