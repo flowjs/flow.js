@@ -42,6 +42,6 @@
     "karma-jasmine": "0.3",
     "karma-firefox-launcher": "0.1.7",
     "karma-sauce-launcher": "0.3.0",
-    "sinon": "1.7.3"
+    "sinon": "1.17.2"
   }
 }
