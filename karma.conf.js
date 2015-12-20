@@ -59,15 +59,16 @@ module.exports = function(config) {
       base: 'SauceLabs',
       browserName: 'iPhone',
       platform: 'OS X 10.10',
-      deviceName: "iPad Simulator",
+      deviceName: 'iPad Simulator',
       version: '7.1'
     },
     sl_iphone_2: {
       base: 'SauceLabs',
       browserName: 'iPhone',
       platform: 'OS X 10.10',
-      deviceName: "iPad Simulator",
-      version: '9.1'
+      deviceName: 'iPad Simulator',
+      deviceOrientation: 'portrait',
+      version: '9.2'
     },
     sl_safari_1: {
       base: 'SauceLabs',
@@ -130,7 +131,7 @@ module.exports = function(config) {
 
     // Continuous Integration mode
     // if true, it capture browsers, run tests and exit
-    singleRun: false,
+    singleRun: true,
 
     customLaunchers: customLaunchers,
 

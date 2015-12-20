@@ -1,6 +1,4 @@
 language: node_js
-node_js:
-  - "4.2"
 sudo: false
 cache:
   directories:
@@ -9,13 +7,19 @@ env:
   global:
   - SAUCE_USERNAME=flowjs
   - SAUCE_ACCESS_KEY=53e609a9-cb5d-4eac-a888-aa5419836f19
-addons:
-  sauce_connect: true
-before_script:
-  - export DISPLAY=:99.0
-  - sh -e /etc/init.d/xvfb start
-  - npm install --quiet -g grunt-cli karma
-  - npm install
+matrix:
+  fast_finish: true
+  include:
+    - env: TEST='unit-tests'
+      node_js: "4.2"
+    - env: TEST='browser-tests'
+      node_js: "4.2"
+      addons:
+        sauce_connect: true
+  allow_failures:
+    - env: TEST='unit-tests'
+    - env: TEST='browser-tests'
+before_install: npm install -g grunt-cli
+install: npm install
 script:
-  - grunt karma:coverage
-  - grunt karma:saucelabs || true
+  - $TRAVIS_BUILD_DIR/travis.sh
