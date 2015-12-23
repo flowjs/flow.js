@@ -1455,7 +1455,7 @@
     prepareXhrRequest: function(method, isTest, paramsMethod, blob) {
       // Add data from the query options
       var query = evalOpts(this.flowObj.opts.query, this.fileObj, this, isTest);
-      query = extend(this.getParams(), query);
+      query = extend(query, this.getParams());
 
       var target = evalOpts(this.flowObj.opts.target, this.fileObj, this, isTest);
       var data = null;
