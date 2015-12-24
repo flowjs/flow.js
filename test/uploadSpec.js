@@ -61,7 +61,7 @@ describe('upload file', function() {
     expect(requests[2].url).not.toContain('a=1');
 
     flow.opts.target = 'file?w=w';
-    flow.opts.query = undefined;
+    flow.opts.query = {};
     flow.files[0].retry();
     expect(requests.length).toBe(4);
     expect(requests[3].url).toContain('file?w=w&');
