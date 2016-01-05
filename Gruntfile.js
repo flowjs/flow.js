@@ -32,7 +32,7 @@ module.exports = function(grunt) {
     },
     coveralls: {
       options: {
-        coverage_dir: 'coverage/'
+        coverageDir: 'coverage/'
       }
     },
     karma: {
@@ -55,7 +55,7 @@ module.exports = function(grunt) {
         },
         coverageReporter: {
           type: "lcov",
-          dir: "coverage/"
+          dir: "coverage"
         }
       },
       saucelabs: {
@@ -66,7 +66,7 @@ module.exports = function(grunt) {
         },
         coverageReporter: {
           type: "lcov",
-          dir: "coverage/"
+          dir: "coverage"
         },
         // global config for SauceLabs
         sauceLabs: {
@@ -126,5 +126,5 @@ module.exports = function(grunt) {
     grunt.task.run('bump-commit');
   });
   // Development
-  grunt.registerTask('test', ["karma:coverage", "karma:saucelabs"]);
+  grunt.registerTask('test', ["karma:coverage"]);
 };

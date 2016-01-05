@@ -9,6 +9,7 @@ if [ $TEST = "unit-tests" ]; then
   sh -e /etc/init.d/xvfb start
   sleep 1
   grunt karma:coverage
+  grunt coveralls
 
 elif [[ $TEST = "browser-tests" ]]; then
 

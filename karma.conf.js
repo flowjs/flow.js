@@ -105,19 +105,15 @@ module.exports = function(config) {
 
     ],
 
-
     // test results reporter to use
     // possible values: 'dots', 'progress', 'junit', 'growl', 'coverage'
-    reporters: ['progress', 'saucelabs'],
-
+    reporters: ['progress', 'coverage', 'saucelabs'],
 
     // web server port
     port: 9876,
 
-
     // enable / disable colors in the output (reporters and logs)
     colors: true,
-
 
     // level of logging
     // possible values: config.LOG_DISABLE || config.LOG_ERROR || config.LOG_WARN || config.LOG_INFO || config.LOG_DEBUG
@@ -135,11 +131,6 @@ module.exports = function(config) {
 
     customLaunchers: customLaunchers,
 
-    browsers: Object.keys(customLaunchers),
-
-    coverageReporter: {
-      type : 'html',
-      dir : 'coverage/'
-    }
+    browsers: Object.keys(customLaunchers)
   });
 };
