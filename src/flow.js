@@ -1049,7 +1049,7 @@
    * @function webAPIFileRead(fileObj, fileType, startByte, endByte, chunk)
    *
    */
-  function webAPIFileRead(fileObj, fileType, startByte, endByte, chunk) {
+  function webAPIFileRead(fileObj, startByte, endByte, fileType, chunk) {
     var function_name = 'slice';
 
     if (fileObj.file.slice)
