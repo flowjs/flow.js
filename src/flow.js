@@ -1147,10 +1147,24 @@
     this.startByte = this.offset * this.chunkSize;
 
     /**
+      * Compute the endbyte in a file
+      *
+      */
+    this.computeEndByte = function() {
+      var endByte = Math.min(this.fileObj.size, (this.offset + 1) * this.chunkSize);
+      if (this.fileObj.size - endByte < this.chunkSize && !this.flowObj.opts.forceChunkSize) {
+        // The last chunk will be bigger than the chunk size,
+        // but less than 2 * this.chunkSize
+        endByte = this.fileObj.size;
+      }
+      return endByte;
+    }
+
+    /**
      * Chunk end byte in a file
      * @type {number}
      */
-    this.endByte = Math.min(this.fileObj.size, (this.offset + 1) * this.chunkSize);
+    this.endByte = this.computeEndByte();
 
     /**
      * XMLHttpRequest
@@ -1159,7 +1173,6 @@
     this.xhr = null;
 
     var $ = this;
-
 
     /**
      * Send chunk event
@@ -1284,15 +1297,10 @@
      * @function
      */
     preprocessFinished: function () {
-      // Compute the endByte after the preprocess function to allow an
+      // Re-compute the endByte after the preprocess function to allow an
       // implementer of preprocess to set the fileObj size
-      this.endByte = Math.min(this.fileObj.size, (this.offset + 1) * this.chunkSize);
-      if (this.fileObj.size - this.endByte < this.chunkSize &&
-          !this.flowObj.opts.forceChunkSize) {
-        // The last chunk will be bigger than the chunk size,
-        // but less than 2*this.chunkSize
-        this.endByte = this.fileObj.size;
-      }
+      this.endByte = this.computeEndByte();
+
       this.preprocessState = 2;
       this.send();
     },
