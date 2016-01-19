@@ -551,4 +551,47 @@ describe('upload file', function() {
     expect(fileThird.timeRemaining()).toBe(0);
     expect(flow.timeRemaining()).toBe(0);
   });
+
+  it('should allow to hook initFileFn and readFileFn', function () {
+    var error = jasmine.createSpy('error');
+    var success = jasmine.createSpy('success');
+    flow.on('fileError', error);
+    flow.on('fileSuccess', success);
+
+    flow.opts.chunkSize = 1;
+
+    flow.opts.simultaneousUploads = 10;
+
+    flow.opts.initFileFn = function(flowObj) {
+      // emulate a compresso that starting from a payload of 10 characters
+      // will output 6 characters.
+      var fakeFile = {
+        size: 6
+      }
+
+      flowObj.file = fakeFile;
+      flowObj.size = flowObj.file.size;
+    }
+
+    flow.opts.readFileFn = function(fileObj, startByte, endByte, fileType, chunk) {
+      chunk.readFinished('X');
+    }
+
+    flow.addFile(new Blob(['0123456789']));
+
+    flow.upload();
+
+    expect(requests.length).toBe(6);
+
+    for (var i = 0; i < requests.length; i++) {
+      requests[i].respond(200);
+    }
+
+    var file = flow.files[0];
+    expect(file.progress()).toBe(1);
+    expect(file.isUploading()).toBe(false);
+    expect(file.isComplete()).toBe(true);
+
+    expect(requests.length).toBe(6);
+  });
 });
