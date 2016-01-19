@@ -563,7 +563,7 @@ describe('upload file', function() {
     flow.opts.simultaneousUploads = 10;
 
     flow.opts.initFileFn = function(flowObj) {
-      // emulate a compresso that starting from a payload of 10 characters
+      // emulate a compressor that starting from a payload of 10 characters
       // will output 6 characters.
       var fakeFile = {
         size: 6
