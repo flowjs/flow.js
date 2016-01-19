@@ -23,11 +23,14 @@
    * @param {string|Function} [opts.testMethod]
    * @param {string|Function} [opts.uploadMethod]
    * @param {bool} [opts.prioritizeFirstAndLastChunk]
+   * @param {bool} [opts.allowDuplicateUploads]
    * @param {string|Function} [opts.target]
    * @param {number} [opts.maxChunkRetries]
    * @param {number} [opts.chunkRetryInterval]
    * @param {Array.<number>} [opts.permanentErrors]
    * @param {Array.<number>} [opts.successStatuses]
+   * @param {Function} [opts.initFileFn]
+   * @param {Function} [opts.readFileFn]
    * @param {Function} [opts.generateUniqueIdentifier]
    * @constructor
    */
@@ -54,7 +57,7 @@
      * Check if directory upload is supported
      * @type {boolean}
      */
-    this.supportDirectory = /WebKit/.test(window.navigator.userAgent);
+    this.supportDirectory = /Chrome/.test(window.navigator.userAgent);
 
     /**
      * List of FlowFile objects
@@ -82,6 +85,7 @@
       testMethod: 'GET',
       uploadMethod: 'POST',
       prioritizeFirstAndLastChunk: false,
+      allowDuplicateUploads: false,
       target: '/',
       testChunks: true,
       generateUniqueIdentifier: null,
@@ -89,9 +93,11 @@
       chunkRetryInterval: null,
       permanentErrors: [404, 415, 500, 501],
       successStatuses: [200, 201, 202],
-      onDropStopPropagation: false
+      onDropStopPropagation: false,
+      initFileFn: null,
+      readFileFn: webAPIFileRead
     };
-
+    
     /**
      * Current options
      * @type {Object}
@@ -142,6 +148,7 @@
      * @type {Object}
      */
     this.opts = Flow.extend({}, this.defaults, opts || {});
+
   }
 
   Flow.prototype = {
@@ -226,22 +233,28 @@
           // due to a bug in Chrome's File System API impl - #149735
           fileReadSuccess(item.getAsFile(), entry.fullPath);
         } else {
-          entry.createReader().readEntries(readSuccess, readError);
+          readDirectory(entry.createReader());
         }
       });
-      function readSuccess(entries) {
-        queue += entries.length;
-        each(entries, function(entry) {
-          if (entry.isFile) {
-            var fullPath = entry.fullPath;
-            entry.file(function (file) {
-              fileReadSuccess(file, fullPath);
-            }, readError);
-          } else if (entry.isDirectory) {
-            entry.createReader().readEntries(readSuccess, readError);
+      function readDirectory(reader) {
+        reader.readEntries(function (entries) {
+          if (entries.length) {
+            queue += entries.length;
+            each(entries, function(entry) {
+              if (entry.isFile) {
+                var fullPath = entry.fullPath;
+                entry.file(function (file) {
+                  fileReadSuccess(file, fullPath);
+                }, readError);
+              } else if (entry.isDirectory) {
+                readDirectory(entry.createReader());
+              }
+            });
+            readDirectory(reader);
+          } else {
+            decrement();
           }
-        });
-        decrement();
+        }, readError);
       }
       function fileReadSuccess(file, fullPath) {
         // relative path should not start with "/"
@@ -289,15 +302,13 @@
       if (this.opts.prioritizeFirstAndLastChunk) {
         each(this.files, function (file) {
           if (!file.paused && file.chunks.length &&
-            file.chunks[0].status() === 'pending' &&
-            file.chunks[0].preprocessState === 0) {
+            file.chunks[0].status() === 'pending') {
             file.chunks[0].send();
             found = true;
             return false;
           }
           if (!file.paused && file.chunks.length > 1 &&
-            file.chunks[file.chunks.length - 1].status() === 'pending' &&
-            file.chunks[0].preprocessState === 0) {
+            file.chunks[file.chunks.length - 1].status() === 'pending') {
             file.chunks[file.chunks.length - 1].send();
             found = true;
             return false;
@@ -312,7 +323,7 @@
       each(this.files, function (file) {
         if (!file.paused) {
           each(file.chunks, function (chunk) {
-            if (chunk.status() === 'pending' && chunk.preprocessState === 0) {
+            if (chunk.status() === 'pending') {
               chunk.send();
               found = true;
               return false;
@@ -371,7 +382,9 @@
           // display:none - not working in opera 12
           extend(input.style, {
             visibility: 'hidden',
-            position: 'absolute'
+            position: 'absolute',
+            width: '1px',
+            height: '1px'
           });
           // for opera 12 browser, input must be assigned to a document
           domNode.appendChild(input);
@@ -395,8 +408,10 @@
         // When new files are added, simply append them to the overall list
         var $ = this;
         input.addEventListener('change', function (e) {
-          $.addFiles(e.target.files, e);
-          e.target.value = '';
+       	  if (e.target.value) {
+            $.addFiles(e.target.files, e);
+            e.target.value = '';
+       	  }
         }, false);
       }, this);
     },
@@ -563,12 +578,9 @@
     addFiles: function (fileList, event) {
       var files = [];
       each(fileList, function (file) {
-        // Uploading empty file IE10/IE11 hangs indefinitely
-        // see https://connect.microsoft.com/IE/feedback/details/813443/uploading-empty-file-ie10-ie11-hangs-indefinitely
-        // Directories have size `0` and name `.`
-        // Ignore already added files
+        // https://github.com/flowjs/flow.js/issues/55
         if ((!ie10plus || ie10plus && file.size > 0) && !(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.')) &&
-          !this.getFromUniqueIdentifier(this.generateUniqueIdentifier(file))) {
+          (this.opts.allowDuplicateUploads || !this.getFromUniqueIdentifier(this.generateUniqueIdentifier(file)))) {
           var f = new FlowFile(this, file);
           if (this.fire('fileAdded', f, event)) {
             files.push(f);
@@ -687,6 +699,12 @@
      * @type {Flow}
      */
     this.flowObj = flowObj;
+    
+    /**
+     * Used to store the bytes read
+     * @type {Blob|string}
+     */
+    this.bytes = null;
 
     /**
      * Reference to file
@@ -896,13 +914,17 @@
      * @function
      */
     bootstrap: function () {
+      if (typeof this.flowObj.opts.initFileFn === "function") {
+        this.flowObj.opts.initFileFn(this);
+      }
+
       this.abort(true);
       this.error = false;
       // Rebuild stack of chunks from file
       this._prevProgress = 0;
       var round = this.flowObj.opts.forceChunkSize ? Math.ceil : Math.floor;
       var chunks = Math.max(
-        round(this.file.size / this.flowObj.opts.chunkSize), 1
+        round(this.size / this.flowObj.opts.chunkSize), 1
       );
       for (var offset = 0; offset < chunks; offset++) {
         this.chunks.push(
@@ -961,7 +983,7 @@
       var outstanding = false;
       each(this.chunks, function (chunk) {
         var status = chunk.status();
-        if (status === 'pending' || status === 'uploading' || chunk.preprocessState === 1) {
+        if (status === 'pending' || status === 'uploading' || status === 'reading' || chunk.preprocessState === 1 || chunk.readState === 1) {
           outstanding = true;
           return false;
         }
@@ -1021,11 +1043,24 @@
     }
   };
 
+  /**
+   * Default read function using the webAPI
+   *
+   * @function webAPIFileRead(fileObj, fileType, startByte, endByte, chunk)
+   *
+   */
+  function webAPIFileRead(fileObj, startByte, endByte, fileType, chunk) {
+    var function_name = 'slice';
 
+    if (fileObj.file.slice)
+      function_name =  'slice';
+    else if (fileObj.file.mozSlice)
+      function_name = 'mozSlice';
+    else if (fileObj.file.webkitSlice)
+      function_name = 'webkitSlice';
 
-
-
-
+    chunk.readFinished(fileObj.file[function_name](startByte, endByte, fileType));
+  }
 
 
   /**
@@ -1049,12 +1084,6 @@
      * @type {FlowFile}
      */
     this.fileObj = fileObj;
-
-    /**
-     * File size
-     * @type {number}
-     */
-    this.fileObjSize = fileObj.size;
 
     /**
      * File offset
@@ -1087,6 +1116,13 @@
     this.preprocessState = 0;
 
     /**
+     * Read state
+     * @type {number} 0 = not read, 1 = reading, 2 = finished
+     */
+    this.readState = 0;
+
+
+    /**
      * Bytes transferred from total request size
      * @type {number}
      */
@@ -1102,19 +1138,33 @@
      * Size of a chunk
      * @type {number}
      */
-    var chunkSize = this.flowObj.opts.chunkSize;
+    this.chunkSize = this.flowObj.opts.chunkSize;
 
     /**
      * Chunk start byte in a file
      * @type {number}
      */
-    this.startByte = this.offset * chunkSize;
+    this.startByte = this.offset * this.chunkSize;
+
+    /**
+      * Compute the endbyte in a file
+      *
+      */
+    this.computeEndByte = function() {
+      var endByte = Math.min(this.fileObj.size, (this.offset + 1) * this.chunkSize);
+      if (this.fileObj.size - endByte < this.chunkSize && !this.flowObj.opts.forceChunkSize) {
+        // The last chunk will be bigger than the chunk size,
+        // but less than 2 * this.chunkSize
+        endByte = this.fileObj.size;
+      }
+      return endByte;
+    }
 
     /**
      * Chunk end byte in a file
      * @type {number}
      */
-    this.endByte = Math.min(this.fileObjSize, (this.offset + 1) * chunkSize);
+    this.endByte = this.computeEndByte();
 
     /**
      * XMLHttpRequest
@@ -1122,15 +1172,7 @@
      */
     this.xhr = null;
 
-    if (this.fileObjSize - this.endByte < chunkSize &&
-        !this.flowObj.opts.forceChunkSize) {
-      // The last chunk will be bigger than the chunk size,
-      // but less than 2*chunkSize
-      this.endByte = this.fileObjSize;
-    }
-
     var $ = this;
-
 
     /**
      * Send chunk event
@@ -1182,6 +1224,7 @@
     this.doneHandler = function(event) {
       var status = $.status();
       if (status === 'success' || status === 'error') {
+        delete this.data;
         $.event(status, $.message());
         $.flowObj.uploadNextChunk();
       } else {
@@ -1211,7 +1254,7 @@
         flowChunkNumber: this.offset + 1,
         flowChunkSize: this.flowObj.opts.chunkSize,
         flowCurrentChunkSize: this.endByte - this.startByte,
-        flowTotalSize: this.fileObjSize,
+        flowTotalSize: this.fileObj.size,
         flowIdentifier: this.fileObj.uniqueIdentifier,
         flowFilename: this.fileObj.name,
         flowRelativePath: this.fileObj.relativePath,
@@ -1254,9 +1297,24 @@
      * @function
      */
     preprocessFinished: function () {
+      // Re-compute the endByte after the preprocess function to allow an
+      // implementer of preprocess to set the fileObj size
+      this.endByte = this.computeEndByte();
+
       this.preprocessState = 2;
       this.send();
     },
+
+    /**
+     * Finish read state
+     * @function
+     */
+    readFinished: function (bytes) {
+      this.readState = 2;
+      this.bytes = bytes;
+      this.send();
+    },
+
 
     /**
      * Uploads the actual data in a POST call
@@ -1264,6 +1322,7 @@
      */
     send: function () {
       var preprocess = this.flowObj.opts.preprocess;
+      var read = this.flowObj.opts.readFileFn;
       if (typeof preprocess === 'function') {
         switch (this.preprocessState) {
           case 0:
@@ -1274,6 +1333,14 @@
             return;
         }
       }
+      switch (this.readState) {
+        case 0:
+          this.readState = 1;
+          read(this.fileObj, this.startByte, this.endByte, this.fileType, this);
+          return;
+        case 1:
+          return;
+      }
       if (this.flowObj.opts.testChunks && !this.tested) {
         this.test();
         return;
@@ -1283,12 +1350,6 @@
       this.total = 0;
       this.pendingRetry = false;
 
-      var func = (this.fileObj.file.slice ? 'slice' :
-        (this.fileObj.file.mozSlice ? 'mozSlice' :
-          (this.fileObj.file.webkitSlice ? 'webkitSlice' :
-            'slice')));
-      var bytes = this.fileObj.file[func](this.startByte, this.endByte, this.fileObj.file.type);
-
       // Set up request and listen for event
       this.xhr = new XMLHttpRequest();
       this.xhr.upload.addEventListener('progress', this.progressHandler, false);
@@ -1296,7 +1357,7 @@
       this.xhr.addEventListener("error", this.doneHandler, false);
 
       var uploadMethod = evalOpts(this.flowObj.opts.uploadMethod, this.fileObj, this);
-      var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, bytes);
+      var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, this.bytes);
       this.xhr.send(data);
     },
 
@@ -1319,7 +1380,9 @@
      * @returns {string} 'pending', 'uploading', 'success', 'error'
      */
     status: function (isTest) {
-      if (this.pendingRetry || this.preprocessState === 1) {
+      if (this.readState === 1) {
+        return 'reading';
+      } else if (this.pendingRetry || this.preprocessState === 1) {
         // if pending retry then that's effectively the same as actively uploading,
         // there might just be a slight delay before the retry starts
         return 'uploading';
@@ -1400,7 +1463,7 @@
     prepareXhrRequest: function(method, isTest, paramsMethod, blob) {
       // Add data from the query options
       var query = evalOpts(this.flowObj.opts.query, this.fileObj, this, isTest);
-      query = extend(this.getParams(), query);
+      query = extend(query, this.getParams());
 
       var target = evalOpts(this.flowObj.opts.target, this.fileObj, this, isTest);
       var data = null;
@@ -1503,7 +1566,7 @@
     }
     var key;
     // Is Array?
-    if (typeof(obj.length) !== 'undefined') {
+    if (Array.isArray(obj)) {
       for (key = 0; key < obj.length; key++) {
         if (callback.call(context, obj[key], key) === false) {
           return ;
@@ -1535,7 +1598,7 @@
    * Library version
    * @type {string}
    */
-  Flow.version = '2.9.0';
+  Flow.version = '2.10.0';
 
   if ( typeof module === "object" && module && typeof module.exports === "object" ) {
     // Expose Flow as module.exports in loaders that implement the Node
