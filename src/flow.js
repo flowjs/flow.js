@@ -1566,7 +1566,8 @@
     }
     var key;
     // Is Array?
-    if (Array.isArray(obj)) {
+    // Array.isArray won't work, not only arrays can be iterated by index https://github.com/flowjs/ng-flow/issues/236#
+    if (typeof(obj.length) !== 'undefined') {
       for (key = 0; key < obj.length; key++) {
         if (callback.call(context, obj[key], key) === false) {
           return ;
