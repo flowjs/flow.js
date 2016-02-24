@@ -1046,7 +1046,7 @@
   /**
    * Default read function using the webAPI
    *
-   * @function webAPIFileRead(fileObj, fileType, startByte, endByte, chunk)
+   * @function webAPIFileRead(fileObj, startByte, endByte, fileType, chunk)
    *
    */
   function webAPIFileRead(fileObj, startByte, endByte, fileType, chunk) {
