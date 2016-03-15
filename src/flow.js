@@ -155,8 +155,8 @@
     /**
      * Set a callback for an event, possible events:
      * fileSuccess(file), fileProgress(file), fileAdded(file, event),
-     * fileRetry(file), fileError(file, message), complete(),
-     * progress(), error(message, file), pause()
+     * fileRemoved(file), fileRetry(file), fileError(file, message), 
+     * complete(), progress(), error(message, file), pause()
      * @function
      * @param {string} event
      * @param {Function} callback
@@ -609,6 +609,7 @@
         if (this.files[i] === file) {
           this.files.splice(i, 1);
           file.abort();
+          this.fire('fileRemoved', file);
         }
       }
     },
