@@ -18,7 +18,7 @@ matrix:
         sauce_connect: true
   allow_failures:
     - env: TEST='browser-tests'
-before_install: npm install -g grunt-cli
+before_install: npm install -g grunt-cli codeclimate-test-reporter
 install: npm install
 script:
   - $TRAVIS_BUILD_DIR/travis.sh
