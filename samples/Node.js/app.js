@@ -20,7 +20,7 @@ app.post('/upload', multipartMiddleware, function(req, res) {
     console.log('POST', status, original_filename, identifier);
     if (status == 'done') {
       // Assemble Chunks
-      var stream = fs.createWriteStream('uploads/' + filename);
+      var stream = fs.createWriteStream('uploads/' + identifier);
       flow.write(identifier, stream);
       // Clean chunks after the file is assembled
       flow.clean(identifier);
@@ -59,8 +59,8 @@ app.get('/upload', function(req, res) {
   });
 });
 
-app.get('/download/:identifier', function(req, res) {
-  flow.write(req.params.identifier, res);
+app.get('/download/:identifier/:name', function(req, res) {
+   res.download('uploads/' +req.params.identifier, req.params.name);
 });
 
 app.listen(3000);
