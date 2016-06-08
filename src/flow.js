@@ -1337,7 +1337,7 @@
       switch (this.readState) {
         case 0:
           this.readState = 1;
-          read(this.fileObj, this.startByte, this.endByte, this.fileType, this);
+          read(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
           return;
         case 1:
           return;
