@@ -91,7 +91,7 @@
       generateUniqueIdentifier: null,
       maxChunkRetries: 0,
       chunkRetryInterval: null,
-      permanentErrors: [404, 415, 500, 501],
+      permanentErrors: [404, 413, 415, 500, 501],
       successStatuses: [200, 201, 202],
       onDropStopPropagation: false,
       initFileFn: null,
@@ -155,8 +155,8 @@
     /**
      * Set a callback for an event, possible events:
      * fileSuccess(file), fileProgress(file), fileAdded(file, event),
-     * fileRetry(file), fileError(file, message), complete(),
-     * progress(), error(message, file), pause()
+     * fileRemoved(file), fileRetry(file), fileError(file, message), 
+     * complete(), progress(), error(message, file), pause()
      * @function
      * @param {string} event
      * @param {Function} callback
@@ -368,7 +368,7 @@
      * be selected (Chrome only).
      */
     assignBrowse: function (domNodes, isDirectory, singleFile, attributes) {
-      if (typeof domNodes.length === 'undefined') {
+      if (domNodes instanceof Element) {
         domNodes = [domNodes];
       }
 
@@ -594,8 +594,8 @@
           }
           this.files.push(file);
         }, this);
+        this.fire('filesSubmitted', files, event);
       }
-      this.fire('filesSubmitted', files, event);
     },
 
 
@@ -609,6 +609,7 @@
         if (this.files[i] === file) {
           this.files.splice(i, 1);
           file.abort();
+          this.fire('fileRemoved', file);
         }
       }
     },
@@ -1046,7 +1047,7 @@
   /**
    * Default read function using the webAPI
    *
-   * @function webAPIFileRead(fileObj, fileType, startByte, endByte, chunk)
+   * @function webAPIFileRead(fileObj, startByte, endByte, fileType, chunk)
    *
    */
   function webAPIFileRead(fileObj, startByte, endByte, fileType, chunk) {
@@ -1336,7 +1337,7 @@
       switch (this.readState) {
         case 0:
           this.readState = 1;
-          read(this.fileObj, this.startByte, this.endByte, this.fileType, this);
+          read(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
           return;
         case 1:
           return;
@@ -1399,7 +1400,7 @@
           return 'success';
         } else if (this.flowObj.opts.permanentErrors.indexOf(this.xhr.status) > -1 ||
             !isTest && this.retries >= this.flowObj.opts.maxChunkRetries) {
-          // HTTP 415/500/501, permanent error
+          // HTTP 413/415/500/501, permanent error
           return 'error';
         } else {
           // this should never happen, but we'll reset and queue a retry
@@ -1599,7 +1600,7 @@
    * Library version
    * @type {string}
    */
-  Flow.version = '2.10.1';
+  Flow.version = '2.11.2';
 
   if ( typeof module === "object" && module && typeof module.exports === "object" ) {
     // Expose Flow as module.exports in loaders that implement the Node
