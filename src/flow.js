@@ -594,8 +594,8 @@
           }
           this.files.push(file);
         }, this);
+        this.fire('filesSubmitted', files, event);
       }
-      this.fire('filesSubmitted', files, event);
     },
 
 
