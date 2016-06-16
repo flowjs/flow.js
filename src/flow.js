@@ -91,7 +91,7 @@
       generateUniqueIdentifier: null,
       maxChunkRetries: 0,
       chunkRetryInterval: null,
-      permanentErrors: [404, 415, 500, 501],
+      permanentErrors: [404, 413, 415, 500, 501],
       successStatuses: [200, 201, 202],
       onDropStopPropagation: false,
       initFileFn: null,
@@ -1400,7 +1400,7 @@
           return 'success';
         } else if (this.flowObj.opts.permanentErrors.indexOf(this.xhr.status) > -1 ||
             !isTest && this.retries >= this.flowObj.opts.maxChunkRetries) {
-          // HTTP 415/500/501, permanent error
+          // HTTP 413/415/500/501, permanent error
           return 'error';
         } else {
           // this should never happen, but we'll reset and queue a retry
