@@ -10,8 +10,6 @@ Flow.js does not have any external dependencies other than the `HTML5 File API`.
 
 Samples and examples are available in the `samples/` folder. Please push your own as Markdown to help document the project.
 
-## Would you like to contribute? [View our development branch](https://github.com/flowjs/flow.js/tree/develop)
-
 ## Can I see a demo?
 [Flow.js + angular.js file upload demo](http://flowjs.github.io/ng-flow/) - ng-flow extension page https://github.com/flowjs/ng-flow
 
