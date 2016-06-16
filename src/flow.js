@@ -368,7 +368,7 @@
      * be selected (Chrome only).
      */
     assignBrowse: function (domNodes, isDirectory, singleFile, attributes) {
-      if (typeof domNodes.length === 'undefined') {
+      if (domNodes instanceof Element) {
         domNodes = [domNodes];
       }
 
