@@ -28,7 +28,7 @@
     "url": "https://github.com/flowjs/flow.js/issues"
   },
   "devDependencies": {
-    "grunt": "*",
+    "grunt": "0.4.5",
     "grunt-bump": "0.7.0",
     "grunt-contrib-clean": "1.0.0",
     "grunt-contrib-concat": "1.0.0",
