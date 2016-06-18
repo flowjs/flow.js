@@ -552,6 +552,37 @@ describe('upload file', function() {
     expect(flow.timeRemaining()).toBe(0);
   });
 
+  // Related issue: https://github.com/flowjs/flow.js/issues/173
+  it('should provide the sizeUploaded() number in integer format', function () {
+
+    flow.opts.testChunks = false;
+
+    // The size 49 was chosen because it's the smallest number causing the division precision bug on my system:
+    // var foo = 1 / 49; => 0.02040816326530612
+    // var bar = 49 * foo; => 0.9999999999999999
+    var fileSize = 49;
+
+    var str = '';
+
+    for (var i = 0; i < fileSize; i++) {
+      str += 'X';
+    }
+
+    flow.addFile(new Blob([str]));
+
+    var fileFirst = flow.files[0];
+
+    expect(fileFirst.sizeUploaded()).toBe(0);
+    expect(flow.sizeUploaded()).toBe(0);
+
+    flow.upload();
+
+    requests[0].progress(1, fileSize, true);
+    expect(fileFirst.sizeUploaded()).toBe(1);
+
+    flow.cancel();
+  });
+
   it('should allow to hook initFileFn and readFileFn', function () {
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
