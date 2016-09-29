@@ -285,7 +285,7 @@
       }
       // Some confusion in different versions of Firefox
       var relativePath = file.relativePath || file.webkitRelativePath || file.fileName || file.name;
-      return file.size + '-' + relativePath.replace(/[^0-9a-zA-Z_-]/img, '');
+      return file.size + '-' + relativePath.replace(/[^.0-9a-zA-Z_-]/img, '');
     },
 
     /**
