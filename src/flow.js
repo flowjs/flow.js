@@ -700,12 +700,6 @@
      * @type {Flow}
      */
     this.flowObj = flowObj;
-    
-    /**
-     * Used to store the bytes read
-     * @type {Blob|string}
-     */
-    this.bytes = null;
 
     /**
      * Reference to file
@@ -1146,6 +1140,12 @@
      * @type {number}
      */
     this.startByte = this.offset * this.chunkSize;
+
+    /**
+     * Used to store the bytes read
+     * @type {Blob|string}
+     */
+    this.bytes = null;
 
     /**
       * Compute the endbyte in a file
