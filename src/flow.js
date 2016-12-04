@@ -57,7 +57,11 @@
      * Check if directory upload is supported
      * @type {boolean}
      */
-    this.supportDirectory = /Chrome/.test(window.navigator.userAgent);
+    this.supportDirectory = (
+        /Chrome/.test(window.navigator.userAgent) ||
+        /Firefox/.test(window.navigator.userAgent) ||
+        /Edge/.test(window.navigator.userAgent)
+    );
 
     /**
      * List of FlowFile objects
