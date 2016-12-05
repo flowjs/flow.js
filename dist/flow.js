@@ -57,7 +57,11 @@
      * Check if directory upload is supported
      * @type {boolean}
      */
-    this.supportDirectory = /Chrome/.test(window.navigator.userAgent);
+    this.supportDirectory = (
+        /Chrome/.test(window.navigator.userAgent) ||
+        /Firefox/.test(window.navigator.userAgent) ||
+        /Edge/.test(window.navigator.userAgent)
+    );
 
     /**
      * List of FlowFile objects
@@ -1600,7 +1604,7 @@
    * Library version
    * @type {string}
    */
-  Flow.version = '2.11.2';
+  Flow.version = '2.11.3';
 
   if ( typeof module === "object" && module && typeof module.exports === "object" ) {
     // Expose Flow as module.exports in loaders that implement the Node
