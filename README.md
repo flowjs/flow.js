@@ -1,6 +1,10 @@
-# Startup
+# Vixlet Startup
 
-`node samples/Node.js/app.js`
+Add the Bearer token here: https://github.com/haivixlet/flow.js/blob/master/samples/Node.js/public/index.html#L57
+
+Start the server: `node samples/Node.js/app.js`
+
+Navigate to http://localhost:3000/index.html
 
 # Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.svg)](https://travis-ci.org/flowjs/flow.js) [![Test Coverage](https://codeclimate.com/github/flowjs/flow.js/badges/coverage.svg)](https://codeclimate.com/github/flowjs/flow.js/coverage)
 
