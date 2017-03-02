@@ -48,9 +48,15 @@
       <script>
         (function () {
           var r = new Flow({
-            target: '/upload',
-            chunkSize: 1024*1024,
-            testChunks: false
+            target: 'http://uploader.vixletinternal.com/',
+            chunkSize: 5 * 1024 * 1024,
+            testChunks: false,
+            headers: {
+              'Accept-Version': '4.1.0',
+              'Domain': '9999',
+              'Authorization': 'Bearer xxxxx'
+            },
+            simultaneousUploads: 3
           });
           // Flow.js isn't supported, fall back on a different method
           if (!r.support) {

@@ -56,4 +56,6 @@ app.get('/download/:identifier', function(req, res) {
   flow.write(req.params.identifier, res);
 });
 
-app.listen(3000);
+app.listen(3000, function() {
+  console.log('Started');
+});
