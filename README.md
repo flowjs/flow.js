@@ -234,7 +234,7 @@ To ensure consistency throughout the source code, keep these rules in mind as yo
 
 * All features or bug fixes must be tested by one or more specs.
 
-* We follow the rules contained in [Google's JavaScript Style Guide](http://google-styleguide.googlecode.com/svn/trunk/javascriptguide.xml) with an exception we wrap all code at 100 characters.
+* We follow the rules contained in [Google's JavaScript Style Guide](https://google.github.io/styleguide/jsguide.html) with an exception we wrap all code at 100 characters.
 
 
 ## Installation Dependencies
