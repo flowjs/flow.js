@@ -583,11 +583,13 @@
       var files = [];
       each(fileList, function (file) {
         // https://github.com/flowjs/flow.js/issues/55
-        if ((!ie10plus || ie10plus && file.size > 0) && !(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.')) &&
-          (this.opts.allowDuplicateUploads || !this.getFromUniqueIdentifier(this.generateUniqueIdentifier(file)))) {
-          var f = new FlowFile(this, file);
-          if (this.fire('fileAdded', f, event)) {
-            files.push(f);
+        if ((!ie10plus || ie10plus && file.size > 0) && !(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
+          var uniqueIdentifier = this.generateUniqueIdentifier(file);
+          if (this.opts.allowDuplicateUploads || !this.getFromUniqueIdentifier(uniqueIdentifier)) {
+            var f = new FlowFile(this, file, uniqueIdentifier);
+            if (this.fire('fileAdded', f, event)) {
+              files.push(f);
+            }
           }
         }
       }, this);
@@ -695,9 +697,10 @@
    * @name FlowFile
    * @param {Flow} flowObj
    * @param {File} file
+   * @param {string} uniqueIdentifier
    * @constructor
    */
-  function FlowFile(flowObj, file) {
+  function FlowFile(flowObj, file, uniqueIdentifier) {
 
     /**
      * Reference to parent Flow instance
@@ -739,7 +742,7 @@
      * File unique identifier
      * @type {string}
      */
-    this.uniqueIdentifier = flowObj.generateUniqueIdentifier(file);
+    this.uniqueIdentifier = (uniqueIdentifier === undefined ? flowObj.generateUniqueIdentifier(file) : uniqueIdentifier);
 
     /**
      * List of chunks
