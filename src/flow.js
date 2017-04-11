@@ -742,7 +742,7 @@
      * File unique identifier
      * @type {string}
      */
-    this.uniqueIdentifier = uniqueIdentifier;
+    this.uniqueIdentifier = (uniqueIdentifier === undefined ? flowObj.generateUniqueIdentifier(file) : uniqueIdentifier);
 
     /**
      * List of chunks
