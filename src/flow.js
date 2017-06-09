@@ -101,7 +101,7 @@
       initFileFn: null,
       readFileFn: webAPIFileRead
     };
-    
+
     /**
      * Current options
      * @type {Object}
@@ -159,7 +159,7 @@
     /**
      * Set a callback for an event, possible events:
      * fileSuccess(file), fileProgress(file), fileAdded(file, event),
-     * fileRemoved(file), fileRetry(file), fileError(file, message), 
+     * fileRemoved(file), fileRetry(file), fileError(file, message),
      * complete(), progress(), error(message, file), pause()
      * @function
      * @param {string} event
@@ -522,7 +522,9 @@
      */
     resume: function () {
       each(this.files, function (file) {
-        file.resume();
+        if (!file.isComplete()) {
+          file.resume();
+        }
       });
     },
 
@@ -707,7 +709,7 @@
      * @type {Flow}
      */
     this.flowObj = flowObj;
-    
+
     /**
      * Used to store the bytes read
      * @type {Blob|string}
