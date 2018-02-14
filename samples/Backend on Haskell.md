@@ -1,4 +1,4 @@
-# Resumable file upload with haskel
+# Resumable file upload with Haskell
 
 Code was taken from: https://github.com/databrary/databrary/blob/master/src/Databrary/Controller/Upload.hs
 ```hs
