@@ -1,6 +1,9 @@
 # Resumable file upload with Haskell
 
 Code was taken from: https://github.com/databrary/databrary/blob/master/src/Databrary/Controller/Upload.hs
+
+Thanks to Dylan Simon and https://github.com/kanishka-azimi
+
 ```hs
 {-# LANGUAGE OverloadedStrings #-}
 module Databrary.Controller.Upload
