@@ -88,7 +88,7 @@
       method: 'multipart',
       testMethod: 'GET',
       uploadMethod: 'POST',
-      readystatechangeHandler: null,
+      xhr: null,
       prioritizeFirstAndLastChunk: false,
       allowDuplicateUploads: false,
       target: '/',
@@ -1362,13 +1362,10 @@
       this.pendingRetry = false;
 
       // Set up request and listen for event
-      this.xhr = new XMLHttpRequest();
+      this.xhr = this.flowObj.opts.xhr ? this.flowObj.opts.xhr() : new XMLHttpRequest();
       this.xhr.upload.addEventListener('progress', this.progressHandler, false);
       this.xhr.addEventListener("load", this.doneHandler, false);
       this.xhr.addEventListener("error", this.doneHandler, false);
-      if (this.flowObj.opts.readystatechangeHandler) {
-        this.xhr.addEventListener("readystatechange", this.flowObj.opts.readystatechangeHandler, false);
-      }
 
       var uploadMethod = evalOpts(this.flowObj.opts.uploadMethod, this.fileObj, this);
       var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, this.bytes);
