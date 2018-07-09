@@ -1362,7 +1362,7 @@
       this.pendingRetry = false;
 
       // Set up request and listen for event
-      this.xhr = this.flowObj.opts.xhr ? this.flowObj.opts.xhr() : new XMLHttpRequest();
+      this.xhr = this.flowObj.opts.xhr ? this.flowObj.opts.xhr(this.fileObj) : new XMLHttpRequest();
       this.xhr.upload.addEventListener('progress', this.progressHandler, false);
       this.xhr.addEventListener("load", this.doneHandler, false);
       this.xhr.addEventListener("error", this.doneHandler, false);

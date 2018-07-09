@@ -134,7 +134,7 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 * `successStatuses` Response is success if response status is in this list (Default: `[200,201,
 202]`)
 * `permanentErrors` Response fails if response status is in this list (Default: `[404, 415, 500, 501]`)
-* `xhr` Callback for creating the XMLHttpRequest object (Default: `null`)
+* `xhr` Callback for creating the XMLHttpRequest object. The first argument is the `file` object (Default: `null`)
 
 
 #### Properties
