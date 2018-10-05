@@ -2,6 +2,10 @@
  * @license MIT
  */
 (function(window, document, undefined) {'use strict';
+  if (!window || !document) {
+    console.warn('Flowjs needs window and document objects to work');
+    return;
+  }
   // ie10+
   var ie10plus = window.navigator.msPointerEnabled;
   /**
@@ -1609,7 +1613,7 @@
    * Library version
    * @type {string}
    */
-  Flow.version = '2.13.0';
+  Flow.version = '2.13.1';
 
   if ( typeof module === "object" && module && typeof module.exports === "object" ) {
     // Expose Flow as module.exports in loaders that implement the Node
@@ -1632,4 +1636,4 @@
       define( "flow", [], function () { return Flow; } );
     }
   }
-})(window, document);
+})(typeof window !== 'undefined' && window, typeof document !== 'undefined' && document);
