@@ -2,6 +2,10 @@
  * @license MIT
  */
 (function(window, document, undefined) {'use strict';
+  if (!window || !document) {
+    console.warn('Flowjs needs window and document objects to work');
+    return;
+  }
   // ie10+
   var ie10plus = window.navigator.msPointerEnabled;
   /**
@@ -1632,4 +1636,4 @@
       define( "flow", [], function () { return Flow; } );
     }
   }
-})(window, document);
+})(typeof window !== 'undefined' && window, typeof document !== 'undefined' && document);
