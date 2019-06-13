@@ -1283,6 +1283,10 @@
      * @returns {string}
      */
     getTarget: function(target, params){
+      if (params.length == 0) {
+	return target;
+      }
+
       if(target.indexOf('?') < 0) {
         target += '?';
       } else {
