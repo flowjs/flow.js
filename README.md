@@ -276,3 +276,33 @@ other browsers can be used with `--browsers` flag, available browsers: sl_opera,
 
 ## Origin
 Flow.js was inspired by and evolved from https://github.com/23/resumable.js. Library has been supplemented with tests and features, such as drag and drop for folders, upload speed, time remaining estimation, separate files pause, resume and more.
+
+## Contributors
+
+### Code Contributors
+
+This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
+<a href="https://github.com/flowjs/flow.js/graphs/contributors"><img src="https://opencollective.com/flowjs/contributors.svg?width=890&button=false" /></a>
+
+### Financial Contributors
+
+Become a financial contributor and help us sustain our community. [[Contribute](https://opencollective.com/flowjs/contribute)]
+
+#### Individuals
+
+<a href="https://opencollective.com/flowjs"><img src="https://opencollective.com/flowjs/individuals.svg?width=890"></a>
+
+#### Organizations
+
+Support this project with your organization. Your logo will show up here with a link to your website. [[Contribute](https://opencollective.com/flowjs/contribute)]
+
+<a href="https://opencollective.com/flowjs/organization/0/website"><img src="https://opencollective.com/flowjs/organization/0/avatar.svg"></a>
+<a href="https://opencollective.com/flowjs/organization/1/website"><img src="https://opencollective.com/flowjs/organization/1/avatar.svg"></a>
+<a href="https://opencollective.com/flowjs/organization/2/website"><img src="https://opencollective.com/flowjs/organization/2/avatar.svg"></a>
+<a href="https://opencollective.com/flowjs/organization/3/website"><img src="https://opencollective.com/flowjs/organization/3/avatar.svg"></a>
+<a href="https://opencollective.com/flowjs/organization/4/website"><img src="https://opencollective.com/flowjs/organization/4/avatar.svg"></a>
+<a href="https://opencollective.com/flowjs/organization/5/website"><img src="https://opencollective.com/flowjs/organization/5/avatar.svg"></a>
+<a href="https://opencollective.com/flowjs/organization/6/website"><img src="https://opencollective.com/flowjs/organization/6/avatar.svg"></a>
+<a href="https://opencollective.com/flowjs/organization/7/website"><img src="https://opencollective.com/flowjs/organization/7/avatar.svg"></a>
+<a href="https://opencollective.com/flowjs/organization/8/website"><img src="https://opencollective.com/flowjs/organization/8/avatar.svg"></a>
+<a href="https://opencollective.com/flowjs/organization/9/website"><img src="https://opencollective.com/flowjs/organization/9/avatar.svg"></a>
