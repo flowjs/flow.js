@@ -100,7 +100,7 @@
       maxChunkRetries: 0,
       chunkRetryInterval: null,
       permanentErrors: [404, 413, 415, 500, 501],
-      successStatuses: [200, 201, 202],
+      successStatuses: [200, 201, 202, 204],
       onDropStopPropagation: false,
       initFileFn: null,
       readFileFn: webAPIFileRead
