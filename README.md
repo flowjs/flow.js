@@ -74,7 +74,7 @@ You should allow for the same chunk to be uploaded more than once; this isn't st
 
 For every request, you can confirm reception in HTTP status codes (can be change through the `permanentErrors` option):
 
-* `200`, `201`, `202`: The chunk was accepted and correct. No need to re-upload.
+* `200`, `201`, `202, 204`: The chunk was accepted and correct. No need to re-upload.
 * `404`, `415`. `500`, `501`: The file for which the chunk was uploaded is not supported, cancel the entire upload.
 * _Anything else_: Something went wrong, but try reuploading the file.
 
@@ -82,7 +82,7 @@ For every request, you can confirm reception in HTTP status codes (can be change
 
 Enabling the `testChunks` option will allow uploads to be resumed after browser restarts and even across browsers (in theory you could even run the same file upload across multiple tabs or different browsers).  The `POST` data requests listed are required to use Flow.js to receive data, but you can extend support by implementing a corresponding `GET` request with the same parameters:
 
-* If this request returns a `200`, `201` or `202` HTTP code, the chunks is assumed to have been completed.
+* If this request returns a `200`, `201`, `202` or `204` HTTP code, the chunks is assumed to have been completed.
 * If request returns a permanent error status, upload is stopped.
 * If request returns anything else, the chunk will be uploaded in the standard fashion.
 
@@ -132,7 +132,7 @@ and average upload speed wil be equal to current upload speed. For longer file u
 better set this number to 0.02, because time remaining estimation will be more accurate. This
 parameter must be adjusted together with `progressCallbacksInterval` parameter. (Default 0.1)
 * `successStatuses` Response is success if response status is in this list (Default: `[200,201,
-202]`)
+202, 204]`)
 * `permanentErrors` Response fails if response status is in this list (Default: `[404, 415, 500, 501]`)
 
 
