@@ -89,6 +89,7 @@
       headers: {},
       withCredentials: false,
       preprocess: null,
+      changeRawDataBeforeSend: null,
       method: 'multipart',
       testMethod: 'GET',
       uploadMethod: 'POST',
@@ -1376,6 +1377,10 @@
 
       var uploadMethod = evalOpts(this.flowObj.opts.uploadMethod, this.fileObj, this);
       var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, this.bytes);
+      var changeRawDataBeforeSend = this.flowObj.opts.changeRawDataBeforeSend;
+      if (typeof changeRawDataBeforeSend === 'function') {
+        data = changeRawDataBeforeSend(this, data);
+      }
       this.xhr.send(data);
     },
 
