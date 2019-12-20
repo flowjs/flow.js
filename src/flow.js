@@ -1379,7 +1379,7 @@
       var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, this.bytes);
       var changeRawDataBeforeSend = this.flowObj.opts.changeRawDataBeforeSend;
       if (typeof changeRawDataBeforeSend === 'function') {
-        changeRawDataBeforeSend(this, data);
+        data = changeRawDataBeforeSend(this, data);
       }
       this.xhr.send(data);
     },
