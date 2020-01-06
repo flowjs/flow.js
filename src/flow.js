@@ -79,6 +79,7 @@
      */
     this.defaults = {
       chunkSize: 1024 * 1024,
+      calculateChunkSize: null,
       forceChunkSize: false,
       simultaneousUploads: 3,
       singleFile: false,
@@ -938,8 +939,13 @@
       // Rebuild stack of chunks from file
       this._prevProgress = 0;
       var round = this.flowObj.opts.forceChunkSize ? Math.ceil : Math.floor;
+      var calculateChunkSize = this.flowObj.opts.calculateChunkSize;
+      var chunkSize = this.flowObj.opts.chunkSize;
+      if (typeof calculateChunkSize === 'function') {
+        chunkSize = calculateChunkSize(this);
+      }
       var chunks = Math.max(
-        round(this.size / this.flowObj.opts.chunkSize), 1
+        round(this.size / chunkSize), 1
       );
       for (var offset = 0; offset < chunks; offset++) {
         this.chunks.push(
