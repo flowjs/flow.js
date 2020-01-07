@@ -12,7 +12,7 @@
    * Flow.js is a library providing multiple simultaneous, stable and
    * resumable uploads via the HTML5 File API.
    * @param [opts]
-   * @param {number} [opts.chunkSize]
+   * @param {number|Function} [opts.chunkSize]
    * @param {bool} [opts.forceChunkSize]
    * @param {number} [opts.simultaneousUploads]
    * @param {bool} [opts.singleFile]
@@ -750,6 +750,12 @@
      * @type {string}
      */
     this.uniqueIdentifier = (uniqueIdentifier === undefined ? flowObj.generateUniqueIdentifier(file) : uniqueIdentifier);
+                        
+    /**
+     * Size of Each Chunk
+     * @type {number}
+     */
+    this.chunkSize = 0;
 
     /**
      * List of chunks
@@ -938,8 +944,9 @@
       // Rebuild stack of chunks from file
       this._prevProgress = 0;
       var round = this.flowObj.opts.forceChunkSize ? Math.ceil : Math.floor;
+      this.chunkSize = evalOpts(this.flowObj.opts.chunkSize, this);
       var chunks = Math.max(
-        round(this.size / this.flowObj.opts.chunkSize), 1
+        round(this.size / this.chunkSize), 1
       );
       for (var offset = 0; offset < chunks; offset++) {
         this.chunks.push(
@@ -1153,7 +1160,7 @@
      * Size of a chunk
      * @type {number}
      */
-    this.chunkSize = this.flowObj.opts.chunkSize;
+    this.chunkSize = this.fileObj.chunkSize;
 
     /**
      * Chunk start byte in a file
@@ -1267,7 +1274,7 @@
     getParams: function () {
       return {
         flowChunkNumber: this.offset + 1,
-        flowChunkSize: this.flowObj.opts.chunkSize,
+        flowChunkSize: this.chunkSize,
         flowCurrentChunkSize: this.endByte - this.startByte,
         flowTotalSize: this.fileObj.size,
         flowIdentifier: this.fileObj.uniqueIdentifier,
