@@ -1,5 +1,7 @@
 language: node_js
 sudo: false
+services:
+  - xvfb
 cache:
   directories:
     - node_modules
