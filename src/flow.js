@@ -272,6 +272,7 @@
         decrement();
       }
       function readError(fileError) {
+        decrement();
         throw fileError;
       }
       function decrement() {
