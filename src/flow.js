@@ -751,7 +751,7 @@
      * @type {string}
      */
     this.uniqueIdentifier = (uniqueIdentifier === undefined ? flowObj.generateUniqueIdentifier(file) : uniqueIdentifier);
-                        
+
     /**
      * Size of Each Chunk
      * @type {number}
@@ -1250,7 +1250,7 @@
         delete this.data;
         $.event(status, $.message());
         $.flowObj.uploadNextChunk();
-      } else {
+      } else if (!$.fileObj.paused) {
         $.event('retry', $.message());
         $.pendingRetry = true;
         $.abort();

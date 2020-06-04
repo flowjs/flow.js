@@ -43,7 +43,7 @@ module.exports = function(grunt) {
       },
       coverage: {
         singleRun: true,
-        browsers: ['Firefox'],
+        browsers: ['Chrome'],
         reporters: ['progress', 'coverage'],
         preprocessors: {
           'src/*.js': 'coverage'
