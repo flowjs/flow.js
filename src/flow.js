@@ -1170,6 +1170,12 @@
     this.startByte = this.offset * this.chunkSize;
 
     /**
+     * A specific filename for this chunk which otherwise default to the main name
+     * @type {string}
+     */
+    this.filename = null;
+
+    /**
       * Compute the endbyte in a file
       *
       */
@@ -1512,7 +1518,9 @@
         each(query, function (v, k) {
           data.append(k, v);
         });
-        if (typeof blob !== "undefined") data.append(this.flowObj.opts.fileParameterName, blob, this.fileObj.file.name);
+        if (typeof blob !== "undefined") {
+            data.append(this.flowObj.opts.fileParameterName, blob, this.filename || this.fileObj.file.name);
+        }
       }
 
       this.xhr.open(method, target, true);
