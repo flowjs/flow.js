@@ -272,7 +272,6 @@
         decrement();
       }
       function readError(fileError) {
-        decrement();
         throw fileError;
       }
       function decrement() {
@@ -751,7 +750,7 @@
      * @type {string}
      */
     this.uniqueIdentifier = (uniqueIdentifier === undefined ? flowObj.generateUniqueIdentifier(file) : uniqueIdentifier);
-
+                        
     /**
      * Size of Each Chunk
      * @type {number}
@@ -1250,7 +1249,7 @@
         delete this.data;
         $.event(status, $.message());
         $.flowObj.uploadNextChunk();
-      } else if (!$.fileObj.paused) {
+      } else {
         $.event('retry', $.message());
         $.pendingRetry = true;
         $.abort();
@@ -1630,7 +1629,7 @@
    * Library version
    * @type {string}
    */
-  Flow.version = '2.14.1';
+  Flow.version = '2.14.0';
 
   if ( typeof module === "object" && module && typeof module.exports === "object" ) {
     // Expose Flow as module.exports in loaders that implement the Node
