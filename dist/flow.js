@@ -272,6 +272,7 @@
         decrement();
       }
       function readError(fileError) {
+        decrement();
         throw fileError;
       }
       function decrement() {
@@ -750,7 +751,7 @@
      * @type {string}
      */
     this.uniqueIdentifier = (uniqueIdentifier === undefined ? flowObj.generateUniqueIdentifier(file) : uniqueIdentifier);
-                        
+
     /**
      * Size of Each Chunk
      * @type {number}
@@ -1169,6 +1170,12 @@
     this.startByte = this.offset * this.chunkSize;
 
     /**
+     * A specific filename for this chunk which otherwise default to the main name
+     * @type {string}
+     */
+    this.filename = null;
+
+    /**
       * Compute the endbyte in a file
       *
       */
@@ -1249,7 +1256,7 @@
         delete this.data;
         $.event(status, $.message());
         $.flowObj.uploadNextChunk();
-      } else {
+      } else if (!$.fileObj.paused) {
         $.event('retry', $.message());
         $.pendingRetry = true;
         $.abort();
@@ -1511,7 +1518,9 @@
         each(query, function (v, k) {
           data.append(k, v);
         });
-        if (typeof blob !== "undefined") data.append(this.flowObj.opts.fileParameterName, blob, this.fileObj.file.name);
+        if (typeof blob !== "undefined") {
+            data.append(this.flowObj.opts.fileParameterName, blob, this.filename || this.fileObj.file.name);
+        }
       }
 
       this.xhr.open(method, target, true);
@@ -1629,7 +1638,7 @@
    * Library version
    * @type {string}
    */
-  Flow.version = '2.14.0';
+  Flow.version = '2.14.1';
 
   if ( typeof module === "object" && module && typeof module.exports === "object" ) {
     // Expose Flow as module.exports in loaders that implement the Node
