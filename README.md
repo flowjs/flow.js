@@ -197,6 +197,7 @@ added.
 * `.fileRetry(file, chunk)` Something went wrong during upload of a specific file, uploading is being 
 retried.
 * `.fileError(file, message, chunk)` An error occurred during upload of a specific file.
+* `.readErrors(files, folders, event)` This event fires before fileAdded or filesAdded events only if errors occur while reading files or folders. First argument `files` is collection of files read errors, second argument `folders` is collection of folder read errors.
 * `.uploadStart()` Upload has been started on the Flow object.
 * `.complete()` Uploading completed.
 * `.progress()` Uploading progress.
