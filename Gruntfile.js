@@ -1,34 +1,11 @@
 module.exports = function(grunt) {
+  grunt.loadNpmTasks('grunt-exec');
+
   // Project configuration.
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
-    uglify: {
-      options: {
-        banner: '/*! <%= pkg.name %> <%= pkg.version %> */\n'
-      },
-      build: {
-        src: 'dist/flow.js',
-        dest: 'dist/flow.min.js'
-      }
-    },
-    concat: {
-      build: {
-        files: {
-          'dist/flow.js': [
-            'src/flow.js'
-          ]
-        }
-      }
-    },
-    jst: {
-      compile: {
-        options: {
-
-        },
-        files: {
-          "dist/flow.js": ["dist/flow.js"]
-        }
-      }
+    exec: {
+      build: 'node_modules/.bin/rollup -c'
     },
     karma: {
       options: {
@@ -91,18 +68,6 @@ module.exports = function(grunt) {
         gitDescribeOptions: '--tags --always --abbrev=1 --dirty=-d' // options to use with '$ git describe'
       }
     },
-    'template': {
-      'release': {
-        'options': {
-          'data': {
-            'version': '<%= pkg.version %>'
-          }
-        },
-        'files': {
-          'dist/flow.js': ['dist/flow.js']
-        }
-      }
-    }
   });
 
   // Loading dependencies
@@ -113,7 +78,7 @@ module.exports = function(grunt) {
   // Default task.
   grunt.registerTask('default', ['test']);
   // Release tasks
-  grunt.registerTask('build', ['concat', 'template', 'uglify']);
+  grunt.registerTask('build', ['exec:build']);
   grunt.registerTask('release', function(type) {
     type = type ? type : 'patch';
     grunt.task.run('bump-only:' + type);

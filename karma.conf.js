@@ -95,7 +95,7 @@ module.exports = function(config) {
     files: [
       'node_modules/sinon/pkg/sinon-1.7.3.js',
       'test/FakeXMLHttpRequestUpload.js',
-      'src/*.js',
+      'dist/flow.js',
       'test/*Spec.js'
     ],
 
