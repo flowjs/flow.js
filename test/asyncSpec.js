@@ -14,14 +14,20 @@ describe('upload stream', function() {
 
   var xhr_server;
 
-  var chunk_size = 64;
-  var sample_file = new File([
-    'A'.repeat(chunk_size)
-      + 'B'.repeat(chunk_size)
-      + 'C'.repeat(chunk_size)
-      + 'D'.repeat(chunk_size)
-      + 'E'.repeat(chunk_size)
-  ], 'foobar.bin');
+  /**
+   * Generate an ASCII file composed of <num> parts of <segment_size> characters long.
+   * The char for each part is randomly choosen from the below alphabet
+   */
+  function gen_file(num, segment_size = 64) {
+    var alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789()_-?!./|';
+    return alphabet
+      .repeat(Math.ceil(num / alphabet.length))
+      .split('')
+      .sort(() => Math.random()-0.5)
+      .map((v, i) => i < num ? v.repeat(segment_size) : null)
+      .filter(e => e)
+      .join('');
+  }
 
   function hash(content) {
     return window.crypto.subtle.digest('SHA-256', new TextEncoder('utf-8').encode(content));
@@ -29,10 +35,6 @@ describe('upload stream', function() {
 
   function hex(buff) {
     return [].map.call(new Uint8Array(buff), b => ('00' + b.toString(16)).slice(-2)).join('');
-  }
-
-  function sleep(milliseconds) {
-    return new Promise(resolve => setTimeout(resolve, milliseconds));
   }
 
   class Streamer {
@@ -49,17 +51,7 @@ describe('upload stream', function() {
       this._reader = flowObj.file.stream().getReader();
     };
 
-    async chunk_guard(flowObj, startByte, endByte, fileType, chunk) {
-      var prev_chunk = chunk.offset > 0 ? flowObj.chunks[chunk.offset - 1] : null;
-      while(prev_chunk && prev_chunk.readState != 2) {
-        // console.log(`[asyncRead ${chunk.offset}] Waiting on prev chunk to be read (= ${prev_chunk.readState}) -- `, flowObj.chunks.map(e => e.readState).join(''));
-        await sleep(200);
-      }
-    }
     async read(flowObj, startByte, endByte, fileType, chunk) {
-      await this.chunk_guard(...arguments);
-
-      flowObj.readState = 1;
       // console.log(`[asyncRead ${chunk.offset}] start`);
       if (this.buffer === null) {
         // console.log(`[asyncRead ${chunk.offset}] no preexisting buffer => reader.read()`);
@@ -93,9 +85,7 @@ describe('upload stream', function() {
       } else {
         // console.log(`[asyncRead ${chunk.offset}] slice is ${buffer_chunk.length} bytes`);
         this.index += this.chunk_size;
-        var blob = new Blob([buffer_chunk], {type: 'application/octet-stream'});
-        // console.log(`[asyncRead ${chunk.offset}] readFinished`, blob.size);
-        chunk.readFinished(blob);
+        return new Blob([buffer_chunk], {type: 'application/octet-stream'});
       }
 
       return null;
@@ -103,7 +93,7 @@ describe('upload stream', function() {
   }
 
   beforeAll(function() {
-    jasmine.DEFAULT_TIMEOUT_INTERVAL = 7000;
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = 5000;
     xhr_server = sinon.fakeServer.create({
       autoRespondAfter: 50
     });
@@ -119,8 +109,6 @@ describe('upload stream', function() {
 
     flow = new Flow({
       progressCallbacksInterval: 0,
-      simultaneousUploads: 3,
-      chunkSize: chunk_size,
       forceChunkSize: true,
       testChunks: false,
       generateUniqueIdentifier: function (file) {
@@ -142,35 +130,41 @@ describe('upload stream', function() {
   });
 
   it('synchronous initFileFn and asyncReadFileFn', async function (done) {
-    var orig_hash = hex(await hash(await sample_file.text()));
+    var chunk_size = 23,
+        chunk_num = 93,
+        simultaneousUploads = 17,
+        content = gen_file(chunk_num, chunk_size),
+        upload_chunk_size = Math.max(1, Math.ceil(Math.random() * chunk_size));
+
+    var orig_hash = hex(await hash(content));
     // console.log(`File sha256: ${orig_hash}`);
+    var sample_file = new File([content], 'foobar.bin');
 
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
     flow.on('fileError', error);
     flow.on('fileSuccess', success);
 
-    var streamer = new Streamer(flow.opts.chunkSize);
+    var streamer = new Streamer(chunk_size);
+    flow.opts.chunkSize = upload_chunk_size;
+    flow.opts.simultaneousUploads = simultaneousUploads;
     flow.opts.initFileFn = streamer.init.bind(streamer);
     flow.opts.readFileFn = streamer.read.bind(streamer);
     flow.opts.asyncReadFileFn = streamer.read.bind(streamer);
     flow.addFile(sample_file);
 
-    // console.log("Upload!");
     flow.upload();
 
     // Respond all possible requests.
     // ToDo: Update the 7 years-old version of Sinon.js in order to use the fakeXhrServer
-    requests.map(x => x.respond(200));
-    await sleep(250);
-    requests.map(x => x.respond(200));
-    await sleep(250);
-    requests.map(x => x.respond(200));
-    await sleep(250);
-    requests.map(x => x.respond(200));
-    await sleep(250);
+    var sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+    for (var i = 0; i < (chunk_num / simultaneousUploads) + 2; i++) {
+      requests.map(x => x.respond(200));
+      await sleep(100);
+    }
 
-    expect(requests.length).toBe(5);
+    var predicted_request_number = Math.ceil(content.length / flow.opts.chunkSize);
+    expect(requests.length).toBe(predicted_request_number);
 
     var file = flow.files[0];
     expect(file.progress()).toBe(1);

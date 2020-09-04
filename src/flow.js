@@ -1351,12 +1351,30 @@
      * Finish read state
      * @function
      */
-    readFinished: async function (bytes) {
+    readFinished: function (bytes) {
       this.readState = 2;
       this.bytes = bytes;
-      await this.send();
+      this.send();
     },
 
+    /**
+     * With asyncReadFileFn() helper we offer user the ability to do asynchronous read()
+     *  as needed when reading from a ReadableStream.getReader().
+     * But we want to avoid concurrent or misordered read() too even though send() can
+     *  be called up to {simultaneousUploads} times.
+     * This is the purpose of this function: As soon a previous chunk exists and as long as
+     *  this previous chunk is not fully read(), we assume corresponding reader is unavailable and wait for it.
+     */
+    read_guard: async function() {
+      var prev_chunk = this.offset > 0 ? this.fileObj.chunks[this.offset - 1] : null;
+      var sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+      while(prev_chunk && prev_chunk.readState != 2) {
+        console.log(`[send(${this.offset})] Waiting for prev chunk to be read (= ${prev_chunk.readState}) -- `,
+                    this.fileObj.chunks.map(e => e.readState).join(''));
+        // Ideally this timer should be set according to average read time of previous chunks.
+        await sleep(100);
+      }
+    },
 
     /**
      * Uploads the actual data in a POST call
@@ -1365,7 +1383,7 @@
     send: async function () {
       var preprocess = this.flowObj.opts.preprocess;
       var read = this.flowObj.opts.readFileFn;
-      var asyncRead = this.flowObj.opts.asyncReadFileFn;
+      var bytes, asyncRead = this.flowObj.opts.asyncReadFileFn;
 
       if (typeof preprocess === 'function') {
         switch (this.preprocessState) {
@@ -1381,13 +1399,24 @@
         case 0:
           this.readState = 1;
           if (asyncRead) {
-              await asyncRead(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
+            await this.read_guard();
+            console.log(`[send(${this.offset})] reading`);
+            this.fileObj.readState = 1;
+            bytes = await asyncRead(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
+            console.log(`[send(${this.offset})] run readFinished`, bytes ? bytes.size : null);
+            this.readState = 2;
+            if (bytes) {
+              this.bytes = bytes;
+              console.log(`[send(${this.offset})] sending()`);
+              await this.send();
+            }
+            console.log(`[send(${this.offset})] finished()`);
           } else {
-              read(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
+            read(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
           }
-          return;
-        case 1:
-          return;
+        return;
+      case 1:
+        return;
       }
       if (this.flowObj.opts.testChunks && !this.tested) {
         this.test();
