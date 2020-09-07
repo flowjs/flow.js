@@ -99,6 +99,9 @@ module.exports = function(config) {
       'test/*Spec.js'
     ],
 
+    preprocessors: {
+      'dist/flow.js': ['coverage']
+    },
 
     // list of files to exclude
     exclude: [

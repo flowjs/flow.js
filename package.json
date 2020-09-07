@@ -48,7 +48,7 @@
     "grunt-exec": "^3.0.0",
     "grunt-karma": "0.12.1",
     "jasmine-core": "^2.4.1",
-    "karma": "0.13",
+    "karma": "^5.2.2",
     "karma-chrome-launcher": "^1.0.1",
     "karma-coverage": "^2.0.3",
     "karma-firefox-launcher": "0.1.7",

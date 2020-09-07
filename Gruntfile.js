@@ -27,7 +27,8 @@ module.exports = function(grunt) {
         },
         coverageReporter: {
           type: "lcov",
-          dir: "coverage"
+          dir: "coverage",
+          subdir: "."
         }
       },
       saucelabs: {
@@ -38,7 +39,8 @@ module.exports = function(grunt) {
         },
         coverageReporter: {
           type: "lcov",
-          dir: "coverage"
+          dir: "coverage",
+          subdir: "."
         },
         // global config for SauceLabs
         sauceLabs: {
