@@ -3,6 +3,7 @@
   "version": "2.14.1",
   "description": "Flow.js library implements html5 file upload and provides multiple simultaneous, stable, fault tolerant and resumable uploads.",
   "main": "src/flow.js",
+  "browser": "dist/flow.js",
   "scripts": {
     "test": "grunt test"
   },
@@ -27,22 +28,37 @@
   "bugs": {
     "url": "https://github.com/flowjs/flow.js/issues"
   },
+  "browserslist": [
+    "> 1%",
+    "IE 10"
+  ],
   "devDependencies": {
+    "@babel/preset-env": "^7.11.0",
+    "@babel/runtime-corejs3": "^7.11.2",
+    "@rollup/plugin-babel": "^5.2.0",
+    "@rollup/plugin-commonjs": "^15.0.0",
+    "@rollup/plugin-node-resolve": "^9.0.0",
+    "@rollup/plugin-replace": "^2.3.3",
+    "core-js": "^3.6.5",
     "grunt": "0.4.5",
     "grunt-bump": "0.7.0",
     "grunt-contrib-clean": "1.0.0",
-    "grunt-contrib-concat": "1.0.0",
     "grunt-contrib-copy": "1.0.0",
     "grunt-contrib-uglify": "1.0.0",
+    "grunt-exec": "^3.0.0",
     "grunt-karma": "0.12.1",
-    "grunt-template": "0.2.3",
     "jasmine-core": "^2.4.1",
-    "karma": "0.13",
+    "karma": "^5.2.2",
     "karma-chrome-launcher": "^1.0.1",
-    "karma-coverage": "0.5.5",
+    "karma-coverage": "^2.0.3",
     "karma-firefox-launcher": "0.1.7",
     "karma-jasmine": "0.3",
     "karma-sauce-launcher": "0.3.1",
+    "rollup": "^2.26.9",
+    "rollup-plugin-terser": "^7.0.1",
     "sinon": "1.7.3"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.11.2"
   }
 }
