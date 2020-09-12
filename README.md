@@ -1,4 +1,4 @@
-# Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.svg)](https://travis-ci.org/flowjs/flow.js) [![Test Coverage](https://codeclimate.com/github/flowjs/flow.js/badges/coverage.svg)](https://codeclimate.com/github/flowjs/flow.js/coverage) [![Saucelabs Test Status](https://saucelabs.com/browser-matrix/flowjs.svg)](https://saucelabs.com/u/flowjs)
+# Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.svg)](https://travis-ci.org/flowjs/flow.js) [![Test Coverage](https://codeclimate.com/github/flowjs/flow.js/badges/coverage.svg)](https://codeclimate.com/github/flowjs/flow.js/coverage) [![Saucelabs Test Status](https://saucelabs.com/browser-matrix/flowjs.svg)](https://saucelabs.com/u/flowjs) [![Inline docs](http://inch-ci.org/github/flowjs/flow.js.svg?branch=master)](http://inch-ci.org/github/flowjs/flow.js)
 
 <a href="https://www.buymeacoffee.com/aidas" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" style="height: 51px !important;width: 217px !important;" ></a>
 
