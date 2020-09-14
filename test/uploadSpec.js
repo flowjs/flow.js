@@ -119,28 +119,26 @@ describe('upload file', function() {
     expect(events[5]).toBe('progress');
     requests[1].respond(400);
     expect(events.length).toBe(6);
-    requests[2].progress(5, 10, true);
+    requests[2].uploadProgress({loaded: 5, total: 10});
     expect(events.length).toBe(8);
     expect(events[6]).toBe('fileProgress');
     expect(events[7]).toBe('progress');
     requests[2].respond(200);
-    expect(events.length).toBe(11);
-    expect(events[8]).toBe('fileProgress');
-    expect(events[9]).toBe('progress');
-    expect(events[10]).toBe('fileSuccess');
-
-    jasmine.clock().tick(1);
-    expect(events.length).toBe(12);
-    expect(events[11]).toBe('complete');
-
-    flow.upload();
     expect(events.length).toBe(13);
-    expect(events[12]).toBe('uploadStart');
+    expect(events.slice(-3)).toEqual(['fileProgress', 'progress', 'fileSuccess']);
 
-    // complete event is always asynchronous
     jasmine.clock().tick(1);
     expect(events.length).toBe(14);
     expect(events[13]).toBe('complete');
+
+    flow.upload();
+    expect(events.length).toBe(15);
+    expect(events[14]).toBe('uploadStart');
+
+    // complete event is always asynchronous
+    jasmine.clock().tick(1);
+    expect(events.length).toBe(16);
+    expect(events[15]).toBe('complete');
   });
 
   it('should pause and resume file', function () {
@@ -235,7 +233,7 @@ describe('upload file', function() {
     expect(secondChunk.status()).toBe('pending');
 
     expect(error).not.toHaveBeenCalled();
-    expect(progress).not.toHaveBeenCalled();
+    expect(progress).toHaveBeenCalled();
     expect(success).not.toHaveBeenCalled();
     expect(retry).toHaveBeenCalled();
 
@@ -245,7 +243,7 @@ describe('upload file', function() {
     expect(secondChunk.status()).toBe('uploading');
 
     expect(error).not.toHaveBeenCalled();
-    expect(progress.calls.count()).toBe(1);
+    expect(progress.calls.count()).toBe(3);
     expect(success).not.toHaveBeenCalled();
     expect(retry.calls.count()).toBe(1);
 
@@ -255,7 +253,7 @@ describe('upload file', function() {
     expect(secondChunk.status()).toBe('uploading');
 
     expect(error).not.toHaveBeenCalled();
-    expect(progress.calls.count()).toBe(1);
+    expect(progress.calls.count()).toBe(4);
     expect(success).not.toHaveBeenCalled();
     expect(retry.calls.count()).toBe(2);
 
@@ -265,7 +263,7 @@ describe('upload file', function() {
 
     expect(error.calls.count()).toBe(1);
     expect(error).toHaveBeenCalledWith(file, 'Err', secondChunk);
-    expect(progress.calls.count()).toBe(1);
+    expect(progress.calls.count()).toBe(5);
     expect(success).not.toHaveBeenCalled();
     expect(retry.calls.count()).toBe(2);
 
@@ -494,7 +492,7 @@ describe('upload file', function() {
     flow.upload();
 
     clock.tick(1000);
-    requests[0].progress(50, 100, true);
+    requests[0].uploadProgress({loaded: 50, total: 100});
     expect(fileProgress).toHaveBeenCalled();
     expect(fileFirst.currentSpeed).toBe(5);
     expect(fileFirst.averageSpeed).toBe(2.5);
@@ -505,7 +503,7 @@ describe('upload file', function() {
     expect(flow.timeRemaining()).toBe(4);
 
     clock.tick(1000);
-    requests[0].progress(10, 10, true);
+    requests[0].uploadProgress({loaded: 10, total: 10});
     expect(fileFirst.currentSpeed).toBe(5);
     expect(fileFirst.averageSpeed).toBe(3.75);
 
@@ -527,7 +525,7 @@ describe('upload file', function() {
     expect(fileThird.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
     flow.upload();
     clock.tick(1000);
-    requests[2].progress(10, 15, true);
+    requests[2].uploadProgress({loaded: 10, total: 15});
     expect(fileThird.timeRemaining()).toBe(1);
     expect(flow.timeRemaining()).toBe(1);
     fileThird.pause();
@@ -537,11 +535,11 @@ describe('upload file', function() {
     expect(fileThird.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
     expect(flow.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
     clock.tick(1000);
-    requests[3].progress(11, 15, true);
+    requests[3].uploadProgress({loaded: 11, total: 15});
     expect(fileThird.timeRemaining()).toBe(8);
     expect(flow.timeRemaining()).toBe(8);
     clock.tick(1000);
-    requests[3].progress(12, 15, true);
+    requests[3].uploadProgress({loaded: 12, total: 15});
     expect(fileThird.timeRemaining()).toBe(4);
     expect(flow.timeRemaining()).toBe(4);
 
