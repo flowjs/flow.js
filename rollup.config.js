@@ -18,7 +18,7 @@ let plugins = [
 
 export default [
     {
-        input: 'src/flow.js',
+        input: 'src/Flow.js',
         plugins,
         output: {
             name: 'Flow',
@@ -28,7 +28,7 @@ export default [
 	},
     },
     {
-        input: 'src/flow.js',
+        input: 'src/Flow.js',
         plugins: plugins.concat([terser()]),
         output: {
             name: 'Flow',

@@ -12,10 +12,6 @@ describe('setup', function() {
     });
   });
 
-  it('should be supported', function() {
-    expect(flow.support).toBeTruthy();
-  });
-
   it('files should be empty', function() {
     expect(flow.files).toBeDefined();
     expect(flow.files.length).toBe(0);
