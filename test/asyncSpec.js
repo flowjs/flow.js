@@ -6,13 +6,9 @@ describe('upload stream', function() {
   /**
    * @type {FakeXMLHttpRequest}
    */
-  var xhr;
-  /**
-   * @type {FakeXMLHttpRequest[]}
-   */
-  var requests = [];
-
   var xhr_server;
+
+  var random_sizes = false;
 
   /**
    * Generate an ASCII file composed of <num> parts of <segment_size> characters long.
@@ -52,7 +48,7 @@ describe('upload stream', function() {
     };
 
     async read(flowObj, startByte, endByte, fileType, chunk) {
-      // console.log(`[asyncRead ${chunk.offset}] start`);
+      // chunk._log(`Start reading from ${this.buffer !== null ? 'existing' : 'the'} buffer`);
       if (this.buffer === null) {
         // console.log(`[asyncRead ${chunk.offset}] no preexisting buffer => reader.read()`);
         /*
@@ -83,7 +79,7 @@ describe('upload stream', function() {
         // console.log(`[asyncRead ${chunk.offset}] null slice`);
         // console.log(buffer_chunk);
       } else {
-        // console.log(`[asyncRead ${chunk.offset}] slice is ${buffer_chunk.length} bytes`);
+        // chunk._log(`Read slice of ${buffer_chunk.length} bytes`);
         this.index += this.chunk_size;
         return new Blob([buffer_chunk], {type: 'application/octet-stream'});
       }
@@ -94,8 +90,10 @@ describe('upload stream', function() {
 
   beforeAll(function() {
     jasmine.DEFAULT_TIMEOUT_INTERVAL = 5000;
-    xhr_server = sinon.fakeServer.create({
-      autoRespondAfter: 50
+
+    xhr_server = sinon.createFakeServer({
+      // autoRespondAfter: 50
+      respondImmediately: true,
     });
   });
 
@@ -116,55 +114,55 @@ describe('upload stream', function() {
       }
     });
 
-    requests = [];
-    xhr = sinon.useFakeXMLHttpRequest();
-    xhr.onCreate = function (xhr) {
-      requests.push(xhr);
-    };
+    xhr_server.respondWith('ok');
   });
 
   afterEach(function () {
     // jasmine.clock().uninstall();
-
-    xhr.restore();
+    xhr_server.restore();
   });
 
   it('synchronous initFileFn and asyncReadFileFn', async function (done) {
-    var chunk_size = 23,
-        chunk_num = 93,
-        simultaneousUploads = 17,
-        content = gen_file(chunk_num, chunk_size),
-        upload_chunk_size = Math.max(1, Math.ceil(Math.random() * chunk_size));
+    var chunk_size, chunk_num, simultaneousUploads, upload_chunk_size;
 
-    var orig_hash = hex(await hash(content));
-    // console.log(`File sha256: ${orig_hash}`);
-    var sample_file = new File([content], 'foobar.bin');
+    if (random_sizes) {
+      chunk_size = Math.ceil(Math.random() * 30),
+      chunk_num = Math.ceil(Math.random() * 100),
+      simultaneousUploads = Math.ceil(Math.random() * 20),
+      upload_chunk_size = Math.max(1, Math.ceil(Math.random() * chunk_size));
+    } else {
+      chunk_size = 23,
+      chunk_num = 93,
+      simultaneousUploads = 17,
+      upload_chunk_size = Math.max(1, Math.ceil(Math.random() * chunk_size));
+    }
 
-    var error = jasmine.createSpy('error');
-    var success = jasmine.createSpy('success');
-    flow.on('fileError', error);
-    flow.on('fileSuccess', success);
+    var content = gen_file(chunk_num, chunk_size),
+        orig_hash = hex(await hash(content)),
+        sample_file = new File([content], 'foobar.bin');
 
-    var streamer = new Streamer(chunk_size);
+    console.info(`Test File is ${chunk_num} bytes long (sha256: ${orig_hash}).`);
+    console.info(`Now uploads ${simultaneousUploads} simultaneous chunks of at most ${upload_chunk_size} bytes`);
+
+    flow.on('fileError', jasmine.createSpy('error'));
+    flow.on('fileSuccess', jasmine.createSpy('success'));
+    flow.on('complete', () => {
+      validate(done, content, orig_hash);
+    });
+
+    var streamer = new Streamer(upload_chunk_size); // chunk_size);
     flow.opts.chunkSize = upload_chunk_size;
     flow.opts.simultaneousUploads = simultaneousUploads;
     flow.opts.initFileFn = streamer.init.bind(streamer);
     flow.opts.readFileFn = streamer.read.bind(streamer);
     flow.opts.asyncReadFileFn = streamer.read.bind(streamer);
     flow.addFile(sample_file);
-
     flow.upload();
+  });
 
-    // Respond all possible requests.
-    // ToDo: Update the 7 years-old version of Sinon.js in order to use the fakeXhrServer
-    var sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
-    for (var i = 0; i < (chunk_num / simultaneousUploads) + 2; i++) {
-      requests.map(x => x.respond(200));
-      await sleep(100);
-    }
-
+  function validate(done, content, orig_hash) {
     var predicted_request_number = Math.ceil(content.length / flow.opts.chunkSize);
-    expect(requests.length).toBe(predicted_request_number);
+    expect(xhr_server.requests.length).toBe(predicted_request_number);
 
     var file = flow.files[0];
     expect(file.progress()).toBe(1);
@@ -172,7 +170,7 @@ describe('upload stream', function() {
     expect(file.isComplete()).toBe(true);
 
     // An array of promises of obtaining the corresponding request's body (= payload)
-    var payload_contents = requests.map(x => x.requestBody.get('file').text());
+    var payload_contents = xhr_server.requests.map(x => x.requestBody.get('file').text());
     Promise.all(payload_contents)
       .then(values => hash(values.join('')))
       .then(hash => hex(hash))
@@ -181,5 +179,6 @@ describe('upload stream', function() {
         expect(hexhash).toBe(orig_hash);
         done();
       });
-  });
+  }
+
 });

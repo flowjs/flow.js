@@ -1153,6 +1153,14 @@
      */
     this.readState = 0;
 
+    /**
+     * File-level read state.
+     * When reading from a stream we can't slice a known-size buffer in chunks.
+     * These are constructed sequentially from blocking read. This list stores the
+     * respective Promise status of each chunk.
+     * @type {Promise}
+     */
+    this.readStreamState = new DeferredPromise();
 
     /**
      * Bytes transferred from total request size
@@ -1358,32 +1366,65 @@
     },
 
     /**
-     * With asyncReadFileFn() helper we offer user the ability to do asynchronous read()
-     *  as needed when reading from a ReadableStream.getReader().
-     * But we want to avoid concurrent or misordered read() too even though send() can
-     *  be called up to {simultaneousUploads} times.
-     * This is the purpose of this function: As soon a previous chunk exists and as long as
-     *  this previous chunk is not fully read(), we assume corresponding reader is unavailable and wait for it.
+     * asyncReadFileFn() helper provides the ability of asynchronous read()
+     * Eg: When reading from a ReadableStream.getReader().
+     *
+     * But:
+     * - FlowChunk.send() can be called up to {simultaneousUploads} times.
+     * - Concurrent or misordered read() would result in a corrupted payload.
+     *
+     * This function guards from this: As soon a previous chunk exists and as long as
+     *  this previous chunk is not fully read(), we assume corresponding reader is unavailable
+     *  and wait for it.
+     * @function
      */
-    read_guard: async function() {
-      var prev_chunk = this.offset > 0 ? this.fileObj.chunks[this.offset - 1] : null;
-      var sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
-      while(prev_chunk && prev_chunk.readState != 2) {
-        console.log(`[send(${this.offset})] Waiting for prev chunk to be read (= ${prev_chunk.readState}) -- `,
-                    this.fileObj.chunks.map(e => e.readState).join(''));
-        // Ideally this timer should be set according to average read time of previous chunks.
-        await sleep(100);
+    readStreamGuard: async function() {
+      var map = this.fileObj.chunks.map(e => e.readStreamState).slice(0, this.offset);
+      try {
+        await Promise.all(map);
+      } catch(err) {
+        console.error(`Chunk ${this.offset}: Error while waiting for ${map.length} previous chunks being read.`);
+        throw(err);
+      }
+    },
+
+    readStreamChunk: async function() {
+      if (this.readStreamState.resolved) {
+        // This is normally impossible to reach. Has it been uploaded?
+        console.warning(`Chunk ${this.offset} already read. Bytes = ${bytes ? bytes.size : null}. xhr initialized = ${this.xhr ? 1 : 0}`);
+        // We may want to retry (or not) to upload (but never try to read from the stream again or risk misordered chunks
+        return;
+      }
+
+      await this.readStreamGuard();
+      var bytes, asyncRead = this.flowObj.opts.asyncReadFileFn;
+
+      bytes = await asyncRead(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
+      this.readStreamState.resolve();
+
+      // Equivalent to readFinished()
+      this.readState = 2;
+      if (bytes && bytes.size > 0) {
+        if (this.flowObj.chunkSize) {
+          // This may imply a miscalculation of the total chunk numbers.
+          console.warning(`Chunk ${this.offset}: returned too much data. Got ${bytes.size}. Expected not more than ${this.flowObj.chunkSize}.`);
+        }
+        this.bytes = bytes;
+        this.xhrSend(bytes);
+      } else {
+        console.error(`Chunk ${this.offset}: no byte to read()`);
+        this.pendingRetry = false;
       }
     },
 
     /**
-     * Uploads the actual data in a POST call
+     * Prepare data (preprocess/read) data then call xhrSend()
      * @function
      */
     send: async function () {
       var preprocess = this.flowObj.opts.preprocess;
       var read = this.flowObj.opts.readFileFn;
-      var bytes, asyncRead = this.flowObj.opts.asyncReadFileFn;
+      var asyncRead = this.flowObj.opts.asyncReadFileFn;
 
       if (typeof preprocess === 'function') {
         switch (this.preprocessState) {
@@ -1395,29 +1436,30 @@
             return;
         }
       }
+
+      if (asyncRead) {
+        this.readState = 1;
+        await this.readStreamChunk();
+        return;
+      }
+
       switch (this.readState) {
         case 0:
           this.readState = 1;
-          if (asyncRead) {
-            await this.read_guard();
-            console.log(`[send(${this.offset})] reading`);
-            this.fileObj.readState = 1;
-            bytes = await asyncRead(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
-            console.log(`[send(${this.offset})] run readFinished`, bytes ? bytes.size : null);
-            this.readState = 2;
-            if (bytes) {
-              this.bytes = bytes;
-              console.log(`[send(${this.offset})] sending()`);
-              await this.send();
-            }
-            console.log(`[send(${this.offset})] finished()`);
-          } else {
-            read(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
-          }
-        return;
-      case 1:
-        return;
+          read(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
+          return;
+        case 1:
+          return;
       }
+
+      this.xhrSend(this.bytes);
+    },
+
+    /**
+     * Actually uploads data in a POST call
+     * @function
+     */
+    xhrSend: function (bytes) {
       if (this.flowObj.opts.testChunks && !this.tested) {
         this.test();
         return;
@@ -1434,7 +1476,7 @@
       this.xhr.addEventListener("error", this.doneHandler, false);
 
       var uploadMethod = evalOpts(this.flowObj.opts.uploadMethod, this.fileObj, this);
-      var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, this.bytes);
+      var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, bytes);
       var changeRawDataBeforeSend = this.flowObj.opts.changeRawDataBeforeSend;
       if (typeof changeRawDataBeforeSend === 'function') {
         data = changeRawDataBeforeSend(this, data);
@@ -1706,3 +1748,24 @@
     }
   }
 })(typeof window !== 'undefined' && window, typeof document !== 'undefined' && document);
+
+
+class DeferredPromise {
+  // https://stackoverflow.com/a/47112177
+  constructor() {
+    this.resolved = false;
+    this._promise = new Promise((resolve, reject) => {
+      // assign the resolve and reject functions to `this`
+      // making them usable on the class instance
+      this.resolve = () => {
+        this.resolved = true;
+        return resolve();
+      };
+      this.reject = reject;
+    });
+    // bind `then` and `catch` to implement the same interface as Promise
+    this.then = this._promise.then.bind(this._promise);
+    this.catch = this._promise.catch.bind(this._promise);
+    this[Symbol.toStringTag] = 'Promise';
+  }
+}
