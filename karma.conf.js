@@ -1,4 +1,9 @@
 module.exports = function(config) {
+  if (config.sauceLabs && (!config.sauceLabs.username || !config.sauceLabs.accessKey)) {
+    console.log('Undefined sauce username/accessKey.');
+    process.exit(1)
+  }
+
   // define SL browsers
   var customLaunchers = {
     sl_ie10: {
@@ -42,6 +47,18 @@ module.exports = function(config) {
       browserName: 'firefox',
       platform: 'Linux',
       version: '42'
+    },
+    sl_ff: {
+      base: 'SauceLabs',
+      browserName: 'firefox',
+      platform: 'Linux',
+      version: '45'
+    },
+    sl_ff_win: {
+      base: 'SauceLabs',
+      browserName: 'firefox',
+      platform: 'Windows 10',
+      version: '80'
     },
     sl_android_1: {
       base: 'SauceLabs',
@@ -99,7 +116,8 @@ module.exports = function(config) {
     ],
 
     preprocessors: {
-      'dist/flow.js': ['coverage']
+      'dist/flow.js': 'coverage',
+      'src/*.js': 'coverage'
     },
 
     // list of files to exclude
@@ -109,7 +127,10 @@ module.exports = function(config) {
 
     // test results reporter to use
     // possible values: 'dots', 'progress', 'junit', 'growl', 'coverage'
-    reporters: ['progress', 'coverage', 'saucelabs'],
+    reporters: ['progress', 'coverage'],
+    coverageReporter: [
+      {type: "lcov", dir: "coverage", subdir: "."}
+    ],
 
     // web server port
     port: 9876,

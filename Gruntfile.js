@@ -22,26 +22,10 @@ module.exports = function(grunt) {
         singleRun: true,
         browsers: ['Firefox'],
         reporters: ['progress', 'coverage'],
-        preprocessors: {
-          'src/*.js': 'coverage'
-        },
-        coverageReporter: {
-          type: "lcov",
-          dir: "coverage",
-          subdir: "."
-        }
       },
       saucelabs: {
         singleRun: true,
         reporters: ['progress', 'saucelabs'],
-        preprocessors: {
-          'src/*.js': 'coverage'
-        },
-        coverageReporter: {
-          type: "lcov",
-          dir: "coverage",
-          subdir: "."
-        },
         // global config for SauceLabs
         sauceLabs: {
           testName: 'flow.js',
