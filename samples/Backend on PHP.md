@@ -6,7 +6,7 @@
 
 [Chris Gregory](http://online-php.com) has provided this sample implementation for PHP. 
 
-It's a sample implementation to illustrate chunking. It should probably not be used as-is (for example, be sure to clean file names for dot and dashes to make sure you don't allow files to escape the tempory upload directory). The script is unsupported.
+It's a sample implementation to illustrate chunking. It should probably not be used as-is (for example, be sure to clean file names for dot and dashes to make sure you don't allow files to escape the temporary upload directory). The script is unsupported.
 
 ```php
 <?php
