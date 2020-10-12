@@ -1154,6 +1154,12 @@
     this.readState = 0;
 
     /**
+     * Mostly for streams: how many bytes were actually read
+     * @type {number} -1 = not read
+     */
+    this.readBytes = -1;
+
+    /**
      * File-level read state.
      * When reading from a stream we can't slice a known-size buffer in chunks.
      * These are constructed sequentially from blocking read. This list stores the
@@ -1391,7 +1397,7 @@
     readStreamChunk: async function() {
       if (this.readStreamState.resolved) {
         // This is normally impossible to reach. Has it been uploaded?
-        console.warning(`Chunk ${this.offset} already read. Bytes = ${bytes ? bytes.size : null}. xhr initialized = ${this.xhr ? 1 : 0}`);
+        console.warn(`Chunk ${this.offset} already read. Bytes = ${bytes ? bytes.size : null}. xhr initialized = ${this.xhr ? 1 : 0}`);
         // We may want to retry (or not) to upload (but never try to read from the stream again or risk misordered chunks
         return;
       }
@@ -1404,17 +1410,39 @@
 
       // Equivalent to readFinished()
       this.readState = 2;
+
+      if (bytes) {
+        this.readBytes = bytes.size || bytes.size === 0 ? bytes.size : -1;
+      }
+
       if (bytes && bytes.size > 0) {
         if (this.flowObj.chunkSize) {
           // This may imply a miscalculation of the total chunk numbers.
-          console.warning(`Chunk ${this.offset}: returned too much data. Got ${bytes.size}. Expected not more than ${this.flowObj.chunkSize}.`);
+          console.warn(`Chunk ${this.offset}: returned too much data. Got ${bytes.size}. Expected not more than ${this.flowObj.chunkSize}.`);
         }
         this.bytes = bytes;
         this.xhrSend(bytes);
-      } else {
-        console.error(`Chunk ${this.offset}: no byte to read()`);
-        this.pendingRetry = false;
+        return;
       }
+
+      if (this.offset > 0) {
+        // last size of the buffer read for the previous chunk
+        var lastReadBytes = this.fileObj.chunks[this.offset - 1].readBytes;
+        if (lastReadBytes < parseInt(this.chunkSize)) {
+          console.warn(`Chunk ${this.offset} seems superfluous. No byte read() meanwhile previous chunk was only ${lastReadBytes} bytes instead of ${this.chunkSize}`);
+          // The last chunk's buffer wasn't even full. That means the number of chunk may
+          // have been miscomputed and this chunk is superfluous.
+          // We make a fake request so that overall status is "complete" and we can move on
+          // on this FlowFile.
+          this.pendingRetry = false;
+          this.xhr = {readyState: 5, status: 1 };
+          this.doneHandler(null);
+          return;
+        }
+      }
+
+      console.warn(`Chunk ${this.offset}: no byte to read()`);
+      this.pendingRetry = false;
     },
 
     /**
