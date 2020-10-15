@@ -32,6 +32,7 @@ import {each, async, arrayRemove, extend, webAPIFileRead} from './tools';
  * @param {Array.<number>} [opts.successStatuses]
  * @param {Function} [opts.initFileFn]
  * @param {Function} [opts.readFileFn]
+ * @param {Function} [opts.asyncReadFileFn]
  * @param {Function} [opts.generateUniqueIdentifier]
  * @constructor
  */
@@ -91,7 +92,8 @@ export default class Flow {
       successStatuses: [200, 201, 202],
       onDropStopPropagation: false,
       initFileFn: null,
-      readFileFn: webAPIFileRead
+      readFileFn: webAPIFileRead,
+      asyncReadFileFn: null
     };
 
     /**
