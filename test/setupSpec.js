@@ -99,20 +99,19 @@ describe('setup', function() {
 
   describe('assignDrop', function() {
     it('assign to div', function() {
-      var div = document.createElement('div');
-      var onDrop = jasmine.createSpy('onDrop');
-      flow.onDrop = onDrop;
-      flow.assignDrop(div);
-      var event = document.createEvent('MouseEvents');
+      var div = document.createElement('div'),
+          event = document.createEvent('MouseEvents');
       event.initEvent('drop', true, true);
       event.dataTransfer = {files: []};
+
+      spyOn(flow, 'onDrop').and.callThrough();
+      flow.assignDrop(div);
       div.dispatchEvent(event);
-      expect(onDrop).toHaveBeenCalled();
-      expect(onDrop.calls.count()).toBe(1);
+      expect(flow.onDrop).toHaveBeenCalledTimes(1);
 
       flow.unAssignDrop(div);
       div.dispatchEvent(event);
-      expect(onDrop.calls.count()).toBe(1);
+      expect(flow.onDrop).toHaveBeenCalledTimes(1);
     });
   });
 

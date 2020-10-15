@@ -113,6 +113,10 @@ export default class Flow {
      * @type {Object}
      */
     this.opts = extend({}, this.defaults, opts || {});
+
+    // A workaround for using this.method.bind(this) as a (removable) event handler.
+    // https://stackoverflow.com/questions/11565471
+    this._onDropBound = null;
   }
 
   /**
@@ -415,11 +419,13 @@ export default class Flow {
     if (typeof domNodes.length === 'undefined') {
       domNodes = [domNodes];
     }
-    each(domNodes, function (domNode) {
+
+    this._onDropBound = this.onDrop.bind(this);
+    for (let domNode of domNodes) {
       domNode.addEventListener('dragover', this.preventEvent, false);
       domNode.addEventListener('dragenter', this.preventEvent, false);
-      domNode.addEventListener('drop', this.onDrop.bind(this), false);
-    }, this);
+      domNode.addEventListener('drop', this._onDropBound, false);
+    }
   }
 
   /**
@@ -431,11 +437,12 @@ export default class Flow {
     if (typeof domNodes.length === 'undefined') {
       domNodes = [domNodes];
     }
-    each(domNodes, function (domNode) {
-      domNode.removeEventListener('dragover', this.preventEvent);
-      domNode.removeEventListener('dragenter', this.preventEvent);
-      domNode.removeEventListener('drop', this.onDrop.bind(this));
-    }, this);
+
+    for (let domNode of domNodes) {
+      domNode.removeEventListener('dragover', this.preventEvent, false);
+      domNode.removeEventListener('dragenter', this.preventEvent, false);
+      domNode.removeEventListener('drop', this._onDropBound, false);
+    }
   }
 
   /**
@@ -676,4 +683,4 @@ export default class Flow {
     }
     return Math.floor(sizeDelta / averageSpeed);
   }
-}
+};
