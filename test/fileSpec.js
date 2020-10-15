@@ -12,7 +12,7 @@ describe('FlowFile functions', function() {
   beforeEach(function () {
     flow = new Flow({
     });
-    file = new Flow.FlowFile(flow, {
+    file = new FlowFile(flow, {
       name: 'image.jpg',
       type: 'image/png'
     });
