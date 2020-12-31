@@ -1,4 +1,5 @@
 import {evalOpts, each, extend} from './tools';
+import DeferredPromise from './DeferredPromise';
 
 /**
  * Class for storing a single chunk
@@ -60,6 +61,20 @@ export default class FlowChunk {
      */
     this.readState = 0;
 
+    /**
+     * Mostly for streams: how many bytes were actually read
+     * @type {number} -1 = not read
+     */
+    this.readBytes = -1;
+
+    /**
+     * File-level read state.
+     * When reading from a stream we can't slice a known-size buffer in chunks.
+     * These are constructed sequentially from blocking read. This list stores the
+     * respective Promise status of each chunk.
+     * @type {Promise}
+     */
+    this.readStreamState = new DeferredPromise();
 
     /**
      * Bytes transferred from total request size
@@ -241,13 +256,13 @@ export default class FlowChunk {
    * Finish preprocess state
    * @function
    */
-  preprocessFinished() {
+  async preprocessFinished() {
     // Re-compute the endByte after the preprocess function to allow an
     // implementer of preprocess to set the fileObj size
     this.endByte = this.computeEndByte();
 
     this.preprocessState = 2;
-    this.send();
+    await this.send();
   }
 
   /**
@@ -261,12 +276,88 @@ export default class FlowChunk {
   }
 
   /**
-   * Uploads the actual data in a POST call
+   * asyncReadFileFn() helper provides the ability of asynchronous read()
+   * Eg: When reading from a ReadableStream.getReader().
+   *
+   * But:
+   * - FlowChunk.send() can be called up to {simultaneousUploads} times.
+   * - Concurrent or misordered read() would result in a corrupted payload.
+   *
+   * This function guards from this: As soon a previous chunk exists and as long as
+   *  this previous chunk is not fully read(), we assume corresponding reader is unavailable
+   *  and wait for it.
    * @function
    */
-  send() {
+  async readStreamGuard() {
+    var map = this.fileObj.chunks.map(e => e.readStreamState).slice(0, this.offset);
+    try {
+      await Promise.all(map);
+    } catch(err) {
+      console.error(`Chunk ${this.offset}: Error while waiting for ${map.length} previous chunks being read.`);
+      throw(err);
+    }
+  }
+
+  async readStreamChunk() {
+    if (this.readStreamState.resolved) {
+      // This is normally impossible to reach. Has it been uploaded?
+      console.warn(`Chunk ${this.offset} already read. Bytes = ${bytes ? bytes.size : null}. xhr initialized = ${this.xhr ? 1 : 0}`);
+      // We may want to retry (or not) to upload (but never try to read from the stream again or risk misordered chunks
+      return;
+    }
+
+    await this.readStreamGuard();
+    var bytes, asyncRead = this.flowObj.opts.asyncReadFileFn;
+
+    bytes = await asyncRead(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
+    this.readStreamState.resolve();
+
+    // Equivalent to readFinished()
+    this.readState = 2;
+
+    if (bytes) {
+      this.readBytes = bytes.size || bytes.size === 0 ? bytes.size : -1;
+    }
+
+    if (bytes && bytes.size > 0) {
+      if (this.flowObj.chunkSize) {
+        // This may imply a miscalculation of the total chunk numbers.
+        console.warn(`Chunk ${this.offset}: returned too much data. Got ${bytes.size}. Expected not more than ${this.flowObj.chunkSize}.`);
+      }
+      this.bytes = bytes;
+      this.xhrSend(bytes);
+      return;
+    }
+
+    if (this.offset > 0) {
+      // last size of the buffer read for the previous chunk
+      var lastReadBytes = this.fileObj.chunks[this.offset - 1].readBytes;
+      if (lastReadBytes < parseInt(this.chunkSize)) {
+        console.warn(`Chunk ${this.offset} seems superfluous. No byte read() meanwhile previous chunk was only ${lastReadBytes} bytes instead of ${this.chunkSize}`);
+        // The last chunk's buffer wasn't even full. That means the number of chunk may
+        // have been miscomputed and this chunk is superfluous.
+        // We make a fake request so that overall status is "complete" and we can move on
+        // on this FlowFile.
+        this.pendingRetry = false;
+        this.xhr = {readyState: 5, status: 1 };
+        this.doneHandler(null);
+        return;
+      }
+    }
+
+    console.warn(`Chunk ${this.offset}: no byte to read()`);
+    this.pendingRetry = false;
+  }
+
+  /**
+   * Prepare data (preprocess/read) data then call xhrSend()
+   * @function
+   */
+  async send() {
     var preprocess = this.flowObj.opts.preprocess;
     var read = this.flowObj.opts.readFileFn;
+    var asyncRead = this.flowObj.opts.asyncReadFileFn;
+
     if (typeof preprocess === 'function') {
       switch (this.preprocessState) {
         case 0:
@@ -277,6 +368,13 @@ export default class FlowChunk {
           return;
       }
     }
+
+    if (asyncRead) {
+      this.readState = 1;
+      await this.readStreamChunk();
+      return;
+    }
+
     switch (this.readState) {
       case 0:
         this.readState = 1;
@@ -285,6 +383,15 @@ export default class FlowChunk {
       case 1:
         return;
     }
+
+    this.xhrSend(this.bytes);
+  }
+
+  /**
+   * Actually uploads data in a POST call
+   * @function
+   */
+  xhrSend(bytes) {
     if (this.flowObj.opts.testChunks && !this.tested) {
       this.test();
       return;
@@ -301,7 +408,7 @@ export default class FlowChunk {
     this.xhr.addEventListener('error', this.doneHandler.bind(this), false);
 
     var uploadMethod = evalOpts(this.flowObj.opts.uploadMethod, this.fileObj, this);
-    var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, this.bytes);
+    var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, bytes);
     var changeRawDataBeforeSend = this.flowObj.opts.changeRawDataBeforeSend;
     if (typeof changeRawDataBeforeSend === 'function') {
       data = changeRawDataBeforeSend(this, data);
