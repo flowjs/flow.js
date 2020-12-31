@@ -1,4 +1,4 @@
-# Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.svg)](https://travis-ci.org/flowjs/flow.js) [![Test Coverage](https://codeclimate.com/github/flowjs/flow.js/badges/coverage.svg)](https://codeclimate.com/github/flowjs/flow.js/coverage) [![Saucelabs Test Status](https://saucelabs.com/browser-matrix/flowjs.svg)](https://saucelabs.com/u/flowjs) [![Inline docs](http://inch-ci.org/github/flowjs/flow.js.svg?branch=master)](http://inch-ci.org/github/flowjs/flow.js)
+# Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.svg)](https://travis-ci.org/flowjs/flow.js) [![Test Coverage](https://codeclimate.com/github/flowjs/flow.js/badges/coverage.svg)](https://codeclimate.com/github/flowjs/flow.js/coverage) [![Test Status](https://testingbot.com/members/groups/6901)](https://testingbot.com/members/groups/6901) [![Inline docs](http://inch-ci.org/github/flowjs/flow.js.svg?branch=master)](http://inch-ci.org/github/flowjs/flow.js)
 
 <a href="https://www.buymeacoffee.com/aidas" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" style="height: 51px !important;width: 217px !important;" ></a>
 
@@ -273,12 +273,14 @@ To re-run tests just change any source or test file.
 
 Automated tests is running after every commit at travis-ci.
 
-### Running test on sauceLabs
+### Running tests locally
 
-1. Connect to sauce labs https://saucelabs.com/docs/connect
-2. `grunt  test --sauce-local=true --sauce-username=**** --sauce-access-key=***`
+`npm run test`
 
-other browsers can be used with `--browsers` flag, available browsers: sl_opera,sl_iphone,sl_safari,sl_ie10,sl_chrome,sl_firefox
+Other browsers can be used with `-- --browsers=...`, available browsers:
+- ChromiumHeadlessNS
+- ff (local Firefox)
+- or, via Docker images: chromium_[57, 61, 68, 72, 77, 81, 83] and firefox_[60, 78, 81]
 
 ## Origin
 Flow.js was inspired by and evolved from https://github.com/23/resumable.js. Library has been supplemented with tests and features, such as drag and drop for folders, upload speed, time remaining estimation, separate files pause, resume and more.

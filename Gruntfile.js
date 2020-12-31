@@ -22,18 +22,6 @@ module.exports = function(grunt) {
         singleRun: true,
         browsers: ['Firefox'],
         reporters: ['progress', 'coverage'],
-      },
-      saucelabs: {
-        singleRun: true,
-        reporters: ['progress', 'saucelabs'],
-        // global config for SauceLabs
-        sauceLabs: {
-          testName: 'flow.js',
-          username: grunt.option('sauce-username') || process.env.SAUCE_USERNAME,
-          accessKey: grunt.option('sauce-access-key') || process.env.SAUCE_ACCESS_KEY,
-          tunnelIdentifier: process.env.TRAVIS_JOB_NUMBER,
-          startConnect: false
-        }
       }
     },
     clean: {
@@ -61,8 +49,6 @@ module.exports = function(grunt) {
     if (key !== "grunt" && key.indexOf("grunt") === 0) grunt.loadNpmTasks(key);
   }
 
-  // Default task.
-  grunt.registerTask('default', ['test']);
   // Release tasks
   grunt.registerTask('build', ['exec:build']);
   grunt.registerTask('release', function(type) {

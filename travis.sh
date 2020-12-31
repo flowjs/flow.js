@@ -12,6 +12,6 @@ if [[ $TEST = "unit-tests" ]]; then
 elif [[ $TEST = "browser-tests" ]]; then
 
   echo "Running browser-tests"
-  grunt karma:saucelabs
+  ./node_modules/.bin/karma start --single-run --browsers tb_ff karma.conf.js
 
 fi

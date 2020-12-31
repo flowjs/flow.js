@@ -7,8 +7,6 @@ cache:
     - node_modules
 env:
   global:
-  - SAUCE_USERNAME=flowjs
-  - SAUCE_ACCESS_KEY=53e609a9-cb5d-4eac-a888-aa5419836f19
   - CC_TEST_REPORTER_ID=64800c476bad6ab9d10d0ff0901ae2c211457852f28c5f960ae5165c1fdfec73
   - CODECLIMATE_REPO_TOKEN=64800c476bad6ab9d10d0ff0901ae2c211457852f28c5f960ae5165c1fdfec73
 
@@ -19,8 +17,6 @@ matrix:
       node_js: "14"
     - env: TEST='browser-tests'
       node_js: "14"
-      addons:
-        sauce_connect: true
   allow_failures:
     - env: TEST='browser-tests'
 

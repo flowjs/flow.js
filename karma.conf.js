@@ -1,107 +1,127 @@
 module.exports = function(config) {
-  if (config.sauceLabs && (!config.sauceLabs.username || !config.sauceLabs.accessKey)) {
-    console.log('Undefined sauce username/accessKey.');
-    process.exit(1)
+  var docker_images = {},
+
+      ChromeHeadlessDocker = {
+	base: 'Docker',
+	modemOptions: {
+	  socketPath: '/run/docker.sock'
+	},
+	createOptions: {
+	  // Image: 'registry.gitlab.com/drzraf/docker-alpine-browsers/chromium:81',
+	  Cmd: ['chromium-browser', '--disable-gpu', '--headless', '--no-sandbox', '--remote-debugging-address=0.0.0.0', '--remote-debugging-port=9222', '--user-data-dir=/data', '--disable-dev-shm-usage', '$KARMA_URL'],
+	  HostConfig: {
+            NetworkMode: 'host'
+	  }
+	}
+      },
+
+      FirefoxHeadlessDocker = {
+	base: 'Docker',
+	modemOptions: {
+	  socketPath: '/run/docker.sock'
+	},
+	createOptions: {
+	  // Image: 'registry.gitlab.com/drzraf/docker-alpine-browsers/firefox:60',
+	  Cmd: ['firefox', /*'--profile', '/tmp/headless', */ '-headless', '-no-remote', '-url', '$KARMA_URL'],
+	  HostConfig: {
+            NetworkMode: 'host'
+	  }
+	}
+      };
+
+  for(let i of [57, 61, 68, 72, 77, 81, 83]) {
+    docker_images['chromium' + i] = JSON.parse(JSON.stringify(ChromeHeadlessDocker));
+    docker_images['chromium' + i]['createOptions']['Image'] = 'registry.gitlab.com/drzraf/docker-alpine-browsers/chromium:' + i;
   }
 
-  // define SL browsers
+  // first headless version = 55. ESR = [60, 68, 78]
+  for(let i of [60, 78, 81]) {
+    docker_images['firefox' + i] = JSON.parse(JSON.stringify(FirefoxHeadlessDocker));
+    docker_images['firefox' + i]['createOptions']['Image'] = 'registry.gitlab.com/drzraf/docker-alpine-browsers/firefox:' + i;
+  }
+
+  var testingbot_common_settings = {
+    // extra: 'foobar',
+    maxduration: 200,
+    groups: "flowjs",
+    recordLogs: "true",
+    // 'testingbot.geoCountryCode': 'DE',
+    // deviceOrientation: 'portrait' || 'landscape'
+  };
+
+
   var customLaunchers = {
-    sl_ie10: {
-      base: 'SauceLabs',
-      browserName: 'internet explorer',
-      platform: 'Windows 8',
-      version: '10.0'
+    ff: {
+      base: 'Firefox',
+      // flags: ['-headless'],
     },
-    sl_ie11: {
-      base: 'SauceLabs',
-      browserName: 'internet explorer',
-      platform: 'Windows 10',
-      version: '11.0'
+
+    // https://github.com/karma-runner/karma-chrome-launcher/issues/158
+    ChromiumHeadlessNS: {
+      base: 'ChromiumHeadless',
+      flags: ['--no-sandbox']
     },
-    sl_edge: {
-      base: 'SauceLabs',
-      browserName: 'microsoftedge',
-      platform: 'Windows 10',
-      version: '20.10240'
-    },
-    sl_chrome_1: {
-      base: 'SauceLabs',
-      browserName: 'chrome',
-      platform: 'Linux',
-      version: '26'
-    },
-    sl_chrome_2: {
-      base: 'SauceLabs',
-      browserName: 'chrome',
-      platform: 'Linux',
-      version: '46'
-    },
-    sl_firefox_1: {
-      base: 'SauceLabs',
+
+    ...docker_images
+  };
+
+  var tbLaunchers = {
+    tb_ff: {
+      // use TB_KEY & TB_SECRET
+      base: 'TestingBot',
+      platform: 'WIN10',
       browserName: 'firefox',
-      platform: 'Linux',
-      version: '13'
+      version: '82',
+      ...testingbot_common_settings
     },
-    sl_firefox_2: {
-      base: 'SauceLabs',
-      browserName: 'firefox',
-      platform: 'Linux',
-      version: '42'
+
+    tb_android_chrome: {
+      // use TB_KEY & TB_SECRET
+      base: 'TestingBot',
+      platform: "ANDROID",
+      platformName: "Android",
+      version: "7.1",
+      browserName: "Chrome",
+      deviceName: "Pixel 2",
+      ...testingbot_common_settings
     },
-    sl_ff: {
-      base: 'SauceLabs',
-      browserName: 'firefox',
-      platform: 'Linux',
-      version: '45'
+
+    // Not working
+    tb_android_ff: {
+      // use TB_KEY & TB_SECRET
+      base: 'TestingBot',
+      platform: "ANDROID",
+      platformName: "Android",
+      version: "7.1",
+      browserName: "Firefox",
+      deviceName: "Pixel 2",
+      ...testingbot_common_settings
     },
-    sl_ff_win: {
-      base: 'SauceLabs',
-      browserName: 'firefox',
-      platform: 'Windows 10',
-      version: '80'
-    },
-    sl_android_1: {
-      base: 'SauceLabs',
-      browserName: 'android',
-      platform: 'Linux',
-      version: '4.4'
-    },
-    sl_android_2: {
-      base: 'SauceLabs',
-      browserName: 'android',
-      platform: 'Linux',
-      version: '5.1'
-    },
-    sl_iphone_1: {
-      base: 'SauceLabs',
-      browserName: 'iPhone',
-      platform: 'OS X 10.10',
-      deviceName: 'iPad Simulator',
-      version: '7.1'
-    },
-    sl_iphone_2: {
-      base: 'SauceLabs',
-      browserName: 'iPhone',
-      platform: 'OS X 10.10',
-      deviceName: 'iPad Simulator',
-      deviceOrientation: 'portrait',
-      version: '9.2'
-    },
-    sl_safari_1: {
-      base: 'SauceLabs',
+
+    // Not working
+    tb_iphone: {
+      // use TB_KEY & TB_SECRET
+      base: 'TestingBot',
+      platform: 'iOS',
       browserName: 'safari',
-      platform: 'OS X 10.8',
-      version: '6.0'
-    },
-    sl_safari_2: {
-      base: 'SauceLabs',
-      browserName: 'safari',
-      platform: 'OS X 10.11',
-      version: '9.0'
+      version: '13.4',
+      deviceName: 'iPhone 8',
+      platformName: 'iOS',
+      ...testingbot_common_settings
     }
+  };
+
+  if (process.env.TB_KEY && process.env.TB_SECRET) {
+    customLaunchers = {...customLaunchers, ...tbLaunchers};
   }
 
   config.set({
+    captureTimeout: 3e5,
+    browserDisconnectTolerance: 0,
+    browserDisconnectTimeout: 6e5,
+    browserSocketTimeout: 8e4,
+    browserNoActivityTimeout: 1e5,
+
     // base path, that will be used to resolve files and exclude
     basePath: '',
 
@@ -127,7 +147,7 @@ module.exports = function(config) {
 
     // test results reporter to use
     // possible values: 'dots', 'progress', 'junit', 'growl', 'coverage'
-    reporters: ['progress', 'coverage'],
+    reporters: ['progress', 'testingbot', 'coverage'],
     coverageReporter: [
       {type: "lcov", dir: "coverage", subdir: "."}
     ],
@@ -144,9 +164,6 @@ module.exports = function(config) {
 
     // enable / disable watching file and executing tests whenever any file changes
     autoWatch: false,
-
-    // If browser does not capture in given timeout [ms], kill it
-    captureTimeout: 60000,
 
     // Continuous Integration mode
     // if true, it capture browsers, run tests and exit

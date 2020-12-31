@@ -12,5 +12,4 @@
 .idea
 
 # Tests
-sauce_connect.log
 /coverage
