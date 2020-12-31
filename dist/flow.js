@@ -5676,7 +5676,14 @@
 	 */
 
 	var Flow = /*#__PURE__*/function () {
+	  /**
+	   * For the events object:
+	   *  - keys: stands for event name
+	   *  - values: array list of callbacks
+	   */
 	  function Flow(opts) {
+	    var events = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
 	    _classCallCheck(this, Flow);
 
 	    /**
@@ -5744,7 +5751,7 @@
 	     * @type {}
 	     */
 
-	    this.events = {};
+	    this.events = events;
 	    /**
 	     * Current options
 	     * @type {Object}
