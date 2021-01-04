@@ -53,6 +53,14 @@ describe('setup', function() {
     expect(flow.getFromUniqueIdentifier(4)).toBe(flow.files[0]);
   });
 
+  it("consider events set in constructor's second parameter", function() {
+    var customEventHandler = () => console.log("_custom event fired"),
+        customEvent = jasmine.createSpy('customEventHandler'),
+        f = new Flow({}, {_custom: [customEvent]});
+    f.fire('_custom');
+    expect(customEvent).toHaveBeenCalledTimes(1);
+  });
+
   describe('assignBrowse', function() {
     it('assign to input', function() {
       var input = document.createElement('input');

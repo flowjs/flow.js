@@ -38,7 +38,12 @@ import {each, async, arrayRemove, extend, webAPIFileRead} from './tools';
  */
 export default class Flow {
 
-  constructor(opts) {
+  /**
+   * For the events object:
+   *  - keys: stands for event name
+   *  - values: array list of callbacks
+   */
+  constructor(opts, events = {}) {
     /**
      * Library version
      * @type {string}
@@ -108,7 +113,7 @@ export default class Flow {
      *  value array list of callbacks
      * @type {}
      */
-    this.events = {};
+    this.events = events;
 
     /**
      * Current options
