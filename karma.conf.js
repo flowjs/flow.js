@@ -44,6 +44,7 @@ module.exports = function(config) {
     // extra: 'foobar',
     maxduration: 200,
     groups: "flowjs",
+    build: "flowjs",
     recordLogs: "true",
     // 'testingbot.geoCountryCode': 'DE',
     // deviceOrientation: 'portrait' || 'landscape'
