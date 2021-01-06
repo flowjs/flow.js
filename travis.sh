@@ -7,6 +7,7 @@ if [[ $TEST = "unit-tests" ]]; then
   echo "Running unit-tests"
   export DISPLAY=:99.0
   sleep 1
+  firefox -v
   grunt karma:coverage
 
 elif [[ $TEST = "browser-tests" ]]; then

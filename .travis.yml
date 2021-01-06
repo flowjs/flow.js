@@ -17,6 +17,8 @@ matrix:
   include:
     - env: TEST='unit-tests'
       node_js: "14"
+      addons:
+        firefox: "latest"
     - env: TEST='browser-tests'
       node_js: "14"
       addons:
