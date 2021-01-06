@@ -1,5 +1,5 @@
 module.exports = function(config) {
-  if (config.sauceLabs && (!config.sauceLabs.username || !config.sauceLabs.accessKey)) {
+  if (config.sauceLabs && ((!config.sauceLabs.username && !process.env.SAUCE_USERNAME) || (!config.sauceLabs.accessKey && !process.env.SAUCE_ACCESS_KEY))) {
     console.log('Undefined sauce username/accessKey.');
     process.exit(1)
   }
