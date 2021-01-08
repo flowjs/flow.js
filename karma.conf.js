@@ -9,80 +9,80 @@ module.exports = function(config) {
     sl_ie10: {
       base: 'SauceLabs',
       browserName: 'internet explorer',
-      platform: 'Windows 8',
-      version: '10.0'
+      platformName: 'Windows 8',
+      browserVersion: '10.0'
     },
     sl_ie11: {
       base: 'SauceLabs',
       browserName: 'internet explorer',
-      platform: 'Windows 10',
-      version: '11.0'
+      platformName: 'Windows 10',
+      browserVersion: '11.0'
     },
     sl_edge: {
       base: 'SauceLabs',
       browserName: 'microsoftedge',
-      platform: 'Windows 10',
+      platformName: 'Windows 10',
       version: '20.10240'
     },
     sl_chrome_1: {
       base: 'SauceLabs',
       browserName: 'chrome',
-      platform: 'Linux',
-      version: '26'
+      platformName: 'Linux',
+      browserVersion: '26'
     },
     sl_chrome_2: {
       base: 'SauceLabs',
       browserName: 'chrome',
-      platform: 'Linux',
+      platformName: 'Linux',
       version: '46'
     },
     sl_firefox_1: {
       base: 'SauceLabs',
       browserName: 'firefox',
-      platform: 'Linux',
+      platformName: 'Linux',
       version: '13'
     },
     sl_firefox_2: {
       base: 'SauceLabs',
       browserName: 'firefox',
-      platform: 'Linux',
+      platformName: 'Linux',
       version: '42'
     },
     sl_ff: {
       base: 'SauceLabs',
       browserName: 'firefox',
-      platform: 'Linux',
+      platformName: 'Linux',
       version: '45'
     },
     sl_ff_win: {
       base: 'SauceLabs',
       browserName: 'firefox',
-      platform: 'Windows 10',
+      platformName: 'Windows 10',
       version: '80'
     },
     sl_android_1: {
       base: 'SauceLabs',
-      browserName: 'android',
-      platform: 'Linux',
+      browserName: 'Android',
+      platformName: 'Linux',
       version: '4.4'
     },
     sl_android_2: {
       base: 'SauceLabs',
-      browserName: 'android',
-      platform: 'Linux',
+      browserName: 'Android',
+      platformName: 'Linux',
       version: '5.1'
     },
     sl_iphone_1: {
       base: 'SauceLabs',
       browserName: 'iPhone',
-      platform: 'OS X 10.10',
+      platformName: 'OS X 10.10',
       deviceName: 'iPad Simulator',
       version: '7.1'
     },
     sl_iphone_2: {
       base: 'SauceLabs',
       browserName: 'iPhone',
-      platform: 'OS X 10.10',
+      platformName: 'OS X 10.10',
       deviceName: 'iPad Simulator',
       deviceOrientation: 'portrait',
       version: '9.2'
@@ -90,13 +90,13 @@ module.exports = function(config) {
     sl_safari_1: {
       base: 'SauceLabs',
       browserName: 'safari',
-      platform: 'OS X 10.8',
+      platformName: 'OS X 10.8',
       version: '6.0'
     },
     sl_safari_2: {
       base: 'SauceLabs',
       browserName: 'safari',
-      platform: 'OS X 10.11',
+      platformName: 'OS X 10.11',
       version: '9.0'
     }
   }
