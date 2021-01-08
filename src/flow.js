@@ -717,12 +717,6 @@
     this.flowObj = flowObj;
 
     /**
-     * Used to store the bytes read
-     * @type {Blob|string}
-     */
-    this.bytes = null;
-
-    /**
      * Reference to file
      * @type {File}
      */
@@ -1151,6 +1145,11 @@
      */
     this.readState = 0;
 
+    /**
+     * Used to store the bytes read
+     * @type {Blob|string}
+     */
+    this.bytes = undefined;
 
     /**
      * Bytes transferred from total request size
