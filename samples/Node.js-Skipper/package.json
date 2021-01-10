@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "express": "^4.3.1",
+    "skipper": "^0.5.5"
+  }
+}
