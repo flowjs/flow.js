@@ -8,30 +8,7 @@ describe('upload stream', function() {
    */
   var xhr_server;
 
-  var random_sizes = false;
-
-  /**
-   * Generate an ASCII file composed of <num> parts of <segment_size> characters long.
-   * The char for each part is randomly choosen from the below alphabet
-   */
-  function gen_file(num, segment_size = 64) {
-    var alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789()_-?!./|';
-    return alphabet
-      .repeat(Math.ceil(num / alphabet.length))
-      .split('')
-      .sort(() => Math.random()-0.5)
-      .map((v, i) => i < num ? v.repeat(segment_size) : null)
-      .filter(e => e)
-      .join('');
-  }
-
-  function hash(content) {
-    return window.crypto.subtle.digest('SHA-256', new TextEncoder('utf-8').encode(content));
-  }
-
-  function hex(buff) {
-    return [].map.call(new Uint8Array(buff), b => ('00' + b.toString(16)).slice(-2)).join('');
-  }
+  var random_sizes = true;
 
   class Streamer {
     constructor(chunk_size) {
@@ -154,7 +131,7 @@ describe('upload stream', function() {
     flow.on('fileError', jasmine.createSpy('error'));
     flow.on('fileSuccess', jasmine.createSpy('success'));
     flow.on('complete', () => {
-      validate(done, content, orig_hash);
+      validatePayload(done, content, {orig_hash, flow, requests: xhr_server.requests});
     });
 
     var streamer = new Streamer(upload_chunk_size); // chunk_size);
@@ -166,25 +143,4 @@ describe('upload stream', function() {
     flow.addFile(sample_file);
     flow.upload();
   });
-
-  function validate(done, content, orig_hash) {
-    var predicted_request_number = Math.ceil(content.length / flow.opts.chunkSize);
-    expect(xhr_server.requests.length).toBe(predicted_request_number);
-
-    var file = flow.files[0];
-    expect(file.progress()).toBe(1);
-    expect(file.isUploading()).toBe(false);
-    expect(file.isComplete()).toBe(true);
-
-    // An array of promises of obtaining the corresponding request's body (= payload)
-    var payload_contents = xhr_server.requests.map(x => x.requestBody.get('file').text());
-    Promise.all(payload_contents)
-      .then(values => hash(values.join('')))
-      .then(hash => hex(hash))
-      .then(hexhash => {
-        // console.log(orig_hash, hexhash);
-        expect(hexhash).toBe(orig_hash);
-        done();
-      });
-  }
 });
