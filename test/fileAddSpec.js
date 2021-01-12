@@ -35,24 +35,27 @@ describe('fileAdd event', function() {
     expect(flow.files.length).toBe(2);
   });
 
-  it('should validate fileAdded', function() {
+  it('fileAdded is deprecated as a hook', async function() {
+    spyOn(console, 'warn');
     flow.on('fileAdded', function () {
+      return false;
+    });
+    await flow.addFile(new Blob(['file part']));
+    expect(console.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('should keeps file from being queued', function() {
+    spyOn(console, 'warn');
+    flow.on('preFilterFile', function () {
       return false;
     });
     flow.addFile(new Blob(['file part']));
     expect(flow.files.length).toBe(0);
+    expect(console.warn).not.toHaveBeenCalled();
   });
 
-  it('should validate filesAdded', function() {
-    flow.on('filesAdded', function () {
-      return false;
-    });
-    flow.addFile(new Blob(['file part']));
-    expect(flow.files.length).toBe(0);
-  });
-
-  it('should validate fileAdded and filesAdded', function() {
-    flow.on('fileAdded', function () {
+  it('should validate preFilterFile and filesAdded', function() {
+    flow.on('preFilterFile', function () {
       return false;
     });
     var valid = false;
