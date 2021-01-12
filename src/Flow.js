@@ -306,52 +306,52 @@ export default class Flow {
     // metadata and determine if there's even a point in continuing.
     var found = false;
     if (this.opts.prioritizeFirstAndLastChunk) {
-      each(this.files, function (file) {
+      for (let file of this.files) {
         if (!file.paused && file.chunks.length &&
             file.chunks[0].status() === 'pending') {
           file.chunks[0].send();
           found = true;
-          return false;
+          break;
         }
         if (!file.paused && file.chunks.length > 1 &&
             file.chunks[file.chunks.length - 1].status() === 'pending') {
           file.chunks[file.chunks.length - 1].send();
           found = true;
-          return false;
+          break;
         }
-      });
+      }
       if (found) {
         return found;
       }
     }
 
     // Now, simply look for the next, best thing to upload
-    each(this.files, function (file) {
-      if (!file.paused) {
-        each(file.chunks, function (chunk) {
-          if (chunk.status() === 'pending') {
-            chunk.send();
-            found = true;
-            return false;
-          }
-        });
+    outer_loop:
+    for (let file of this.files) {
+      if (file.paused) {
+        continue;
       }
-      if (found) {
-        return false;
+      for (let chunk of file.chunks) {
+        if (chunk.status() === 'pending') {
+          chunk.send();
+          found = true;
+          break outer_loop;
+        }
       }
-    });
+    }
     if (found) {
       return true;
     }
 
-    // The are no more outstanding chunks to upload, check is everything is done
+    // The are no more outstanding chunks to upload, check if everything is done
     var outstanding = false;
-    each(this.files, function (file) {
+    for (let file of this.files) {
       if (!file.isComplete()) {
         outstanding = true;
         return false;
       }
-    });
+    }
+
     if (!outstanding && !preventEvents) {
       // All chunks have been uploaded, complete
       async(function () {
