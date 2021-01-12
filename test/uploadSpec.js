@@ -580,4 +580,30 @@ describe('upload file', function() {
 
     expect(xhr.requests.length).toBe(6);
   });
+
+  it('should allow to hook initFileFn function', function(done) {
+    var content = gen_file(6, 128),
+        sample_file = new File([content], `foobar-initFileFn.bin`),
+        customFunction = jasmine.createSpy('fn'),
+        initFileFunction = (flowObj) => {
+          customFunction();
+        };
+
+    flow.opts.testChunks = false;
+    flow.opts.initFileFn = initFileFunction;
+    flow.opts.chunkSize = 64;
+    flow.addFile(sample_file);
+    expect(customFunction).toHaveBeenCalledTimes(1);
+
+    flow.on('complete', async () => {
+      await validatePayload(done, content, {requests: xhr.requests, flow});
+    });
+
+    xhr.respondWith('ok');
+    xhr.respondImmediately = xhr.autoRespond = true;
+
+    flow.opts.simultaneousUploads = 3;
+    flow.upload();
+    jasmine.clock().tick(1);
+  });
 });

@@ -141,4 +141,45 @@ describe('upload stream', function() {
     flow.addFile(sample_file);
     flow.upload();
   });
+
+  it('An asyncInitFile function', async function() {
+    var flowfiles,
+        content = gen_file(4, 512),
+        sample_file = new File([content], `foobar-asyncInitFileFn-${jasmine.currentTest.id}.bin`),
+        customFunction = jasmine.createSpy('fn'),
+        initFileFunction = async (flowObj) => {
+          await sleep(250);
+          customFunction();
+        };
+    flowfiles = await flow.asyncAddFiles([sample_file], null, initFileFunction);
+    expect(customFunction).toHaveBeenCalledTimes(1);
+
+    // If re-adding the same file, it's ignored, not incrementing the number of
+    // calls to the initFileFn
+    await flow.asyncAddFiles([sample_file], null, initFileFunction);
+    expect(customFunction).toHaveBeenCalledTimes(1);
+
+    // But if removed, then the function is run again
+    flow.removeFile(flowfiles[0]);
+    flowfiles = await flow.asyncAddFiles([sample_file], null, initFileFunction);
+    expect(customFunction).toHaveBeenCalledTimes(2);
+
+    // It should work with addFile() too.
+    flow.removeFile(flowfiles[0]);
+    flowfiles = await flow.asyncAddFile(sample_file, null, initFileFunction);
+    expect(customFunction).toHaveBeenCalledTimes(3);
+  });
+
+  it('An asyncInitFile function can still be passed as a Flow constructor', async function() {
+    var content = gen_file(2, 256),
+        sample_file = new File([content], `foobar-asyncInitFileFn-${jasmine.currentTest.id}.bin`),
+        customFunction = jasmine.createSpy('fn'),
+        // Also test non-async functions
+        initFileFunction = (flowObj) => {
+          customFunction();
+        };
+    flow.opts.initFileFn = initFileFunction;
+    await flow.asyncAddFile(sample_file);
+    expect(customFunction).toHaveBeenCalledTimes(1);
+  });
 });
