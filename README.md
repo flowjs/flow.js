@@ -173,26 +173,41 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 * `.cancel()` Cancel upload of all `FlowFile` objects and remove them from the list.
 * `.progress()` Returns a float between 0 and 1 indicating the current upload progress of all files.
 * `.isUploading()` Returns a boolean indicating whether or not the instance is currently uploading anything.
-* `.addFile(file)` Add a HTML5 File object to the list of files.
+* `.addFiles([files], event = null, initFileFn = undefined)` Add multiple File objects to the list of files.
+    * `event` The optional event that trigger the addition (for internal purposes)
+    * `initFileFn` An override of Flow.initFileFn
+* `.addFile(file, event = null, initFileFn = undefined)` Add a HTML5 File object to the list of files.
+    * Accept the same `event` and `initFileFn` parameters thant `addFiles` which is used under the hood.
+* `.asyncAddFile(file, event = null, initFileFn = undefined)` Add a HTML5 File object to the list of files.
+* `.asyncAddFiles([files], event = null, initFileFn = undefined)` Add multiple File objects to the list of files.
+    * `asyncAddFile` and `asyncAddFiles` rely on the same parameters than they non-async counterparts with one
+      difference: They accept an asynchronous `initFileFn` file function and return, in a promise, the corresponding FlowFiles.
+    * Note: Calling `asyncAddFile` or `asyncAddFiles` with no `initFileFn` being defined is aimed identical to there non-async
+      counterpart but this may change in the future [TBD].
 * `.removeFile(file)` Cancel upload of a specific `FlowFile` object on the list from the list.
 * `.getFromUniqueIdentifier(uniqueIdentifier)` Look up a `FlowFile` object by its unique identifier.
 * `.getSize()` Returns the total size of the upload in bytes.
 * `.sizeUploaded()` Returns the total size uploaded of all files in bytes.
 * `.timeRemaining()` Returns remaining time to upload all files in seconds. Accuracy is based on average speed. If speed is zero, time remaining will be equal to positive infinity `Number.POSITIVE_INFINITY`
 
+#### Processing hooks
+
+Processing hooks let developers alter the regular processing of the file from addition to upload completion.
+
+* `.preFilterFile(file, event)` File is a regular file. This event is used for file validation. To reject this file return false.
+* `.postFilterFile(flowFile, event)` As above, after the FlowFile has been fully initiliazed. To reject this file return false.
+* `.filesAdded(array, event)` Same as fileAdded, but used for multiple file validation.
+* `.filesSubmitted(array, event)` Same as filesAdded, but happens after the file is added to upload queue. Can be used to start upload of currently added files.
+
 #### Events
+
+Events provide information about the internal state of the application without given a change to alter it.
 
 * `.fileSuccess(file, message, chunk)` A specific file was completed. First argument `file` is instance of `FlowFile`, second argument `message` contains server response. Response is always a string. 
 Third argument `chunk` is instance of `FlowChunk`. You can get response status by accessing xhr 
 object `chunk.xhr.status`.
 * `.fileProgress(file, chunk)` Uploading progressed for a specific file.
-* `.fileAdded(file, event)` This event is used for file validation. To reject this file return false.
-This event is also called before file is added to upload queue,
-this means that calling `flow.upload()` function will not start current file upload.
-Optionally, you can use the browser `event` object from when the file was
-added.
-* `.filesAdded(array, event)` Same as fileAdded, but used for multiple file validation.
-* `.filesSubmitted(array, event)` Same as filesAdded, but happens after the file is added to upload queue. Can be used to start upload of currently added files.
+* `.fileAdded(file, event)` This event is also called before file is added to upload queue and after it's been fully initialized. `event` is the browser `event` object from when the file was added.
 * `.fileRemoved(file)` The specific file was removed from the upload queue. Combined with filesSubmitted, can be used to notify UI to update its state to match the upload queue.
 * `.fileRetry(file, chunk)` Something went wrong during upload of a specific file, uploading is being 
 retried.

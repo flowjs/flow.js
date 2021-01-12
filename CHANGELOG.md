@@ -1,3 +1,9 @@
+# 3.0.0
+
+## Breaking Changes
+ - fileAdded is now an event instead of a Hook. It can't be used to keep a file from being enqueued.
+ - FlowFile does not run bootstrap() upon instanciation. This must be done manually (or rely on *addFile* functions).
+
 # 2.0.0
 
 ## Features
