@@ -67,16 +67,10 @@ describe('upload stream', function() {
 
   beforeAll(function() {
     jasmine.DEFAULT_TIMEOUT_INTERVAL = 5000;
-
-    xhr_server = sinon.createFakeServer({
-      // autoRespondAfter: 50
-      respondImmediately: true,
+    jasmine.getEnv().addReporter({
+      specStarted: result => (jasmine.currentTest = result),
+      specDone: result => (jasmine.currentTest = result),
     });
-  });
-
-
-  afterAll(function() {
-    xhr_server.restore();
   });
 
   beforeEach(function () {
@@ -91,6 +85,10 @@ describe('upload stream', function() {
       }
     });
 
+    xhr_server = sinon.createFakeServer({
+      // autoRespondAfter: 50
+      respondImmediately: true,
+    });
     xhr_server.respondWith('ok');
   });
 
