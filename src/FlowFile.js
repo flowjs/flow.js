@@ -105,8 +105,6 @@ export default class FlowFile {
      * @private
      */
     this._prevProgress = 0;
-
-    this.bootstrap();
   }
 
   /**
@@ -223,7 +221,7 @@ export default class FlowFile {
    * @function
    */
   retry() {
-    this.bootstrap();
+    this.bootstrap('retry');
     this.flowObj.upload();
   }
 
@@ -231,14 +229,11 @@ export default class FlowFile {
    * Clear current chunks and slice file again
    * @function
    */
-  bootstrap() {
-    if (typeof this.flowObj.opts.initFileFn === "function") {
-      var ret = this.flowObj.opts.initFileFn(this);
-      if (ret && 'then' in ret) {
-        ret.then(this._bootstrap.bind(this));
-        return;
-      }
+  bootstrap(event = null, initFileFn = this.flowObj.opts.initFileFn) {
+    if (typeof initFileFn === "function") {
+      initFileFn(this);
     }
+
     this._bootstrap();
   }
 
