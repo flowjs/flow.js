@@ -3,6 +3,7 @@
  */
 
 import FlowFile from './FlowFile';
+import AsyncFlowFile from './AsyncFlowFile';
 import {each, async, arrayRemove, extend, webAPIFileRead} from './tools';
 
 /**
@@ -159,7 +160,8 @@ export default class Flow {
 
   /**
    * Set a callback for an event, possible events:
-   * fileSuccess(file), fileProgress(file), fileAdded(file, event),
+   * fileSuccess(file), fileProgress(file),
+   * preFilterFile(file, event), postFilterFile(flowFile, event),
    * fileRemoved(file), fileRetry(file), fileError(file, message),
    * complete(), progress(), error(message, file), pause()
    * @function
@@ -209,9 +211,15 @@ export default class Flow {
     event = event.toLowerCase();
     var preventDefault = false;
     if (this.events.hasOwnProperty(event)) {
-      each(this.events[event], function (callback) {
-        preventDefault = callback.apply(this, args.slice(1)) === false || preventDefault;
-      }, this);
+      for (let callback of this.events[event]) {
+        var ret = callback.apply(this, args.slice(1));
+        // v3 compatibility warning
+        if (event === 'fileadded' && ret !== null) {
+          console.warn("Warning: In Flow.js v3, fileAdded hook has been replaced by preFilterFile and postFilterFile hooks.");
+        }
+
+        preventDefault = ret === false || preventDefault;
+      }
     }
     if (event != 'catchall') {
       args.unshift('catchAll');
@@ -570,13 +578,43 @@ export default class Flow {
   }
 
   /**
+   * A generator to yield files and factor the sync part of the filtering logic used by both
+   * addFiles & asyncAddFiles
+   */
+  *filterFileList(fileList, event) {
+    // ie10+
+    var ie10plus = window.navigator.msPointerEnabled;
+
+    for (let file of fileList) {
+      // https://github.com/flowjs/flow.js/issues/55
+      if ((ie10plus && file.size === 0) || (file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
+        // console.log(`file ${file.name} empty. skipping`);
+        continue;
+      }
+
+      var uniqueIdentifier = this.generateUniqueIdentifier(file);
+      if (!this.opts.allowDuplicateUploads && this.getFromUniqueIdentifier(uniqueIdentifier)) {
+        // console.log(`file ${file.name} non-unique. skipping`);
+        continue;
+      }
+
+      if (this.fire('preFilterFile', file, event) === false) {
+        // console.log(`file ${file.name} filtered-out. skipping`);
+        continue;
+      }
+
+      yield [file, uniqueIdentifier];
+    }
+  }
+
+  /**
    * Add a HTML5 File object to the list of files.
    * @function
    * @param {File} file
-   * @param {Event} [event] event is optional
+   * @param Any other parameters supported by addFiles
    */
-  addFile(file, event) {
-    this.addFiles([file], event);
+  addFile(file, ...args) {
+    this.addFiles([file], ...args);
   }
 
   /**
@@ -585,34 +623,101 @@ export default class Flow {
    * @param {FileList|Array} fileList
    * @param {Event} [event] event is optional
    */
-  addFiles(fileList, event) {
-    var files = [];
-    // ie10+
-    var ie10plus = window.navigator.msPointerEnabled;
+  addFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
+    let item, file, flowfile, uniqueIdentifier, files = [];
+    const iterator = this.filterFileList(fileList, event);
 
-    each(fileList, function (file) {
-      // https://github.com/flowjs/flow.js/issues/55
-      if ((!ie10plus || ie10plus && file.size > 0) && !(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
-        var uniqueIdentifier = this.generateUniqueIdentifier(file);
-        if (this.opts.allowDuplicateUploads || !this.getFromUniqueIdentifier(uniqueIdentifier)) {
-          var f = new FlowFile(this, file, uniqueIdentifier);
-          if (this.fire('fileAdded', f, event)) {
-            files.push(f);
-          }
-        }
+    while ((item = iterator.next()) && item.value) {
+      [file, uniqueIdentifier] = item.value;
+
+      var f = new FlowFile(this, file, uniqueIdentifier);
+      f.bootstrap(event, initFileFn);
+
+      if (this.fire('postFilterFile', f, event) === false) {
+        // console.log(`file ${file.name}. Filter-out by postFilterFile.`);
+        continue;
       }
-    }, this);
-    if (this.fire('filesAdded', files, event)) {
-      each(files, function (file) {
-        if (this.opts.singleFile && this.files.length > 0) {
-          this.removeFile(this.files[0]);
-        }
-        this.files.push(file);
-      }, this);
-      this.fire('filesSubmitted', files, event);
+
+      this.fire('fileAdded', f, event);
+      files.push(f);
     }
+
+    if (this.fire('filesAdded', files, event) === false) {
+      return;
+    }
+
+    for (file of files) {
+      if (this.opts.singleFile && this.files.length > 0) {
+        this.removeFile(this.files[0]);
+      }
+      this.files.push(file);
+      // console.log(`enqueue file ${file.name} of ${file.chunks.length} chunks`);
+    }
+
+    this.fire('filesSubmitted', files, event);
   }
 
+
+  /**
+   * Add a HTML5 File object to the list of files.
+   * @function
+   * @param {File} file
+   * @param Any other parameters supported by asyncAddFiles.
+   *
+   * @return (async) An initialized <AsyncFlowFile>.
+   */
+  async asyncAddFile(file, ...args) {
+    return (await this.asyncAddFiles([file], ...args))[0];
+  }
+
+  /**
+   * Add a HTML5 File object to the list of files.
+   * @function
+   * @param {FileList|Array} fileList
+   * @param {Event} [event] event is optional
+   *
+   * @return Promise{[<AsyncFlowFile>,...]} The promise of getting an array of AsyncFlowFile.
+   */
+  asyncAddFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
+    let item, file, flowfile, uniqueIdentifier, files = {}, states = [];
+    const iterator = this.filterFileList(fileList, event);
+
+    while ((item = iterator.next()) && item.value) {
+      [file, uniqueIdentifier] = item.value;
+      var flowFile = new AsyncFlowFile(this, file, uniqueIdentifier),
+          state = flowFile.bootstrap(event, initFileFn);
+      files[uniqueIdentifier] = flowFile;
+      state.then(e => {
+        if (this.fire('postFilterFile', flowFile, event) === false) {
+          delete files[uniqueIdentifier];
+          return;
+        }
+
+        this.fire('fileAdded', flowFile, event);
+      });
+
+      states.push(state);
+    }
+
+    files = Object.values(files);
+    return Promise.all(states)
+      .then(e => {
+        if (! this.fire('filesAdded', files, event)) {
+          return [];
+        }
+
+        for (let file of files) {
+          if (this.opts.singleFile && this.files.length > 0) {
+            this.removeFile(this.files[0]);
+          }
+          this.files.push(file);
+        }
+
+        this.fire('filesSubmitted', files, event);
+
+        return files;
+      });
+  }
 
   /**
    * Cancel upload of a specific FlowFile object from the list.
