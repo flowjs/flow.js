@@ -1,7 +1,7 @@
 {
   "dependencies": {
-    "connect-multiparty": "^1.0.4",
-    "express": "^4.3.1",
+    "connect-multiparty": "^2.2.0",
+    "express": "^4.17.1",
     "mv": "^2.1.1"
   }
 }
