@@ -62,6 +62,12 @@ export default class FlowChunk {
     this.readState = 0;
 
     /**
+     * The payload.
+     * @type {Blob|string}
+     */
+    this.payload = null;
+
+    /**
      * Mostly for streams: how many bytes were actually read
      * @type {number} -1 = not read
      */
@@ -269,9 +275,9 @@ export default class FlowChunk {
    * Finish read state
    * @function
    */
-  readFinished(bytes) {
+  readFinished(payload) {
     this.readState = 2;
-    this.bytes = bytes;
+    this.payload = payload;
     this.send();
   }
 
@@ -301,31 +307,31 @@ export default class FlowChunk {
   async readStreamChunk() {
     if (this.readStreamState.resolved) {
       // This is normally impossible to reach. Has it been uploaded?
-      console.warn(`Chunk ${this.offset} already read. Bytes = ${bytes ? bytes.size : null}. xhr initialized = ${this.xhr ? 1 : 0}`);
+      console.warn(`Chunk ${this.offset} already read. xhr initialized = ${this.xhr ? 1 : 0}`);
       // We may want to retry (or not) to upload (but never try to read from the stream again or risk misordered chunks
       return;
     }
 
     await this.readStreamGuard();
-    var bytes, asyncRead = this.flowObj.opts.asyncReadFileFn;
+    var data, asyncRead = this.flowObj.opts.asyncReadFileFn;
 
-    bytes = await asyncRead(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
+    data = await asyncRead(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
     this.readStreamState.resolve();
 
     // Equivalent to readFinished()
     this.readState = 2;
 
-    if (bytes) {
-      this.readBytes = bytes.size || bytes.size === 0 ? bytes.size : -1;
+    if (data) {
+      this.readBytes = data.size || data.size === 0 ? data.size : -1;
     }
 
-    if (bytes && bytes.size > 0) {
+    if (data && data.size > 0) {
       if (this.flowObj.chunkSize) {
         // This may imply a miscalculation of the total chunk numbers.
-        console.warn(`Chunk ${this.offset}: returned too much data. Got ${bytes.size}. Expected not more than ${this.flowObj.chunkSize}.`);
+        console.warn(`Chunk ${this.offset}: returned too much data. Got ${data.size}. Expected not more than ${this.flowObj.chunkSize}.`);
       }
-      this.bytes = bytes;
-      this.xhrSend(bytes);
+      this.payload = data;
+      this.xhrSend(data);
       return;
     }
 
@@ -384,14 +390,14 @@ export default class FlowChunk {
         return;
     }
 
-    this.xhrSend(this.bytes);
+    this.xhrSend(this.payload);
   }
 
   /**
    * Actually uploads data in a POST call
    * @function
    */
-  xhrSend(bytes) {
+  xhrSend(payload) {
     if (this.flowObj.opts.testChunks && !this.tested) {
       this.test();
       return;
@@ -408,12 +414,12 @@ export default class FlowChunk {
     this.xhr.addEventListener('error', this.doneHandler.bind(this), false);
 
     var uploadMethod = evalOpts(this.flowObj.opts.uploadMethod, this.fileObj, this);
-    var data = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, bytes);
+    var xhrPayload = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, payload);
     var changeRawDataBeforeSend = this.flowObj.opts.changeRawDataBeforeSend;
     if (typeof changeRawDataBeforeSend === 'function') {
-      data = changeRawDataBeforeSend(this, data);
+      xhrPayload = changeRawDataBeforeSend(this, xhrPayload);
     }
-    this.xhr.send(data);
+    this.xhr.send(xhrPayload);
   }
 
   /**
