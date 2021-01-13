@@ -12,7 +12,7 @@ var ACCESS_CONTROLL_ALLOW_ORIGIN = false;
 
 // Host most stuff in the public folder
 app.use(express.static(__dirname + '/public'));
-app.use(express.static(__dirname + '/../../src'));
+app.use(express.static(__dirname + '/../../dist'));
 
 // Handle uploads through Flow.js
 app.post('/upload', multipartMiddleware, function(req, res) {
