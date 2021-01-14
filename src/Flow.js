@@ -42,6 +42,7 @@ export default class Flow {
    * For the events object:
    *  - keys: stands for event name
    *  - values: array list of callbacks
+   * All keys are lowercased as on() would do.
    */
   constructor(opts, events = {}) {
     /**
@@ -113,7 +114,9 @@ export default class Flow {
      *  value array list of callbacks
      * @type {}
      */
-    this.events = events;
+    this.events = Object.fromEntries(
+      Object.entries(events).map(([k, v]) => [k.toLowerCase(), v])
+    );
 
     /**
      * Current options

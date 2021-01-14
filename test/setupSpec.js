@@ -61,6 +61,14 @@ describe('setup', function() {
     expect(customEvent).toHaveBeenCalledTimes(1);
   });
 
+  it("events set in constructor's are lowercased", function() {
+    var customEventHandler = () => console.log("_custom event fired"),
+        customEvent = jasmine.createSpy('customEventHandler'),
+        f = new Flow({}, {_CusTom: [customEvent]});
+    f.fire('_custom');
+    expect(customEvent).toHaveBeenCalledTimes(1);
+  });
+
   describe('assignBrowse', function() {
     it('assign to input', function() {
       var input = document.createElement('input');
