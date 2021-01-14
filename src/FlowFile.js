@@ -20,12 +20,6 @@ export default class FlowFile {
     this.flowObj = flowObj;
 
     /**
-     * Used to store the bytes read
-     * @type {Blob|string}
-     */
-    this.bytes = null;
-
-    /**
      * Reference to file
      * @type {File}
      */
