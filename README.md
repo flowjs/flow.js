@@ -204,7 +204,7 @@ Processing hooks let developers alter the regular processing of the file from ad
 Events provide information about the internal state of the application without given a change to alter it.
 
 * `.fileSuccess(file, message, chunk)` A specific file was completed. First argument `file` is instance of `FlowFile`, second argument `message` contains server response. Response is always a string. 
-Third argument `chunk` is instance of `FlowChunk`. You can get response status by accessing xhr 
+Third argument `chunk` is instance of `FlowChunk` representing the last chunk for this file. You can get response status by accessing xhr 
 object `chunk.xhr.status`.
 * `.fileProgress(file, chunk)` Uploading progressed for a specific file.
 * `.fileAdded(file, event)` This event is also called before file is added to upload queue and after it's been fully initialized. `event` is the browser `event` object from when the file was added.
