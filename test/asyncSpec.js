@@ -26,7 +26,10 @@ describe('upload stream', function() {
   }
 
   function hash(content) {
-    return window.crypto.subtle.digest('SHA-256', new TextEncoder('utf-8').encode(content));
+    var c = new TextEncoder('utf-8').encode(content);
+    return typeof window !== 'undefined' ?  window.crypto.subtle.digest('SHA-256', c)
+      :  typeof crypto !== 'undefined' ? crypto.createHash('sha256').update(c).digest('hex')
+      : '';
   }
 
   function hex(buff) {
