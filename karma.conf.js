@@ -111,12 +111,11 @@ module.exports = function(config) {
     // list of files / patterns to load in the browser
     files: [
       'node_modules/sinon/pkg/sinon.js',
-      'dist/flow.js',
+      'dist/flow.cov.js',
       'test/*Spec.js'
     ],
 
     preprocessors: {
-      'dist/flow.js': 'coverage',
       'src/*.js': 'coverage'
     },
 

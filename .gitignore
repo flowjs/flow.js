@@ -14,3 +14,6 @@
 # Tests
 sauce_connect.log
 /coverage
+dist/flow*cov*
+dist/flow*map*
+dist/flow*gz
