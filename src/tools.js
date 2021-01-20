@@ -18,18 +18,6 @@ function webAPIFileRead(fileObj, startByte, endByte, fileType, chunk) {
 }
 
 /**
- * Remove value from array
- * @param array
- * @param value
- */
-function arrayRemove(array, value) {
-  var index = array.indexOf(value);
-  if (index > -1) {
-    array.splice(index, 1);
-  }
-}
-
-/**
  * If option is a function, evaluate it with given params
  * @param {*} data
  * @param {...} args arguments of a callback
@@ -42,34 +30,6 @@ function evalOpts(data, args) {
     data = data.apply(null, args.slice(1));
   }
   return data;
-}
-
-/**
- * Execute function asynchronously
- * @param fn
- * @param context
- */
-function async(fn, context) {
-  setTimeout(fn.bind(context), 0);
-}
-
-/**
- * Extends the destination object `dst` by copying all of the properties from
- * the `src` object(s) to `dst`. You can specify multiple `src` objects.
- * @function
- * @param {Object} dst Destination object.
- * @param {...Object} src Source object(s).
- * @returns {Object} Reference to `dst`.
- */
-function extend(dst, src) {
-  each(arguments, function(obj) {
-    if (obj !== dst) {
-      each(obj, function(value, key){
-        dst[key] = value;
-      });
-    }
-  });
-  return dst;
 }
 
 /**
@@ -111,10 +71,7 @@ var g = typeof window !== 'undefined' ? window
 g.evalOpts = evalOpts;
 
 export {
-  arrayRemove,
-  async,
   each,
   evalOpts,
-  extend,
   webAPIFileRead
 };

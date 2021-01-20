@@ -1,4 +1,4 @@
-import {evalOpts, each, extend} from './tools';
+import {evalOpts, each} from './tools';
 import DeferredPromise from './DeferredPromise';
 
 /**
@@ -524,7 +524,7 @@ export default class FlowChunk {
   prepareXhrRequest(method, isTest, paramsMethod, blob) {
     // Add data from the query options
     var query = evalOpts(this.flowObj.opts.query, this.fileObj, this, isTest);
-    query = extend(query || {}, this.getParams());
+    query = Object.assign({}, query || {}, this.getParams());
 
     var target = evalOpts(this.flowObj.opts.target, this.fileObj, this, isTest);
     var data = null;

@@ -141,32 +141,32 @@ export default class FlowFile {
           break;
         }
         this.measureSpeed();
-        this.flowObj.fire('fileProgress', this, chunk);
-        this.flowObj.fire('progress');
+        this.flowObj.emit('file-progress', this, chunk);
+        this.flowObj.emit('progress');
         this._lastProgressCallback = Date.now();
         break;
       case 'error':
         this.error = true;
         this.abort(true);
-        this.flowObj.fire('fileError', this, message, chunk);
-        this.flowObj.fire('error', message, this, chunk);
+        this.flowObj.emit('file-error', this, message, chunk);
+        this.flowObj.emit('error', message, this, chunk);
         break;
       case 'success':
         if (this.error) {
           return;
         }
         this.measureSpeed();
-        this.flowObj.fire('fileProgress', this, chunk);
-        this.flowObj.fire('progress');
+        this.flowObj.emit('file-progress', this, chunk);
+        this.flowObj.emit('progress');
         this._lastProgressCallback = Date.now();
         if (this.isComplete()) {
           this.currentSpeed = 0;
           this.averageSpeed = 0;
-          this.flowObj.fire('fileSuccess', this, message, chunk);
+          this.flowObj.emit('file-success', this, message, chunk);
         }
         break;
       case 'retry':
-        this.flowObj.fire('fileRetry', this, chunk);
+        this.flowObj.emit('file-retry', this, chunk);
         break;
     }
   }

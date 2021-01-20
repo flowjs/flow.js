@@ -10,10 +10,10 @@ describe('events', function() {
 
   it('should catch an event', function() {
     var valid = false;
-    flow.on('test', function () {
+    flow.on('test', () => {
       valid = true;
     });
-    flow.fire('test');
+    flow.emit('test');
     expect(valid).toBeTruthy();
   });
 
@@ -22,7 +22,7 @@ describe('events', function() {
     flow.on('test', function () {
       context = this;
     });
-    flow.fire('test');
+    flow.emit('test');
     expect(context).toEqual(flow);
   });
 
@@ -30,84 +30,98 @@ describe('events', function() {
     var valid = false;
     var argumentOne = 123;
     var argumentTwo = "dqw";
-    flow.on('test', function () {
+    flow.on('test', function ({detail: [...arguments]}) {
       expect(arguments.length).toBe(2);
       expect(arguments[0]).toBe(argumentOne);
       expect(arguments[1]).toBe(argumentTwo);
       expect(arguments[2]).toBeUndefined();
       valid = true;
     });
-    flow.fire('test', argumentOne, argumentTwo);
+    flow.emit('test', argumentOne, argumentTwo);
     expect(valid).toBeTruthy();
   });
 
   it('should throw catchall event last', function() {
     var executed = 0;
-    flow.on('catchall', function (event, one) {
+    flow.on('catch-all', function ({detail: [event, one, ...args]}) {
       expect(event).toBe('test');
       expect(one).toBe(1);
       expect(executed).toBe(1);
       executed++;
     });
-    flow.on('test', function (one) {
+    flow.on('test', ({detail: [one]}) => {
       expect(one).toBe(1);
       expect(executed).toBe(0);
       executed++;
     });
-    flow.fire('test', 1);
+    flow.emit('test', 1);
     expect(executed).toBe(2);
   });
 
-  it('should return event value', function() {
-    flow.on('false', function () {
-      return false;
-    });
-    flow.on('true', function () {
+  it('should not return event value', async function() {
+    flow.on('false', () => false);
+    flow.on('true', () => true);
 
-    });
-    expect(flow.fire('true')).toBeTruthy();
-    expect(flow.fire('not existant')).toBeTruthy();
-    expect(flow.fire('false')).toBeFalsy();
+    expect(flow.emit('true')).toEqual(jasmine.any(Promise));
+    // Native event does not provide their event value and
+    // are fully sent in a fully asynchronous way.
+    await expectAsync(flow.emit('true')).toBeResolvedTo(undefined);
+    await expectAsync(flow.emit('not existant')).toBeResolvedTo(undefined);
+    await expectAsync(flow.emit('false')).toBeResolvedTo(undefined);
   });
 
-  it('should return multiple event value', function() {
-    flow.on('maybe', function () {
-      return false;
-    });
-    flow.on('maybe', function () {
-
-    });
-    expect(flow.fire('maybe')).toBeFalsy();
-
-    flow.on('maybe2', function () {
-
-    });
-    flow.on('maybe2', function () {
-      return false;
-    });
-    expect(flow.fire('maybe2')).toBeFalsy();
+  it('should run all event handlers', function() {
+    var customFunction = jasmine.createSpy('fn');
+    flow.on('maybe', () => customFunction(1));
+    flow.on('maybe', () => customFunction(2));
+    flow.emit('maybe', 1);
+    expect(customFunction).toHaveBeenCalledTimes(2);
   });
 
   describe('off', function () {
-    var event;
+    var event, unbinder;
     beforeEach(function () {
       event = jasmine.createSpy('event');
-      flow.on('event', event);
+      unbinder = flow.on('event', event);
     });
     it('should remove event', function () {
       flow.off('event');
-      flow.fire('event');
+      flow.emit('event');
+      expect(event).not.toHaveBeenCalled();
+    });
+    it('should remove event', function () {
+      console.log(unbinder);
+      unbinder();
+      flow.emit('event');
       expect(event).not.toHaveBeenCalled();
     });
     it('should remove specific event', function () {
       flow.off('event', event);
-      flow.fire('event');
+      flow.emit('event');
       expect(event).not.toHaveBeenCalled();
     });
     it('should remove all events', function () {
       flow.off();
-      flow.fire('event');
+      flow.emit('event');
       expect(event).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('once', function () {
+    var event;
+    it('should just once', function () {
+      event = jasmine.createSpy('event');
+      flow.once('event', event);
+      flow.emit('event');
+      flow.emit('event');
+      expect(event).toHaveBeenCalledTimes(1);
+    });
+
+    it('should warn that once() is not supported for hooks', function () {
+      spyOn(console, 'warn');
+      event = jasmine.createSpy('files-added');
+      flow.once('files-added', event);
+      expect(console.warn).toHaveBeenCalled();
     });
   });
 });

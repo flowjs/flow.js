@@ -19,7 +19,7 @@ export default class AsyncFlowFile extends FlowFile {
     /**
      * Asynchronous initialization function, if defined, is run
      * Then _bootstrap follow-up occurs
-     * And, optionally (in case of initial FlowFile creation), the `fileAdded` event is fired.
+     * And, optionally (in case of initial FlowFile creation), the `file-added` event is fired.
      */
     if (typeof initFileFn === 'function') {
       await initFileFn(this, event);
@@ -27,7 +27,7 @@ export default class AsyncFlowFile extends FlowFile {
 
     this._bootstrap();
     if (event !== 'retry') {
-      this.flowObj.fire('fileAdded', this, event);
+      this.flowObj.hook('file-added', this, event);
     }
 
     // console.log("Flowfile returns [async]", this._bootstrapped);

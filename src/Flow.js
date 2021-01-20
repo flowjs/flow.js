@@ -2,9 +2,10 @@
  * @license MIT
  */
 
+import Eventizer from './Eventizer';
 import FlowFile from './FlowFile';
 import AsyncFlowFile from './AsyncFlowFile';
-import {each, async, arrayRemove, extend, webAPIFileRead} from './tools';
+import {each, webAPIFileRead} from './tools';
 
 /**
  * Flow.js is a library providing multiple simultaneous, stable and
@@ -37,7 +38,7 @@ import {each, async, arrayRemove, extend, webAPIFileRead} from './tools';
  * @param {Function} [opts.generateUniqueIdentifier]
  * @constructor
  */
-export default class Flow {
+export default class Flow extends Eventizer {
 
   /**
    * For the events object:
@@ -45,7 +46,9 @@ export default class Flow {
    *  - values: array list of callbacks
    * All keys are lowercased as on() would do.
    */
-  constructor(opts, events = {}) {
+  constructor(opts, events) {
+    super(events);
+
     /**
      * Library version
      * @type {string}
@@ -110,20 +113,10 @@ export default class Flow {
     this.opts = {};
 
     /**
-     * List of events:
-     *  key stands for event name
-     *  value array list of callbacks
-     * @type {}
-     */
-    this.events = Object.fromEntries(
-      Object.entries(events).map(([k, v]) => [k.toLowerCase(), v])
-    );
-
-    /**
      * Current options
      * @type {Object}
      */
-    this.opts = extend({}, this.defaults, opts || {});
+    this.opts = Object.assign({}, this.defaults, opts || {});
 
     // A workaround for using this.method.bind(this) as a (removable) event handler.
     // https://stackoverflow.com/questions/11565471
@@ -156,76 +149,6 @@ export default class Flow {
    */
   preventEvent(event) {
     event.preventDefault();
-  }
-
-  /**
-   * Set a callback for an event, possible events:
-   * fileSuccess(file), fileProgress(file),
-   * preFilterFile(file, event), postFilterFile(flowFile, event),
-   * fileRemoved(file), fileRetry(file), fileError(file, message),
-   * complete(), progress(), error(message, file), pause()
-   * @function
-   * @param {string} event
-   * @param {Function} callback
-   */
-  on(event, callback) {
-    event = event.toLowerCase();
-    if (!this.events.hasOwnProperty(event)) {
-      this.events[event] = [];
-    }
-    this.events[event].push(callback);
-  }
-
-  /**
-   * Remove event callback
-   * @function
-   * @param {string} [event] removes all events if not specified
-   * @param {Function} [fn] removes all callbacks of event if not specified
-   */
-  off(event, fn) {
-    if (event !== undefined) {
-      event = event.toLowerCase();
-      if (fn !== undefined) {
-        if (this.events.hasOwnProperty(event)) {
-          arrayRemove(this.events[event], fn);
-        }
-      } else {
-        delete this.events[event];
-      }
-    } else {
-      this.events = {};
-    }
-  }
-
-  /**
-   * Fire an event
-   * @function
-   * @param {string} event event name
-   * @param {...} args arguments of a callback
-   * @return {bool} value is false if at least one of the event handlers which handled this event
-   * returned false. Otherwise it returns true.
-   */
-  fire(event, args) {
-    // `arguments` is an object, not array, in FF, so:
-    args = Array.prototype.slice.call(arguments);
-    event = event.toLowerCase();
-    var preventDefault = false;
-    if (this.events.hasOwnProperty(event)) {
-      for (let callback of this.events[event]) {
-        var ret = callback.apply(this, args.slice(1));
-        // v3 compatibility warning
-        if (event === 'fileadded' && ret !== null) {
-          console.warn("Warning: In Flow.js v3, fileAdded hook has been replaced by preFilterFile and postFilterFile hooks.");
-        }
-
-        preventDefault = ret === false || preventDefault;
-      }
-    }
-    if (event != 'catchall') {
-      args.unshift('catchAll');
-      preventDefault = this.fire.apply(this, args) === false || preventDefault;
-    }
-    return !preventDefault;
   }
 
   /**
@@ -362,9 +285,7 @@ export default class Flow {
 
     if (!outstanding && !preventEvents) {
       // All chunks have been uploaded, complete
-      async(function () {
-        this.fire('complete');
-      }, this);
+      this.emit('complete');
     }
     return false;
   }
@@ -394,7 +315,7 @@ export default class Flow {
         input = document.createElement('input');
         input.setAttribute('type', 'file');
         // display:none - not working in opera 12
-        extend(input.style, {
+        Object.assign(input.style, {
           visibility: 'hidden',
           position: 'absolute',
           width: '1px',
@@ -516,15 +437,13 @@ export default class Flow {
       return;
     }
     // Kick off the queue
-    this.fire('uploadStart');
+    this.emit('upload-start');
     var started = false;
     for (var num = 1; num <= this.opts.simultaneousUploads - ret; num++) {
       started = this.uploadNextChunk(true) || started;
     }
     if (!started) {
-      async(function () {
-        this.fire('complete');
-      }, this);
+      this.emit('complete');
     }
   }
 
@@ -588,18 +507,18 @@ export default class Flow {
     for (let file of fileList) {
       // https://github.com/flowjs/flow.js/issues/55
       if ((ie10plus && file.size === 0) || (file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
-        // console.log(`file ${file.name} empty. skipping`);
+        console.log(`file ${file.name} empty. skipping`);
         continue;
       }
 
       var uniqueIdentifier = this.generateUniqueIdentifier(file);
       if (!this.opts.allowDuplicateUploads && this.getFromUniqueIdentifier(uniqueIdentifier)) {
-        // console.log(`file ${file.name} non-unique. skipping`);
+        console.log(`file ${file.name} non-unique. skipping`);
         continue;
       }
 
-      if (this.fire('preFilterFile', file, event) === false) {
-        // console.log(`file ${file.name} filtered-out. skipping`);
+      if (! this.hook('filter-file', file, event)) {
+        console.log(`file ${file.name} filtered-out. skipping`);
         continue;
       }
 
@@ -624,28 +543,27 @@ export default class Flow {
    * @param {Event} [event] event is optional
    */
   addFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
+    if (this.hasHook(true)) {
+      console.warn('Using addFiles() while settings asynchronous events can lead to unpredictable results. Use asyncAddFiles() instead.');
+    }
+
     let item, file, flowfile, uniqueIdentifier, files = [];
     const iterator = this.filterFileList(fileList, event);
-
-    while ((item = iterator.next()) && item.value) {
+    while ((item = iterator.next()) && !item.done) {
       [file, uniqueIdentifier] = item.value;
 
       var f = new FlowFile(this, file, uniqueIdentifier);
       f.bootstrap(event, initFileFn);
-
-      if (this.fire('postFilterFile', f, event) === false) {
-        // console.log(`file ${file.name}. Filter-out by postFilterFile.`);
+      this.hook('file-added', f, event);
+      if (! f.file) {
         continue;
       }
-
-      this.fire('fileAdded', f, event);
       files.push(f);
     }
 
-    if (this.fire('filesAdded', files, event) === false) {
-      return;
-    }
+    this.hook('files-added', files, event);
 
+    files = files.filter(e => e);
     for (file of files) {
       if (this.opts.singleFile && this.files.length > 0) {
         this.removeFile(this.files[0]);
@@ -654,7 +572,7 @@ export default class Flow {
       // console.log(`enqueue file ${file.name} of ${file.chunks.length} chunks`);
     }
 
-    this.fire('filesSubmitted', files, event);
+    this.hook('files-submitted', this.files, event);
   }
 
 
@@ -678,45 +596,44 @@ export default class Flow {
    *
    * @return Promise{[<AsyncFlowFile>,...]} The promise of getting an array of AsyncFlowFile.
    */
-  asyncAddFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
-    let item, file, flowfile, uniqueIdentifier, files = {}, states = [];
+  async asyncAddFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
+    let item, file, flowfile, uniqueIdentifier, states = [];
     const iterator = this.filterFileList(fileList, event);
 
-    while ((item = iterator.next()) && item.value) {
+    while ((item = iterator.next()) && !item.done) {
       [file, uniqueIdentifier] = item.value;
+      if (! await this.aHook('filter-file', file, event)) {
+        console.log(`file ${file.name} filtered-out. skipping`);
+        continue;
+      }
+
+      // ToDo: parallelizable ?
       var flowFile = new AsyncFlowFile(this, file, uniqueIdentifier),
           state = flowFile.bootstrap(event, initFileFn);
-      files[uniqueIdentifier] = flowFile;
-      state.then(e => {
-        if (this.fire('postFilterFile', flowFile, event) === false) {
-          delete files[uniqueIdentifier];
-          return;
-        }
-
-        this.fire('fileAdded', flowFile, event);
-      });
-
       states.push(state);
     }
 
-    files = Object.values(files);
-    return Promise.all(states)
-      .then(e => {
-        if (! this.fire('filesAdded', files, event)) {
-          return [];
-        }
+    var flowfiles = await Promise.all(states);
+    for (let ff of flowfiles) {
+      this.hook('file-added', ff, event);
+      await this.aHook('file-added', ff, event);
+    }
 
-        for (let file of files) {
-          if (this.opts.singleFile && this.files.length > 0) {
-            this.removeFile(this.files[0]);
-          }
-          this.files.push(file);
-        }
+    this.hook('files-added', flowfiles, event);
+    await this.aHook('files-added', flowfiles, event);
 
-        this.fire('filesSubmitted', files, event);
+    flowfiles = flowfiles.filter(e => e && e.file);
+    for (let file of flowfiles) {
+      if (this.opts.singleFile && this.files.length > 0) {
+        this.removeFile(this.files[0]);
+      }
+      this.files.push(file);
+    }
 
-        return files;
-      });
+    this.hook('files-submitted', this.files, event);
+    await this.aHook('files-submitted', this.files, event);
+
+    return flowfiles;
   }
 
   /**
@@ -729,7 +646,7 @@ export default class Flow {
       if (this.files[i] === file) {
         this.files.splice(i, 1);
         file.abort();
-        this.fire('fileRemoved', file);
+        this.emit('file-removed', file);
       }
     }
   }

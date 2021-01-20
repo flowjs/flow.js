@@ -8,6 +8,10 @@ describe('upload file', function() {
    */
   var xhr;
 
+  function asCustomEvent(...args) {
+    return jasmine.objectContaining({detail: [...args]});
+  }
+
   beforeEach(function () {
     jasmine.clock().install();
     flow = new Flow({
@@ -90,9 +94,10 @@ describe('upload file', function() {
   });
 
   it('should throw expected events', function () {
-    var events = [];
-    flow.on('catchAll', function (event) {
-      events.push(event);
+    var events = [],
+        evl = 0;
+    flow.on('catch-all', ({detail: [event_name]}) => {
+      events.push(event_name);
     });
     flow.opts.chunkSize = 1;
     flow.addFile(new Blob(['12']));
@@ -100,32 +105,23 @@ describe('upload file', function() {
     expect(file.chunks.length).toBe(2);
     flow.upload();
     // Sync events
-    expect(events).toEqual(['preFilterFile', 'postFilterFile', 'fileAdded', 'filesAdded', 'filesSubmitted', 'uploadStart']);
+    expect(events).toEqual(['filter-file', 'file-added', 'files-added', 'files-submitted', 'upload-start']);
     // Async
     xhr.requests[0].respond(200);
-    expect(events.length).toBe(8);
-    expect(events.slice(-2)).toEqual(['fileProgress', 'progress']);
+    expect(events.length).toBe(evl = 7);
+    expect(events.slice(-2)).toEqual(['file-progress', 'progress']);
     xhr.requests[1].respond(400);
-    expect(events.length).toBe(8);
+    expect(events.length).toBe(evl);
     xhr.requests[2].uploadProgress({loaded: 5, total: 10});
-    expect(events.length).toBe(10);
-    expect(events.slice(-2)).toEqual(['fileProgress', 'progress']);
+    expect(events.length).toBe(evl+=2); // 9
+    expect(events.slice(-2)).toEqual(['file-progress', 'progress']);
     xhr.requests[2].respond(200);
     expect(events.length).toBe(15);
-    expect(events.slice(-3)).toEqual(['fileProgress', 'progress', 'fileSuccess']);
-
-    jasmine.clock().tick(1);
-    expect(events.length).toBe(16);
-    expect(events[events.length - 1]).toBe('complete');
+    expect(events.slice(-4)).toEqual(['file-progress', 'progress', 'file-success', 'complete']);
 
     flow.upload();
     expect(events.length).toBe(17);
-    expect(events[events.length - 1]).toBe('uploadStart');
-
-    // complete event is always asynchronous
-    jasmine.clock().tick(1);
-    expect(events.length).toBe(18);
-    expect(events[events.length - 1]).toBe('complete');
+    expect(events.slice(-2)).toEqual(['upload-start', 'complete']);
   });
 
   it('should pause and resume file', function () {
@@ -191,10 +187,10 @@ describe('upload file', function() {
     var progress = jasmine.createSpy('progress');
     var success = jasmine.createSpy('success');
     var retry = jasmine.createSpy('retry');
-    flow.on('fileError', error);
-    flow.on('fileProgress', progress);
-    flow.on('fileSuccess', success);
-    flow.on('fileRetry', retry);
+    flow.on('file-error', error);
+    flow.on('file-progress', progress);
+    flow.on('file-success', success);
+    flow.on('file-retry', retry);
 
     flow.addFile(new Blob(['12']));
     var file = flow.files[0];
@@ -249,7 +245,7 @@ describe('upload file', function() {
     expect(file.chunks.length).toBe(0);
 
     expect(error.calls.count()).toBe(1);
-    expect(error).toHaveBeenCalledWith(file, 'Err', secondChunk);
+    expect(error).toHaveBeenCalledWith(asCustomEvent(file, 'Err', secondChunk));
     expect(progress.calls.count()).toBe(5);
     expect(success).not.toHaveBeenCalled();
     expect(retry.calls.count()).toBe(2);
@@ -268,9 +264,9 @@ describe('upload file', function() {
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
     var retry = jasmine.createSpy('retry');
-    flow.on('fileError', error);
-    flow.on('fileSuccess', success);
-    flow.on('fileRetry', retry);
+    flow.on('file-error', error);
+    flow.on('file-success', success);
+    flow.on('file-retry', retry);
 
     flow.addFile(new Blob(['12']));
     var file = flow.files[0];
@@ -303,9 +299,9 @@ describe('upload file', function() {
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
     var retry = jasmine.createSpy('retry');
-    flow.on('fileError', error);
-    flow.on('fileSuccess', success);
-    flow.on('fileRetry', retry);
+    flow.on('file-error', error);
+    flow.on('file-success', success);
+    flow.on('file-retry', retry);
 
     flow.addFile(new Blob(['abc']));
     var file = flow.files[0];
@@ -329,9 +325,9 @@ describe('upload file', function() {
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
     var retry = jasmine.createSpy('retry');
-    flow.on('fileError', error);
-    flow.on('fileSuccess', success);
-    flow.on('fileRetry', retry);
+    flow.on('file-error', error);
+    flow.on('file-success', success);
+    flow.on('file-retry', retry);
 
     flow.addFile(new Blob(['abc']));
     flow.upload();
@@ -346,8 +342,8 @@ describe('upload file', function() {
   it('should upload empty file', function () {
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
-    flow.on('fileError', error);
-    flow.on('fileSuccess', success);
+    flow.on('file-error', error);
+    flow.on('file-success', success);
 
     flow.addFile(new Blob([]));
 
@@ -393,8 +389,8 @@ describe('upload file', function() {
     var preprocess = jasmine.createSpy('preprocess');
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
-    flow.on('fileError', error);
-    flow.on('fileSuccess', success);
+    flow.on('file-error', error);
+    flow.on('file-success', success);
     flow.opts.preprocess = preprocess;
     flow.addFile(new Blob(['abc']));
     var file = flow.files[0];
@@ -405,7 +401,7 @@ describe('upload file', function() {
     file.chunks[0].preprocessFinished();
     expect(xhr.requests.length).toBe(1);
     xhr.requests[0].respond(200, [], "response");
-    expect(success).toHaveBeenCalledWith(file, "response", file.chunks[0]);
+    expect(success).toHaveBeenCalledWith(asCustomEvent(file, "response", file.chunks[0]));
     expect(error).not.toHaveBeenCalled();
   });
 
@@ -433,8 +429,8 @@ describe('upload file', function() {
     var preprocess = jasmine.createSpy('preprocess');
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
-    flow.on('fileError', error);
-    flow.on('fileSuccess', success);
+    flow.on('file-error', error);
+    flow.on('file-success', success);
     flow.opts.preprocess = preprocess;
     flow.addFile(new Blob(['abc']));
     var file = flow.files[0];
@@ -446,18 +442,19 @@ describe('upload file', function() {
       file.resume();
       xhr.requests[xhr.requests.length-1].respond(200, [], "response");
     }
-    expect(success).toHaveBeenCalledWith(file, "response", file.chunks[file.chunks.length-1]);
+    expect(success).toHaveBeenCalledWith(asCustomEvent(file, "response", file.chunks[file.chunks.length-1]));
     expect(error).not.toHaveBeenCalled();
   });
 
   it('should set chunk as a third event parameter', function () {
     var success = jasmine.createSpy('success');
-    flow.on('fileSuccess', success);
+    flow.on('file-success', success);
     flow.addFile(new Blob(['abc']));
     var file = flow.files[0];
     flow.upload();
     xhr.requests[0].respond(200, [], "response");
-    expect(success).toHaveBeenCalledWith(file, "response", file.chunks[0]);
+
+    expect(success).toHaveBeenCalledWith(asCustomEvent(file, "response", file.chunks[0]));
   });
 
   it('should have upload speed', function() {
@@ -465,8 +462,8 @@ describe('upload file', function() {
     flow.opts.testChunks = false;
     flow.opts.speedSmoothingFactor = 0.5;
     flow.opts.simultaneousUploads = 1;
-    var fileProgress = jasmine.createSpy('fileProgress');
-    flow.on('fileProgress', fileProgress);
+    var fileProgress = jasmine.createSpy('file-progress');
+    flow.on('file-progress', fileProgress);
     flow.addFile(new Blob(['0123456789']));
     flow.addFile(new Blob(['12345']));
     var fileFirst = flow.files[0];
@@ -541,8 +538,8 @@ describe('upload file', function() {
   it('should allow to hook initFileFn and readFileFn', function () {
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
-    flow.on('fileError', error);
-    flow.on('fileSuccess', success);
+    flow.on('file-error', error);
+    flow.on('file-success', success);
 
     flow.opts.chunkSize = 1;
 

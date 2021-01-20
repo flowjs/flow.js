@@ -126,8 +126,8 @@ describe('upload stream', function() {
     console.info(`Test File is ${chunk_num} bytes long (sha256: ${orig_hash}).`);
     console.info(`Now uploads ${simultaneousUploads} simultaneous chunks of at most ${upload_chunk_size} bytes`);
 
-    flow.on('fileError', jasmine.createSpy('error'));
-    flow.on('fileSuccess', jasmine.createSpy('success'));
+    flow.on('file-error', jasmine.createSpy('error'));
+    flow.on('file-success', jasmine.createSpy('success'));
     flow.on('complete', () => {
       validatePayload(done, content, {orig_hash, flow, requests: xhr_server.requests});
     });
@@ -181,5 +181,24 @@ describe('upload stream', function() {
     flow.opts.initFileFn = initFileFunction;
     await flow.asyncAddFile(sample_file);
     expect(customFunction).toHaveBeenCalledTimes(1);
+  });
+
+  it('asyncAddFile can also be called with no initFileFunction', async function() {
+    var content = gen_file(2, 256),
+        sample_file = new File([content], `foobar-asyncInitFileFn-${jasmine.currentTest.id}.bin`),
+        customFunction = jasmine.createSpy('fn');
+    await flow.asyncAddFile(sample_file);
+    expect(flow.files.length).toEqual(1);
+  });
+
+  it('adding async hook but calling addFiles() should trigger a warning', async function () {
+    var content = gen_file(2, 256),
+        sample_file = new File([content], `async+addFiles-${jasmine.currentTest.id}.bin`),
+        customFunction = jasmine.createSpy('fn');
+    flow.on('files-added', async (file) => await file);
+
+    spyOn(console, 'warn');
+    flow.addFile(sample_file);
+    expect(console.warn).toHaveBeenCalled();
   });
 });

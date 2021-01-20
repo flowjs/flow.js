@@ -18,8 +18,12 @@ describe('setup', function() {
   });
 
   it('events should be empty', function() {
-    expect(flow.events).toBeDefined();
-    expect(Object.keys(flow.events).length).toBe(0);
+    expect(flow._events).toBeDefined();
+    expect(flow._hooks).toBeDefined();
+    expect(flow._asyncHooks).toBeDefined();
+    expect(Object.keys(flow._events).length).toBe(0);
+    expect(Object.keys(flow._hooks).length).toBe(0);
+    expect(Object.keys(flow._asyncHooks).length).toBe(0);
   });
 
   it('set opts', function() {
@@ -57,16 +61,16 @@ describe('setup', function() {
     var customEventHandler = () => console.log("_custom event fired"),
         customEvent = jasmine.createSpy('customEventHandler'),
         f = new Flow({}, {_custom: [customEvent]});
-    f.fire('_custom');
+    f.emit('_custom');
     expect(customEvent).toHaveBeenCalledTimes(1);
   });
 
-  it("events set in constructor's are lowercased", function() {
+  it("events are not lowercased", function() {
     var customEventHandler = () => console.log("_custom event fired"),
         customEvent = jasmine.createSpy('customEventHandler'),
         f = new Flow({}, {_CusTom: [customEvent]});
-    f.fire('_custom');
-    expect(customEvent).toHaveBeenCalledTimes(1);
+    f.emit('_custom');
+    expect(customEvent).not.toHaveBeenCalled();
   });
 
   describe('assignBrowse', function() {
