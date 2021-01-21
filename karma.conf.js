@@ -24,6 +24,14 @@ module.exports = function(config) {
       platformName: 'Windows 10',
       version: '20.10240'
     },
+    sl_chromeW3C: {
+      base: 'SauceLabs',
+      browserName: 'chrome',
+      browserVersion: 'latest',
+      'sauce:options':{
+        tags: ['w3c-chrome']
+      }
+    },
     sl_chrome_1: {
       base: 'SauceLabs',
       browserName: 'chrome',
@@ -59,6 +67,15 @@ module.exports = function(config) {
       browserName: 'firefox',
       platformName: 'Windows 10',
       version: '80'
+    },
+    sl_android: {
+      base: 'SauceLabs',
+      deviceName: 'Android GoogleAPI Emulator',
+      platform: 'Android',
+      version: '11.0',
+      browserName: 'chrome',
+      appiumVersion: '1.18.1',
+      deviceOrientation: 'portrait'
     },
     sl_android_1: {
       base: 'SauceLabs',
