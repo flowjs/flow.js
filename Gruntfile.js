@@ -27,12 +27,14 @@ module.exports = function(grunt) {
         singleRun: true,
         reporters: ['progress', 'saucelabs'],
         // global config for SauceLabs
+        // SAUCE_USERNAME and SAUCE_ACCESS_KEY environment variable are considered by default
         sauceLabs: {
           testName: 'flow.js',
-          username: grunt.option('sauce-username') || process.env.SAUCE_USERNAME,
-          accessKey: grunt.option('sauce-access-key') || process.env.SAUCE_ACCESS_KEY,
+          public: true,
+          // recordVideo: false,
           tunnelIdentifier: process.env.TRAVIS_JOB_NUMBER,
-          startConnect: false
+          startConnect: true,
+          retryLimit: 1,
         }
       }
     },

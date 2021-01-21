@@ -29,6 +29,7 @@ matrix:
 before_install: npm install -g grunt-cli
 install: npm install
 before_script:
+  - node_modules/.bin/rollup -c
   - curl -sL https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 -o ./test-reporter
   - chmod +x ./test-reporter
   - ./test-reporter before-build

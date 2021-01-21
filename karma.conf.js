@@ -1,121 +1,62 @@
 module.exports = function(config) {
-  if (config.sauceLabs && ((!config.sauceLabs.username && !process.env.SAUCE_USERNAME) || (!config.sauceLabs.accessKey && !process.env.SAUCE_ACCESS_KEY))) {
-    console.log('Undefined sauce username/accessKey.');
+  if (config.sauceLabs && (!process.env.SAUCE_USERNAME || !process.env.SAUCE_ACCESS_KEY)) {
+    console.error('SAUCE_USERNAME SAUCE_ACCESS_KEY environment variable must be defined to use saucelabs.');
     process.exit(1)
   }
 
   // define SL browsers
-  var customLaunchers = {
-    sl_ie10: {
+  var slug,
+      customLaunchers = {},
+
+      // https://wiki.saucelabs.com/display/DOCS/Test+Configuration+Options
+      commonSauceOptions = {
+        // recordVideo: false,
+        recordLogs: true,
+        extendedDebugging: true,
+        seleniumVersion: '3.11.0',
+      },
+
+      // https://saucelabs.com/platform/supported-browsers-devices
+      // https://wiki.saucelabs.com/display/DOCS/Platform+Configurator#/
+      browsers = [
+        // ['w3c', 'internet explorer', 'Windows 7', '10'],
+        // ['w3c', 'internet explorer', 'Windows 10', '11'],
+        ['w3c', 'microsoftedge', 'Windows 10', '18'],
+        // ['w3c', 'safari', 'OS X 10.10', '8.0'],
+        ['w3c', 'chrome', 'Windows 10', '76'],
+        ['w3c', 'firefox', 'Windows 10', '80'],
+        // ['w3c', 'Safari', 'iOS', null, { deviceName: 'iPad Simulator', deviceOrientation: 'portrait', platformVersion: '12.4', appiumVersion: '1.13.0' }],
+        // ['w3c', 'Browser', 'Android', null, { deviceName: 'Android Emulator', deviceOrientation: 'portrait', platformVersion: '5.1', appiumVersion: '1.18.1' }],
+
+        // JWC (see https://wiki.saucelabs.com/display/DOCS/W3C+Capabilities+Support)
+        // ['jwc', 'chrome',  'Linux', '48'],
+        // ['jwc', 'firefox', 'Linux', '13'],
+        // ['jwc', 'firefox', 'Linux', '25'],
+        ['jwc', 'firefox', 'Linux', '45'],
+      ];
+
+  for (let [v, browserName, platformName, browserVersion, opts = {}] of browsers) {
+    slug = browserName.charAt(0) + '_' + browserVersion;
+    var o = v === 'w3c'
+        ? {
+          platformName,
+          ...browserVersion ? {browserVersion} : {}
+        }
+        :  {
+          platform: platformName,
+          version: browserVersion,
+        };
+
+    customLaunchers[slug] = {
       base: 'SauceLabs',
-      browserName: 'internet explorer',
-      platformName: 'Windows 8',
-      browserVersion: '10.0'
-    },
-    sl_ie11: {
-      base: 'SauceLabs',
-      browserName: 'internet explorer',
-      platformName: 'Windows 10',
-      browserVersion: '11.0'
-    },
-    sl_edge: {
-      base: 'SauceLabs',
-      browserName: 'microsoftedge',
-      platformName: 'Windows 10',
-      version: '20.10240'
-    },
-    sl_chromeW3C: {
-      base: 'SauceLabs',
-      browserName: 'chrome',
-      browserVersion: 'latest',
-      'sauce:options':{
-        tags: ['w3c-chrome']
+      browserName,
+      ...o,
+      'sauce:options': {
+        ...commonSauceOptions,
+        ...opts,
+        ...(v === 'w3c' ? {tags: ['w3c']} : {})
       }
-    },
-    sl_chrome_1: {
-      base: 'SauceLabs',
-      browserName: 'chrome',
-      platformName: 'Linux',
-      browserVersion: '26'
-    },
-    sl_chrome_2: {
-      base: 'SauceLabs',
-      browserName: 'chrome',
-      platformName: 'Linux',
-      version: '46'
-    },
-    sl_firefox_1: {
-      base: 'SauceLabs',
-      browserName: 'firefox',
-      platformName: 'Linux',
-      version: '13'
-    },
-    sl_firefox_2: {
-      base: 'SauceLabs',
-      browserName: 'firefox',
-      platformName: 'Linux',
-      version: '42'
-    },
-    sl_ff: {
-      base: 'SauceLabs',
-      browserName: 'firefox',
-      platformName: 'Linux',
-      version: '45'
-    },
-    sl_ff_win: {
-      base: 'SauceLabs',
-      browserName: 'firefox',
-      platformName: 'Windows 10',
-      version: '80'
-    },
-    sl_android: {
-      base: 'SauceLabs',
-      deviceName: 'Android GoogleAPI Emulator',
-      platform: 'Android',
-      version: '11.0',
-      browserName: 'chrome',
-      appiumVersion: '1.18.1',
-      deviceOrientation: 'portrait'
-    },
-    sl_android_1: {
-      base: 'SauceLabs',
-      browserName: 'Android',
-      platformName: 'Linux',
-      version: '4.4'
-    },
-    sl_android_2: {
-      base: 'SauceLabs',
-      browserName: 'Android',
-      platformName: 'Linux',
-      version: '5.1'
-    },
-    sl_iphone_1: {
-      base: 'SauceLabs',
-      browserName: 'iPhone',
-      platformName: 'OS X 10.10',
-      deviceName: 'iPad Simulator',
-      version: '7.1'
-    },
-    sl_iphone_2: {
-      base: 'SauceLabs',
-      browserName: 'iPhone',
-      platformName: 'OS X 10.10',
-      deviceName: 'iPad Simulator',
-      deviceOrientation: 'portrait',
-      version: '9.2'
-    },
-    sl_safari_1: {
-      base: 'SauceLabs',
-      browserName: 'safari',
-      platformName: 'OS X 10.8',
-      version: '6.0'
-    },
-    sl_safari_2: {
-      base: 'SauceLabs',
-      browserName: 'safari',
-      platformName: 'OS X 10.11',
-      version: '9.0'
-    }
+    };
   }
 
   config.set({
@@ -156,13 +97,17 @@ module.exports = function(config) {
 
     // level of logging
     // possible values: config.LOG_DISABLE || config.LOG_ERROR || config.LOG_WARN || config.LOG_INFO || config.LOG_DEBUG
-    logLevel: config.LOG_INFO,
+    logLevel: config.LOG_DEBUG,
 
     // enable / disable watching file and executing tests whenever any file changes
     autoWatch: false,
 
-    // If browser does not capture in given timeout [ms], kill it
-    captureTimeout: 60000,
+    browserDisconnectTolerance: 1,
+    browserNoActivityTimeout: 100e3,
+    captureTimeout: 100e3,
+    pingTimeout: 30e3,
+    browserDisconnectTimeout: 30e3,
+    browserSocketTimeout: 12e3,
 
     // Continuous Integration mode
     // if true, it capture browsers, run tests and exit
@@ -170,6 +115,6 @@ module.exports = function(config) {
 
     customLaunchers: customLaunchers,
 
-    browsers: Object.keys(customLaunchers)
+    browsers: Object.keys(customLaunchers),
   });
 };
