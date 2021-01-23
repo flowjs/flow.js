@@ -13,7 +13,6 @@ module.exports = function(config) {
         // recordVideo: false,
         recordLogs: true,
         extendedDebugging: true,
-        seleniumVersion: '3.11.0',
       },
 
       // https://saucelabs.com/platform/supported-browsers-devices
@@ -25,8 +24,8 @@ module.exports = function(config) {
         // ['w3c', 'safari', 'OS X 10.10', '8.0'],
         ['w3c', 'chrome', 'Windows 10', '76'],
         ['w3c', 'firefox', 'Windows 10', '80'],
-        // ['w3c', 'Safari', 'iOS', null, { deviceName: 'iPad Simulator', deviceOrientation: 'portrait', platformVersion: '12.4', appiumVersion: '1.13.0' }],
-        // ['w3c', 'Browser', 'Android', null, { deviceName: 'Android Emulator', deviceOrientation: 'portrait', platformVersion: '5.1', appiumVersion: '1.18.1' }],
+        // ['apium', 'Safari', 'iOS', null, { deviceName: 'iPad Simulator', deviceOrientation: 'portrait', platformVersion: '12.4', appiumVersion: '1.13.0' }],
+        // ['apium', 'Browser', 'Android', null, { deviceName: 'Android Emulator', deviceOrientation: 'portrait', platformVersion: '5.1', appiumVersion: '1.18.1' }],
 
         // JWC (see https://wiki.saucelabs.com/display/DOCS/W3C+Capabilities+Support)
         // ['jwc', 'chrome',  'Linux', '48'],
@@ -37,26 +36,42 @@ module.exports = function(config) {
 
   for (let [v, browserName, platformName, browserVersion, opts = {}] of browsers) {
     slug = browserName.charAt(0) + '_' + browserVersion;
-    var o = v === 'w3c'
-        ? {
-          platformName,
-          ...browserVersion ? {browserVersion} : {}
-        }
-        :  {
-          platform: platformName,
-          version: browserVersion,
-        };
+    var o;
 
-    customLaunchers[slug] = {
-      base: 'SauceLabs',
-      browserName,
-      ...o,
-      'sauce:options': {
+    if (v === 'w3c') {
+      o = {
+        base: 'SauceLabs',
+        browserName,
+        platformName,
+        browserVersion,
+        'sauce:options': {
+          tags: ['w3c'],
+          ...commonSauceOptions,
+          ...opts,
+        }
+      };
+    } else if (v === 'apium') {
+      o = {
+        base: 'SauceLabs',
+        browserName,
+        platformName,
+        platform: platformName,
+        version: browserVersion,
         ...commonSauceOptions,
         ...opts,
-        ...(v === 'w3c' ? {tags: ['w3c']} : {})
-      }
-    };
+      };
+    } else if (v === 'jwc') {
+      o = {
+        base: 'SauceLabs',
+        browserName,
+        platform: platformName,
+        version: browserVersion,
+        ...commonSauceOptions,
+        ...opts,
+      };
+    }
+
+    customLaunchers[slug] = o;
   }
 
   config.set({
