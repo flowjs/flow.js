@@ -9,6 +9,7 @@ if [[ $TEST = "unit-tests" ]]; then
   sleep 1
   firefox -v
   grunt karma:coverage
+  ls -lR coverage/
 
 elif [[ $TEST = "browser-tests" ]]; then
 

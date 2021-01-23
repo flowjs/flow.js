@@ -23,8 +23,6 @@ matrix:
       node_js: "14"
       addons:
         sauce_connect: true
-  allow_failures:
-    - env: TEST='browser-tests'
 
 before_install: npm install -g grunt-cli
 install: npm install
@@ -36,5 +34,4 @@ before_script:
 script:
   - $TRAVIS_BUILD_DIR/travis.sh
 after_script:
-  - ls -lR coverage/
   - ./test-reporter after-build -t lcov --exit-code $TRAVIS_TEST_RESULT

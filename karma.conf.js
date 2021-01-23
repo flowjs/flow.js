@@ -31,7 +31,7 @@ module.exports = function(config) {
         // ['jwc', 'chrome',  'Linux', '48'],
         // ['jwc', 'firefox', 'Linux', '13'],
         // ['jwc', 'firefox', 'Linux', '25'],
-        ['jwc', 'firefox', 'Linux', '45'],
+        // ['jwc', 'firefox', 'Linux', '45'],
       ];
 
   for (let [v, browserName, platformName, browserVersion, opts = {}] of browsers) {
