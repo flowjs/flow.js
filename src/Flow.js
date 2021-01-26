@@ -555,6 +555,7 @@ export default class Flow extends Eventizer {
       var f = new FlowFile(this, file, uniqueIdentifier);
       f.bootstrap(event, initFileFn);
       this.hook('file-added', f, event);
+      this.aHook('file-added', f, event);
       if (! f.file) {
         continue;
       }
@@ -562,6 +563,7 @@ export default class Flow extends Eventizer {
     }
 
     this.hook('files-added', files, event);
+    this.aHook('files-added', files, event);
 
     files = files.filter(e => e);
     for (file of files) {
@@ -573,6 +575,7 @@ export default class Flow extends Eventizer {
     }
 
     this.hook('files-submitted', this.files, event);
+    this.aHook('files-submitted', this.files, event);
   }
 
 
