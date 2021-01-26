@@ -123,6 +123,13 @@ describe('upload stream', function() {
   });
 
   it('synchronous initFileFn and asyncReadFileFn', async function (done) {
+    // No File.stream() support : No test
+    // No support for skipping() test from Jasmine (https://github.com/jasmine/jasmine/issues/1709)
+    if (typeof Blob === 'undefined' || Blob.prototype.stream !== 'function') {
+      done();
+      return;
+    }
+
     var chunk_size, chunk_num, simultaneousUploads, upload_chunk_size;
 
     if (random_sizes) {
