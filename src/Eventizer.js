@@ -111,10 +111,18 @@ export default class extends EventTarget {
     return !this.isHook(name);
   }
 
+  _camelToDashCase(str) {
+      return str.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+  }
+
   /**
    * A wrapper for addEventListener to alternatively add hooks or events.
    */
   on(event, callback, options) {
+    var revent = this._camelToDashCase(event);
+    if (revent != event) {
+      console.warn(`Flow.js v3: Do not rely on camel-case event semantic. ${revent}?`);
+    }
     return this.isEvent(event)
       ? this.addEventListener(event, callback, options)
       : this.addHook(event, callback, options);
