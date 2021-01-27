@@ -23,6 +23,9 @@
     "upload"
   ],
   "author": "Aidas Klimas",
+  "contributors": [
+    "Raphaël Droz drzraf@github"
+  ],
   "license": "MIT",
   "readmeFilename": "README.md",
   "bugs": {
