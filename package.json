@@ -56,13 +56,13 @@
     "karma-firefox-launcher": "^2.1.0",
     "karma-jasmine": "4.0",
     "karma-sauce-launcher": "4.3.4",
+    "npm-check-updates": "^11.0.2",
     "rollup": "^2.37.1",
     "rollup-plugin-istanbul": "^3.0.0",
     "rollup-plugin-terser": "^7.0.2",
     "sinon": "^9.2.3"
   },
   "dependencies": {
-    "@babel/runtime": "^7.12.5",
-    "npm-check-updates": "^11.0.2"
+    "@babel/runtime": "^7.12.5"
   }
 }
