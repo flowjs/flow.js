@@ -18,9 +18,11 @@ module.exports = function(config) {
       // https://saucelabs.com/platform/supported-browsers-devices
       // https://wiki.saucelabs.com/display/DOCS/Platform+Configurator#/
       browsers = [
-        ['w3c', 'microsoftedge', 'Windows 10', '18'],
+        // ['w3c', 'microsoftedge', 'Windows 10', '13.10586'],
+        ['w3c', 'microsoftedge', 'Windows 10', '79.0'],
         ['w3c', 'chrome', 'Windows 10', '76'],
         ['w3c', 'firefox', 'Windows 10', '80'],
+        // ['w3c', 'internet explorer', 'Windows 7', '10.0'],
 
         // not ok
         // ['w3c', 'safari', 'macOS 10.15', '13.1'],
@@ -31,11 +33,12 @@ module.exports = function(config) {
         // ['apium', 'Safari', 'iOS', null, { deviceName: 'iPad Simulator', deviceOrientation: 'portrait', platformVersion: '12.4', appiumVersion: '1.13.0' }],
         // ['apium', 'Browser', 'Android', null, { deviceName: 'Android Emulator', deviceOrientation: 'portrait', platformVersion: '5.1', appiumVersion: '1.18.1' }],
 
-        // JWC (see https://wiki.saucelabs.com/display/DOCS/W3C+Capabilities+Support)
-        // ['jwc', 'chrome',  'Linux', '48'],
-        // ['jwc', 'firefox', 'Linux', '13'],
-        // ['jwc', 'firefox', 'Linux', '25'],
-        // ['jwc', 'firefox', 'Linux', '45'],
+        // JWP (see https://wiki.saucelabs.com/display/DOCS/W3C+Capabilities+Support)
+        // ['jwp', 'internet explorer', 'Windows 7', '10.0'],
+        // ['jwp', 'chrome',  'Linux', '48'],
+        // ['jwp', 'firefox', 'Linux', '13'],
+        // ['jwp', 'firefox', 'Linux', '25'],
+        // ['jwp', 'firefox', 'Linux', '45'],
       ];
 
   for (let [v, browserName, platformName, browserVersion, opts = {}] of browsers) {
@@ -64,7 +67,7 @@ module.exports = function(config) {
         ...commonSauceOptions,
         ...opts,
       };
-    } else if (v === 'jwc') {
+    } else if (v === 'jwp') {
       o = {
         base: 'SauceLabs',
         browserName,
@@ -124,8 +127,8 @@ module.exports = function(config) {
     browserDisconnectTolerance: 1,
     browserNoActivityTimeout: 100e3,
     captureTimeout: 100e3,
-    pingTimeout: 60e3,
-    browserDisconnectTimeout: 30e3,
+    pingTimeout: 12e3,
+    browserDisconnectTimeout: 12e3,
     browserSocketTimeout: 12e3,
 
     // Continuous Integration mode
