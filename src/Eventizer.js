@@ -121,7 +121,7 @@ export default class extends EventTarget {
   on(event, callback, options) {
     var revent = this._camelToDashCase(event);
     if (revent != event) {
-      console.warn('Flow.js v3: Do not rely on camel-case event semantic.');
+      console.warn(`Flow.js v3: Do not rely on camel-case (${event}) event names.`);
       if (HOOKS.concat(FILTERING_HOOKS, EVENTS).includes(revent)) {
         event = revent;
         console.info(`Using "${revent}" instead.`);
