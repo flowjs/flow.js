@@ -14,10 +14,9 @@ There are multiple ways to encrypt files before send them to server:
 - Load and encrypt full file and, then, give this big blob to `flow.js` which will takes care of spliting and sending it as usual.
 The big downside of this approach is that, at one time, you will have full plaintext file AND full cyphertext file in browser memory which is critical if you want to allow users to send big files on multiple devices (each device/os has his own memory managment policy).
 
-- Add plaintext file to `flow.js` and, then, load & encrypt file chunks on the fly just before sending POST server request. 
-This approach is much more flexible and memory saving.
+- Add plaintext file to `flow.js` and, then, load & encrypt file chunks on the fly just before sending POST server request.
 
-Here is a code sample using second approach:
+Here is an example:
 
 ```js
 const flow = new Flow({
@@ -75,5 +74,44 @@ async function encryptFileChunk(plaintextbytes, iv, key) {
         return cypherchunkbytes;
     }
 }
+```
+
+
+- Encrypt the file as a stream using an asymmetric StreamEncryptor and [openpgpjs](https://openpgpjs.org/).
+
+Here is an example:
+
+```js
+class StreamEncryptor {
+    constructor(gpgKeys) {
+        this.gpgKeys = gpgKeys;
+        this._reader = [];
+    }
+
+    async init(flowObj) {
+        const { message } = await openpgp.encrypt({
+            message: openpgp.message.fromBinary(flowObj.file.stream(), flowObj.file.name),
+            publicKeys: this.gpgKeys
+        });
+
+        this._reader[flowObj.uniqueIdentifier] = openpgp.stream.getReader(message.packets.write());
+        flowObj.size = flowObj.file.size + compute_pgp_overhead(this.gpgKeys, flowObj.file.name);
+    }
+
+    async read(flowObj, startByte, endByte, fileType, chunk) {
+        const buffer = await this._reader[flowObj.uniqueIdentifier].readBytes(flowObj.chunkSize);
+        if (buffer && buffer.length) {
+            return new Blob([buffer], {type: 'application/octet-stream'});
+        }
+    }
+}
+
+var encryptor = new StreamEncryptor(gpgKeys);
+new Flow({
+    // ...
+    asyncReadFileFn: encryptor.read.bind(encryptor),
+    initFileFn: encryptor.init.bind(encryptor),
+    forceChunkSize: true,
+});
 ```
 
