@@ -11,10 +11,11 @@ End to end encryption means you encrypt (and decrypt) data on client side and se
 
 ## There are multiple ways to encrypt files before send them to server:
 
-### Load and encrypt full file and, then, give this big blob to `flow.js` which will takes care of spliting and sending it as usual.
+- **Load and encrypt full file and, then, give this big blob to `flow.js` which will takes care of spliting and sending it as usual.**
+
 The big downside of this approach is that, at one time, you will have full plaintext file AND full cyphertext file in browser memory which is critical if you want to allow users to send big files on multiple devices (each device/os has his own memory managment policy).
 
-### Add plaintext file to `flow.js` and, then, load & encrypt file chunks on the fly just before sending POST server request.
+- **Add plaintext file to `flow.js` and, then, load & encrypt file chunks on the fly just before sending POST server request.**
 
 Here is an example:
 
@@ -76,7 +77,7 @@ async function encryptFileChunk(plaintextbytes, iv, key) {
 }
 ```
 
-### Encrypt the file as a stream using an asymmetric StreamEncryptor and [openpgpjs](https://openpgpjs.org/).
+- **Encrypt the file as a stream using an asymmetric StreamEncryptor and [openpgpjs](https://openpgpjs.org/).**
 
 Here is an example:
 
