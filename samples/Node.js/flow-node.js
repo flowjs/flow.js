@@ -1,6 +1,7 @@
 var fs = require('fs'),
     path = require('path'),
     util = require('util'),
+    mv = require('mv'),
     Stream = require('stream').Stream;
 
 module.exports = flow = function(temporaryFolder) {
@@ -107,9 +108,8 @@ module.exports = flow = function(temporaryFolder) {
         var validation = validateRequest(chunkNumber, chunkSize, totalSize, identifier, filename, files[$.fileParameterName].size);
         if (validation == 'valid') {
             var chunkFilename = getChunkFilename(chunkNumber, identifier);
-
             // Save the chunk (TODO: OVERWRITE)
-            fs.rename(files[$.fileParameterName].path, chunkFilename, function() {
+            mv(files[$.fileParameterName].path, chunkFilename, function() {
 
                 // Do we have all the chunks?
                 var currentTestChunk = 1;

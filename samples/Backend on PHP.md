@@ -6,7 +6,7 @@
 
 [Chris Gregory](http://online-php.com) has provided this sample implementation for PHP. 
 
-It's a sample implementation to illustrate chunking. It should probably not be used as-is (for example, be sure to clean file names for dot and dashes to make sure you don't allow files to escape the tempory upload directory). The script is unsupported.
+It's a sample implementation to illustrate chunking. It should probably not be used as-is (for example, be sure to clean file names for dot and dashes to make sure you don't allow files to escape the temporary upload directory). The script is unsupported.
 
 ```php
 <?php
@@ -127,8 +127,8 @@ function createFileFromChunks($temp_dir, $fileName, $chunkSize, $totalSize) {
 //check if request is GET and the requested chunk exists or not. this makes testChunks work
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
-    $temp_dir = 'temp/'.$_GET['requestId'];
-    $chunk_file = $temp_dir.'/'.$_GET['filename'].'.part'.$_GET['chunkNumber'];
+    $temp_dir = 'temp/'.$_GET['flowIdentifier'];
+    $chunk_file = $temp_dir.'/'.$_GET['flowFilename'].'.part'.$_GET['flowChunkNumber'];
     if (file_exists($chunk_file)) {
          header("HTTP/1.0 200 Ok");
        } else
@@ -144,14 +144,14 @@ if (!empty($_FILES)) foreach ($_FILES as $file) {
 
     // check the error status
     if ($file['error'] != 0) {
-        _log('error '.$file['error'].' in file '.$_POST['filename']);
+        _log('error '.$file['error'].' in file '.$_POST['flowFilename']);
         continue;
     }
 
     // init the destination file (format <filename.ext>.part<#chunk>
     // the file is stored in a temporary directory
-    $temp_dir = 'temp/'.$_POST['requestId'];
-    $dest_file = $temp_dir.'/'.$_POST['filename'].'.part'.$_POST['chunkNumber'];
+    $temp_dir = 'temp/'.$_POST['flowIdentifier'];
+    $dest_file = $temp_dir.'/'.$_POST['flowFilename'].'.part'.$_POST['flowChunkNumber'];
 
     // create the temporary directory
     if (!is_dir($temp_dir)) {
@@ -160,12 +160,12 @@ if (!empty($_FILES)) foreach ($_FILES as $file) {
 
     // move the temporary file
     if (!move_uploaded_file($file['tmp_name'], $dest_file)) {
-        _log('Error saving (move_uploaded_file) chunk '.$_POST['chunkNumber'].' for file '.$_POST['filename']);
+        _log('Error saving (move_uploaded_file) chunk '.$_POST['flowChunkNumber'].' for file '.$_POST['flowFilename']);
     } else {
 
         // check if all the parts present, and create the final destination file
-        createFileFromChunks($temp_dir, $_POST['filename'],
-                $_POST['chunkSize'], $_POST['totalSize']);
+        createFileFromChunks($temp_dir, $_POST['flowFilename'],
+                $_POST['flowChunkSize'], $_POST['flowTotalSize']);
     }
 }
 ```

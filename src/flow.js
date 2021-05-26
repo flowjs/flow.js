@@ -813,12 +813,6 @@
     this.flowObj = flowObj;
 
     /**
-     * Used to store the bytes read
-     * @type {Blob|string}
-     */
-    this.bytes = null;
-
-    /**
      * Reference to file
      * @type {File}
      */
@@ -1033,9 +1027,16 @@
      */
     bootstrap: function () {
       if (typeof this.flowObj.opts.initFileFn === "function") {
-        this.flowObj.opts.initFileFn(this);
+        var ret = this.flowObj.opts.initFileFn(this);
+        if (ret && 'then' in ret) {
+          ret.then(this._bootstrap.bind(this));
+          return;
+        }
       }
+      this._bootstrap();
+    },
 
+    _bootstrap: function () {
       this.abort(true);
       this.error = false;
       // Rebuild stack of chunks from file
@@ -1240,6 +1241,11 @@
      */
     this.readState = 0;
 
+    /**
+     * Used to store the bytes read
+     * @type {Blob|string}
+     */
+    this.bytes = undefined;
 
     /**
      * Bytes transferred from total request size

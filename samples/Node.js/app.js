@@ -4,6 +4,7 @@ var express = require('express');
 var multipart = require('connect-multiparty');
 var multipartMiddleware = multipart();
 var flow = require('./flow-node.js')('tmp');
+var fs = require('fs');
 var app = express();
 
 // Configure access control allow origin header stuff
@@ -20,7 +21,22 @@ app.post('/upload', multipartMiddleware, function(req, res) {
     if (ACCESS_CONTROLL_ALLOW_ORIGIN) {
       res.header("Access-Control-Allow-Origin", "*");
     }
-    res.status(status).send();
+    
+    if(status==='done'){
+
+            var s = fs.createWriteStream('./uploads/' + filename);
+            s.on('finish', function() {
+
+                res.status(200).send();
+
+            });
+
+            flow.write(identifier, s, {end: true});
+    } else {
+    	res.status(/^(partly_done|done)$/.test(status) ? 200 : 500).send();
+    }
+    
+
   });
 });
 
@@ -55,4 +71,6 @@ app.get('/download/:identifier', function(req, res) {
   flow.write(req.params.identifier, res);
 });
 
-app.listen(3000);
+app.listen(3000, function(){
+	console.log('Server Started...');
+});
