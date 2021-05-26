@@ -1389,7 +1389,7 @@
         requestId: this.fileObj.uniqueIdentifier,
         filename: this.fileObj.name,
         relativePath: this.fileObj.relativePath,
-        totalChunks: this.fileObj.chunks.length,
+        totalChunks: this.fileObj.chunks.length
       };
     },
 
