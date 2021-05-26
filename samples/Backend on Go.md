@@ -74,7 +74,7 @@ func (fn streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func continueUpload(w http.ResponseWriter, r *http.Request) {
-	chunkDirPath := "./incomplete/" + r.FormValue("flowFilename") + "/" + r.FormValue("flowChunkNumber")
+	chunkDirPath := "./incomplete/" + r.FormValue("filename") + "/" + r.FormValue("chunkNumber")
 	if _, err := os.Stat(chunkDirPath); err != nil {
 		w.WriteHeader(204)
 		return
@@ -84,7 +84,7 @@ func continueUpload(w http.ResponseWriter, r *http.Request) {
 func chunkedReader(w http.ResponseWriter, r *http.Request) error {
 	r.ParseMultipartForm(25)
 
-	chunkDirPath := "./incomplete/" + r.FormValue("flowFilename")
+	chunkDirPath := "./incomplete/" + r.FormValue("filename")
 	err := os.MkdirAll(chunkDirPath, 02750)
 	if err != nil {
 		return err
@@ -97,7 +97,7 @@ func chunkedReader(w http.ResponseWriter, r *http.Request) error {
 		}
 		defer src.Close()
 
-		dst, err := os.Create(chunkDirPath + "/" + r.FormValue("flowChunkNumber"))
+		dst, err := os.Create(chunkDirPath + "/" + r.FormValue("chunkNumber"))
 		if err != nil {
 			return err
 		}

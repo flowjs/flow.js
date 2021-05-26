@@ -127,8 +127,8 @@ function createFileFromChunks($temp_dir, $fileName, $chunkSize, $totalSize) {
 //check if request is GET and the requested chunk exists or not. this makes testChunks work
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
-    $temp_dir = 'temp/'.$_GET['flowIdentifier'];
-    $chunk_file = $temp_dir.'/'.$_GET['flowFilename'].'.part'.$_GET['flowChunkNumber'];
+    $temp_dir = 'temp/'.$_GET['requestId'];
+    $chunk_file = $temp_dir.'/'.$_GET['filename'].'.part'.$_GET['chunkNumber'];
     if (file_exists($chunk_file)) {
          header("HTTP/1.0 200 Ok");
        } else
@@ -144,14 +144,14 @@ if (!empty($_FILES)) foreach ($_FILES as $file) {
 
     // check the error status
     if ($file['error'] != 0) {
-        _log('error '.$file['error'].' in file '.$_POST['flowFilename']);
+        _log('error '.$file['error'].' in file '.$_POST['filename']);
         continue;
     }
 
     // init the destination file (format <filename.ext>.part<#chunk>
     // the file is stored in a temporary directory
-    $temp_dir = 'temp/'.$_POST['flowIdentifier'];
-    $dest_file = $temp_dir.'/'.$_POST['flowFilename'].'.part'.$_POST['flowChunkNumber'];
+    $temp_dir = 'temp/'.$_POST['requestId'];
+    $dest_file = $temp_dir.'/'.$_POST['filename'].'.part'.$_POST['chunkNumber'];
 
     // create the temporary directory
     if (!is_dir($temp_dir)) {
@@ -160,12 +160,12 @@ if (!empty($_FILES)) foreach ($_FILES as $file) {
 
     // move the temporary file
     if (!move_uploaded_file($file['tmp_name'], $dest_file)) {
-        _log('Error saving (move_uploaded_file) chunk '.$_POST['flowChunkNumber'].' for file '.$_POST['flowFilename']);
+        _log('Error saving (move_uploaded_file) chunk '.$_POST['chunkNumber'].' for file '.$_POST['filename']);
     } else {
 
         // check if all the parts present, and create the final destination file
-        createFileFromChunks($temp_dir, $_POST['flowFilename'],
-                $_POST['flowChunkSize'], $_POST['flowTotalSize']);
+        createFileFromChunks($temp_dir, $_POST['filename'],
+                $_POST['chunkSize'], $_POST['totalSize']);
     }
 }
 ```

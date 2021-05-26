@@ -1376,14 +1376,14 @@
      */
     getParams: function () {
       return {
-        flowChunkNumber: this.offset + 1,
-        flowChunkSize: this.chunkSize,
-        flowCurrentChunkSize: this.endByte - this.startByte,
-        flowTotalSize: this.fileObj.size,
-        flowIdentifier: this.fileObj.uniqueIdentifier,
-        flowFilename: this.fileObj.name,
-        flowRelativePath: this.fileObj.relativePath,
-        flowTotalChunks: this.fileObj.chunks.length
+        chunkNumber: this.offset + 1,
+        chunkSize: this.chunkSize,
+        currentChunkSize: this.endByte - this.startByte,
+        totalSize: this.fileObj.size,
+        requestId: this.fileObj.uniqueIdentifier,
+        filename: this.fileObj.name,
+        relativePath: this.fileObj.relativePath,
+        totalChunks: this.fileObj.chunks.length,
       };
     },
 
