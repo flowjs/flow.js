@@ -251,10 +251,11 @@ export default class Flow {
       reader.readEntries((entries) => {
         if (entries.length) {
           queue += entries.length;
+          var fullPaths = {};
           for (let entry of entries) {
             if (entry.isFile) {
-              var fullPath = entry.fullPath;
-              entry.file((file) => fileReadSuccess(file, fullPath), readError);
+              fullPaths[entry.name] = entry.fullPath;
+              entry.file((file) => fileReadSuccess(file, fullPaths[file.name]), readError);
             } else if (entry.isDirectory) {
               readDirectory(entry.createReader());
             }
