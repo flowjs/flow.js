@@ -155,6 +155,7 @@ export default class FlowChunk {
    * @param {ProgressEvent} event
    */
   progressHandler(event) {
+    // console.log(event);
     if (event.lengthComputable) {
       this.loaded = event.loaded ;
       this.total = event.total;

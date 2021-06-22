@@ -507,18 +507,18 @@ export default class Flow extends Eventizer {
     for (let file of fileList) {
       // https://github.com/flowjs/flow.js/issues/55
       if ((ie10plus && file.size === 0) || (file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
-        console.log(`file ${file.name} empty. skipping`);
+        // console.log(`file ${file.name} empty. skipping`);
         continue;
       }
 
       var uniqueIdentifier = this.generateUniqueIdentifier(file);
       if (!this.opts.allowDuplicateUploads && this.getFromUniqueIdentifier(uniqueIdentifier)) {
-        console.log(`file ${file.name} non-unique. skipping`);
+        // console.log(`file ${file.name} non-unique. skipping`);
         continue;
       }
 
       if (! this.hook('filter-file', file, event)) {
-        console.log(`file ${file.name} filtered-out. skipping`);
+        // console.log(`file ${file.name} filtered-out. skipping`);
         continue;
       }
 
@@ -606,7 +606,7 @@ export default class Flow extends Eventizer {
     while ((item = iterator.next()) && !item.done) {
       [file, uniqueIdentifier] = item.value;
       if (! await this.aHook('filter-file', file, event)) {
-        console.log(`file ${file.name} filtered-out. skipping`);
+        // console.log(`file ${file.name} filtered-out. skipping`);
         continue;
       }
 

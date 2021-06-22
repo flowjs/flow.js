@@ -8,8 +8,8 @@
  * Users calling `await flow.asyncAddFiles()` have more room for customization before calling `upload();` without having to rely upon hooks.
  *
  * Hooks can *alter* the parameters they receive (javascript pass-by-reference rules will apply).
- * For example, `fileAdded` hook receive a `flowfile` parameter. `delete flowfile` or `flowfile = {}` has no effect
- *  becase parent function still hold reference. But `delete file.file` would remove the File() and is supported as a way to
+ * For example, the `file-added` hook receives a `flowfile` parameter. `delete flowfile` or `flowfile = {}` have no effect
+ *  because parent function still hold reference. But `delete flowfile.file` would remove the File() and is supported as a way to
  *  dequeue a file from a list after its initialization.
  */
 
@@ -146,11 +146,11 @@ export default class extends EventTarget {
    */
   off(event, callback, options) {
     if (this.isEvent(event) || !event) {
-      console.log(`[event] Remove event listeners...`);
+      // console.log(`[event] Remove event listeners...`);
       this.removeEventListener(event, callback, options);
     }
     if (! this.isEvent(event) || !event) {
-      console.log(`[event] Remove hooks...`);
+      // console.log(`[event] Remove hooks...`);
       this.removeHook(event, callback, options);
     }
   }
@@ -210,7 +210,7 @@ export default class extends EventTarget {
 
     if (! event || event === '*') {
       for (let name of Object.keys(this._events)) {
-        console.log('[event] Removing all event listeners');
+        // console.log('[event] Removing all event listeners');
         this.removeEventListener(name);
       }
       return;
@@ -218,7 +218,7 @@ export default class extends EventTarget {
 
     for (const [i, v] of this._events[event].entries()) {
       if ((!callback || v.listener == callback) && v.useCapture == options) {
-        console.log(`[event] Removed one callback from "${event}"`);
+        // console.log(`[event] Removed one callback from "${event}"`);
 	this._events[event].splice(i, 1);
         if (! callback) {
           this._removeEventListener(event, v.listener, v);
@@ -237,7 +237,7 @@ export default class extends EventTarget {
    * A wrapper for dispatchEvent handling "catch-all"
    */
   async emit(name, ...args) {
-    console.log(`[event] Fire native event "${name}"${args.length ? ' with ' + args.length + ' arguments' : ''}`);
+    // console.log(`[event] Fire native event "${name}"${args.length ? ' with ' + args.length + ' arguments' : ''}`);
     this.dispatchEvent(new CustomEvent(name, {detail: args}));
     if (name != 'catch-all') {
       this.emitCatchAll(name, ...args);
@@ -319,7 +319,7 @@ export default class extends EventTarget {
         callbacks = this._hooks[name] || [];
 
     for (let callback of callbacks) {
-      console.log(`[event] Fire hook "${name}"${args.length ? ' with ' + args.length + ' arguments' : ''}`);
+      // console.log(`[event] Fire hook "${name}"${args.length ? ' with ' + args.length + ' arguments' : ''}`);
       value = callback.apply(this, args);
       if (name === 'file-added' && value === false) {
         console.warn('In Flow.js 3.x, file-added event is an action rather than a fitler. return value is ignored but removing the `file` property allows to skip an enqueued file.');
@@ -354,7 +354,7 @@ export default class extends EventTarget {
       return isFilter ? true : args[0];
     }
 
-    console.log(`[event] Fire ${calls.length} async hook for "${name}"${args.length ? ' with ' + args.length + ' arguments' : ''}`);
+    // console.log(`[event] Fire ${calls.length} async hook for "${name}"${args.length ? ' with ' + args.length + ' arguments' : ''}`);
     var returns = await Promise.all(calls.map(e => e.apply(this, args)));
 
     this.emitCatchAll(name, ...args);
