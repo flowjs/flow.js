@@ -16,6 +16,7 @@ describe('FlowFile functions', function() {
       name: 'image.jpg',
       type: 'image/png'
     });
+    file.bootstrap();
   });
 
   it('should get type', function() {

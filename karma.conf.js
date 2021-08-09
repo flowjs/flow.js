@@ -92,6 +92,7 @@ module.exports = function(config) {
     files: [
       'node_modules/sinon/pkg/sinon.js',
       'dist/flow.cov.js',
+      'test/helpers.js',
       'test/*Spec.js'
     ],
 

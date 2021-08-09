@@ -1,3 +1,18 @@
+# 3.0.0
+
+## Breaking Changes
+
+### Events
+ - Events are distincts from hooks.
+ - Recognized events and hooks are now lower-snake-case (case-sensitive).
+ - Hooks are "file-added", "files-added", "files-submitted". "filter-file" is a filtering hook.
+ - Events are passed a native CustomEvent. IE:
+    v2: `flow.on('fileRemoved',  (file) => { ... });`
+    v3: `flow.on('file-removed', ({detail: [file]}) => { ... });`
+
+### Other
+ - FlowFile does not run bootstrap() upon instanciation. This must be done manually (or rely on *addFile* functions).
+
 # 2.0.0
 
 ## Features

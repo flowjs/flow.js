@@ -1,4 +1,4 @@
-describe('fileRemoved event', function() {
+describe('file-removed event', function() {
   /**
    * @type {Flow}
    */
@@ -12,10 +12,10 @@ describe('fileRemoved event', function() {
     });
   });
 
-  it('should call fileRemoved event on Flow.removeFile', function() {
+  it('should call file-removed event on Flow.removeFile', function() {
     var valid = false;
     var removedFile = null;
-    flow.on('fileRemoved', function (file) {
+    flow.on('file-removed', ({detail: [file]}) => {
       expect(file.file instanceof Blob).toBeTruthy();
       removedFile = file;
       valid = true;
@@ -27,10 +27,10 @@ describe('fileRemoved event', function() {
     expect(valid).toBeTruthy();
   });
   
-  it('should call fileRemoved event FlowFile.cancel', function() {
+  it('should call file-removed event FlowFile.cancel', function() {
     var valid = false;
     var removedFile = null;
-    flow.on('fileRemoved', function (file) {
+    flow.on('file-removed', ({detail: [file]}) => {
       expect(file.file instanceof Blob).toBeTruthy();
       removedFile = file;
       valid = true;

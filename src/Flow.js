@@ -2,8 +2,10 @@
  * @license MIT
  */
 
+import Eventizer from './Eventizer';
 import FlowFile from './FlowFile';
-import {each, async, arrayRemove, extend, webAPIFileRead} from './tools';
+import AsyncFlowFile from './AsyncFlowFile';
+import {each, webAPIFileRead} from './tools';
 
 /**
  * Flow.js is a library providing multiple simultaneous, stable and
@@ -36,7 +38,7 @@ import {each, async, arrayRemove, extend, webAPIFileRead} from './tools';
  * @param {Function} [opts.generateUniqueIdentifier]
  * @constructor
  */
-export default class Flow {
+export default class Flow extends Eventizer {
 
   /**
    * For the events object:
@@ -44,7 +46,9 @@ export default class Flow {
    *  - values: array list of callbacks
    * All keys are lowercased as on() would do.
    */
-  constructor(opts, events = {}) {
+  constructor(opts, events) {
+    super(events);
+
     /**
      * Library version
      * @type {string}
@@ -109,20 +113,10 @@ export default class Flow {
     this.opts = {};
 
     /**
-     * List of events:
-     *  key stands for event name
-     *  value array list of callbacks
-     * @type {}
-     */
-    this.events = Object.fromEntries(
-      Object.entries(events).map(([k, v]) => [k.toLowerCase(), v])
-    );
-
-    /**
      * Current options
      * @type {Object}
      */
-    this.opts = extend({}, this.defaults, opts || {});
+    this.opts = Object.assign({}, this.defaults, opts || {});
 
     // A workaround for using this.method.bind(this) as a (removable) event handler.
     // https://stackoverflow.com/questions/11565471
@@ -155,69 +149,6 @@ export default class Flow {
    */
   preventEvent(event) {
     event.preventDefault();
-  }
-
-  /**
-   * Set a callback for an event, possible events:
-   * fileSuccess(file), fileProgress(file), fileAdded(file, event),
-   * fileRemoved(file), fileRetry(file), fileError(file, message),
-   * complete(), progress(), error(message, file), pause()
-   * @function
-   * @param {string} event
-   * @param {Function} callback
-   */
-  on(event, callback) {
-    event = event.toLowerCase();
-    if (!this.events.hasOwnProperty(event)) {
-      this.events[event] = [];
-    }
-    this.events[event].push(callback);
-  }
-
-  /**
-   * Remove event callback
-   * @function
-   * @param {string} [event] removes all events if not specified
-   * @param {Function} [fn] removes all callbacks of event if not specified
-   */
-  off(event, fn) {
-    if (event !== undefined) {
-      event = event.toLowerCase();
-      if (fn !== undefined) {
-        if (this.events.hasOwnProperty(event)) {
-          arrayRemove(this.events[event], fn);
-        }
-      } else {
-        delete this.events[event];
-      }
-    } else {
-      this.events = {};
-    }
-  }
-
-  /**
-   * Fire an event
-   * @function
-   * @param {string} event event name
-   * @param {...} args arguments of a callback
-   * @return {bool} value is false if at least one of the event handlers which handled this event
-   * returned false. Otherwise it returns true.
-   */
-  fire(event, args) {
-    // `arguments` is an object, not array, in FF, so:
-    args = Array.prototype.slice.call(arguments);
-    event = event.toLowerCase();
-    var preventDefault = false;
-    if (this.events.hasOwnProperty(event)) {
-      each(this.events[event], function (callback) {
-        preventDefault = callback.apply(this, args.slice(1)) === false || preventDefault;
-      }, this);
-    }
-    if (event != 'catchall') {
-      args.unshift('catchAll');
-      preventDefault = this.fire.apply(this, args) === false || preventDefault;
-    }
-    return !preventDefault;
   }
 
   /**
@@ -306,57 +237,55 @@ export default class Flow {
     // metadata and determine if there's even a point in continuing.
     var found = false;
     if (this.opts.prioritizeFirstAndLastChunk) {
-      each(this.files, function (file) {
+      for (let file of this.files) {
         if (!file.paused && file.chunks.length &&
             file.chunks[0].status() === 'pending') {
           file.chunks[0].send();
           found = true;
-          return false;
+          break;
         }
         if (!file.paused && file.chunks.length > 1 &&
             file.chunks[file.chunks.length - 1].status() === 'pending') {
           file.chunks[file.chunks.length - 1].send();
           found = true;
-          return false;
+          break;
         }
-      });
+      }
       if (found) {
         return found;
       }
     }
 
     // Now, simply look for the next, best thing to upload
-    each(this.files, function (file) {
-      if (!file.paused) {
-        each(file.chunks, function (chunk) {
-          if (chunk.status() === 'pending') {
-            chunk.send();
-            found = true;
-            return false;
-          }
-        });
+    outer_loop:
+    for (let file of this.files) {
+      if (file.paused) {
+        continue;
       }
-      if (found) {
-        return false;
+      for (let chunk of file.chunks) {
+        if (chunk.status() === 'pending') {
+          chunk.send();
+          found = true;
+          break outer_loop;
+        }
       }
-    });
+    }
     if (found) {
       return true;
     }
 
-    // The are no more outstanding chunks to upload, check is everything is done
+    // The are no more outstanding chunks to upload, check if everything is done
     var outstanding = false;
-    each(this.files, function (file) {
+    for (let file of this.files) {
       if (!file.isComplete()) {
         outstanding = true;
         return false;
       }
-    });
+    }
+
     if (!outstanding && !preventEvents) {
       // All chunks have been uploaded, complete
-      async(function () {
-        this.fire('complete');
-      }, this);
+      this.emit('complete');
     }
     return false;
   }
@@ -386,7 +315,7 @@ export default class Flow {
         input = document.createElement('input');
         input.setAttribute('type', 'file');
         // display:none - not working in opera 12
-        extend(input.style, {
+        Object.assign(input.style, {
           visibility: 'hidden',
           position: 'absolute',
           width: '1px',
@@ -508,15 +437,13 @@ export default class Flow {
       return;
     }
     // Kick off the queue
-    this.fire('uploadStart');
+    this.emit('upload-start');
     var started = false;
     for (var num = 1; num <= this.opts.simultaneousUploads - ret; num++) {
       started = this.uploadNextChunk(true) || started;
     }
     if (!started) {
-      async(function () {
-        this.fire('complete');
-      }, this);
+      this.emit('complete');
     }
   }
 
@@ -570,13 +497,43 @@ export default class Flow {
   }
 
   /**
+   * A generator to yield files and factor the sync part of the filtering logic used by both
+   * addFiles & asyncAddFiles
+   */
+  *filterFileList(fileList, event) {
+    // ie10+
+    var ie10plus = window.navigator.msPointerEnabled;
+
+    for (let file of fileList) {
+      // https://github.com/flowjs/flow.js/issues/55
+      if ((ie10plus && file.size === 0) || (file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
+        // console.log(`file ${file.name} empty. skipping`);
+        continue;
+      }
+
+      var uniqueIdentifier = this.generateUniqueIdentifier(file);
+      if (!this.opts.allowDuplicateUploads && this.getFromUniqueIdentifier(uniqueIdentifier)) {
+        // console.log(`file ${file.name} non-unique. skipping`);
+        continue;
+      }
+
+      if (! this.hook('filter-file', file, event)) {
+        // console.log(`file ${file.name} filtered-out. skipping`);
+        continue;
+      }
+
+      yield [file, uniqueIdentifier];
+    }
+  }
+
+  /**
    * Add a HTML5 File object to the list of files.
    * @function
    * @param {File} file
-   * @param {Event} [event] event is optional
+   * @param Any other parameters supported by addFiles
    */
-  addFile(file, event) {
-    this.addFiles([file], event);
+  addFile(file, ...args) {
+    this.addFiles([file], ...args);
   }
 
   /**
@@ -585,34 +542,102 @@ export default class Flow {
    * @param {FileList|Array} fileList
    * @param {Event} [event] event is optional
    */
-  addFiles(fileList, event) {
-    var files = [];
-    // ie10+
-    var ie10plus = window.navigator.msPointerEnabled;
-
-    each(fileList, function (file) {
-      // https://github.com/flowjs/flow.js/issues/55
-      if ((!ie10plus || ie10plus && file.size > 0) && !(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
-        var uniqueIdentifier = this.generateUniqueIdentifier(file);
-        if (this.opts.allowDuplicateUploads || !this.getFromUniqueIdentifier(uniqueIdentifier)) {
-          var f = new FlowFile(this, file, uniqueIdentifier);
-          if (this.fire('fileAdded', f, event)) {
-            files.push(f);
-          }
-        }
-      }
-    }, this);
-    if (this.fire('filesAdded', files, event)) {
-      each(files, function (file) {
-        if (this.opts.singleFile && this.files.length > 0) {
-          this.removeFile(this.files[0]);
-        }
-        this.files.push(file);
-      }, this);
-      this.fire('filesSubmitted', files, event);
+  addFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
+    if (this.hasHook(true)) {
+      console.warn('Using addFiles() while settings asynchronous events can lead to unpredictable results. Use asyncAddFiles() instead.');
     }
+
+    let item, file, flowfile, uniqueIdentifier, files = [];
+    const iterator = this.filterFileList(fileList, event);
+    while ((item = iterator.next()) && !item.done) {
+      [file, uniqueIdentifier] = item.value;
+
+      var f = new FlowFile(this, file, uniqueIdentifier);
+      f.bootstrap(event, initFileFn);
+      this.hook('file-added', f, event);
+      this.aHook('file-added', f, event);
+      if (! f.file) {
+        continue;
+      }
+      files.push(f);
+    }
+
+    this.hook('files-added', files, event);
+    this.aHook('files-added', files, event);
+
+    files = files.filter(e => e);
+    for (file of files) {
+      if (this.opts.singleFile && this.files.length > 0) {
+        this.removeFile(this.files[0]);
+      }
+      this.files.push(file);
+      // console.log(`enqueue file ${file.name} of ${file.chunks.length} chunks`);
+    }
+
+    this.hook('files-submitted', this.files, event);
+    this.aHook('files-submitted', this.files, event);
   }
 
+
+  /**
+   * Add a HTML5 File object to the list of files.
+   * @function
+   * @param {File} file
+   * @param Any other parameters supported by asyncAddFiles.
+   *
+   * @return (async) An initialized <AsyncFlowFile>.
+   */
+  async asyncAddFile(file, ...args) {
+    return (await this.asyncAddFiles([file], ...args))[0];
+  }
+
+  /**
+   * Add a HTML5 File object to the list of files.
+   * @function
+   * @param {FileList|Array} fileList
+   * @param {Event} [event] event is optional
+   *
+   * @return Promise{[<AsyncFlowFile>,...]} The promise of getting an array of AsyncFlowFile.
+   */
+  async asyncAddFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
+    let item, file, flowfile, uniqueIdentifier, states = [];
+    const iterator = this.filterFileList(fileList, event);
+
+    while ((item = iterator.next()) && !item.done) {
+      [file, uniqueIdentifier] = item.value;
+      if (! await this.aHook('filter-file', file, event)) {
+        // console.log(`file ${file.name} filtered-out. skipping`);
+        continue;
+      }
+
+      // ToDo: parallelizable ?
+      var flowFile = new AsyncFlowFile(this, file, uniqueIdentifier),
+          state = flowFile.bootstrap(event, initFileFn);
+      states.push(state);
+    }
+
+    var flowfiles = await Promise.all(states);
+    for (let ff of flowfiles) {
+      this.hook('file-added', ff, event);
+      await this.aHook('file-added', ff, event);
+    }
+
+    this.hook('files-added', flowfiles, event);
+    await this.aHook('files-added', flowfiles, event);
+
+    flowfiles = flowfiles.filter(e => e && e.file);
+    for (let file of flowfiles) {
+      if (this.opts.singleFile && this.files.length > 0) {
+        this.removeFile(this.files[0]);
+      }
+      this.files.push(file);
+    }
+
+    this.hook('files-submitted', this.files, event);
+    await this.aHook('files-submitted', this.files, event);
+
+    return flowfiles;
+  }
 
   /**
    * Cancel upload of a specific FlowFile object from the list.
@@ -624,7 +649,7 @@ export default class Flow {
       if (this.files[i] === file) {
         this.files.splice(i, 1);
         file.abort();
-        this.fire('fileRemoved', file);
+        this.emit('file-removed', file);
       }
     }
   }

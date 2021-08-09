@@ -173,7 +173,17 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 * `.cancel()` Cancel upload of all `FlowFile` objects and remove them from the list.
 * `.progress()` Returns a float between 0 and 1 indicating the current upload progress of all files.
 * `.isUploading()` Returns a boolean indicating whether or not the instance is currently uploading anything.
-* `.addFile(file)` Add a HTML5 File object to the list of files.
+* `.addFile(file, event = null, initFileFn = undefined)` Add a HTML5 File object to the list of files.
+    * Accept the same `event` and `initFileFn` parameters thant `addFiles` which is used under the hood.
+* `.addFiles([files], event = null, initFileFn = undefined)` Add multiple File objects to the list of files.
+    * `event` The optional event that trigger the addition (for internal purposes)
+    * `initFileFn` An override of Flow.initFileFn
+* `.asyncAddFile(file, event = null, initFileFn = undefined)` Add a HTML5 File object to the list of files.
+* `.asyncAddFiles([files], event = null, initFileFn = undefined)` Add multiple File objects to the list of files.
+    * `asyncAddFile` and `asyncAddFiles` rely on the same parameters than they non-async counterparts with one
+      difference: They accept an asynchronous `initFileFn` file function and return, in a promise, the corresponding FlowFiles.
+    * Note: Calling `asyncAddFile` or `asyncAddFiles` with no `initFileFn` being defined is aimed identical to there non-async
+      counterpart but this may change in the future [TBD].
 * `.removeFile(file)` Cancel upload of a specific `FlowFile` object on the list from the list.
 * `.getFromUniqueIdentifier(uniqueIdentifier)` Look up a `FlowFile` object by its unique identifier.
 * `.getSize()` Returns the total size of the upload in bytes.
@@ -182,29 +192,46 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 
 #### Events
 
-* `.fileSuccess(file, message, chunk)` A specific file was completed. First argument `file` is instance of `FlowFile`, second argument `message` contains server response. Response is always a string. 
-Third argument `chunk` is instance of `FlowChunk`. You can get response status by accessing xhr 
-object `chunk.xhr.status`.
-* `.fileProgress(file, chunk)` Uploading progressed for a specific file.
-* `.fileAdded(file, event)` This event is used for file validation. To reject this file return false.
-This event is also called before file is added to upload queue,
-this means that calling `flow.upload()` function will not start current file upload.
-Optionally, you can use the browser `event` object from when the file was
-added.
-* `.filesAdded(array, event)` Same as fileAdded, but used for multiple file validation.
-* `.filesSubmitted(array, event)` Same as filesAdded, but happens after the file is added to upload queue. Can be used to start upload of currently added files.
-* `.fileRemoved(file)` The specific file was removed from the upload queue. Combined with filesSubmitted, can be used to notify UI to update its state to match the upload queue.
-* `.fileRetry(file, chunk)` Something went wrong during upload of a specific file, uploading is being 
-retried.
-* `.fileError(file, message, chunk)` An error occurred during upload of a specific file.
-* `.uploadStart()` Upload has been started on the Flow object.
-* `.complete()` Uploading completed.
-* `.progress()` Uploading progress.
-* `.error(message, file, chunk)` An error, including fileError, occurred.
-* `.catchAll(event, ...)` Listen to all the events listed above with the same callback function.
+Events are native, synchronous and provide information about the internal state of the application without being given a chance to alter it.
+
+* `file-success(<FlowFile> file, <string> message, <FlowChunk> chunk)` A specific file was completed (`message` comes from `xhr.responseText`, `chunk` is instance of `FlowChunk` representing the last chunk for this file. You can get response status by accessing xhr object `chunk.xhr.status`).
+* `file-progress(<FlowFile> file, <FlowChunk> chunk)` Upload progressed for a specific file.
+* `file-removed(<FlowFile> file)` The specific file was removed from the upload queue. Combined with the `files-submitted` hook, it can be used to notify UI to update its state to match the upload queue.
+* `file-retry(<FlowFile> file, <FlowChunk> chunk)` Something went wrong during upload of a specific file, uploading is being retried.
+* `file-error(<FlowFile> file, <string> message, <FlowChunk> chunk)` An error occurred during upload of a specific file. `message` comes from `xhr.responseText`.
+* `upload-start()` Upload started on the Flow object.
+* `complete()` Upload completed.
+* `progress()` Upload progress.
+* `error(<string> message, <FlowFile> file, <FlowChunk> chunk)` An error, including fileError, occurred.
+* `catch-all(<string> event-name, ...)` Receive all above events listed above and their corresponding parameters.
+
+#### Processing hooks
+
+Hooks allows for either synchronous or asynchronous operations and allow altering the regular processing of the file(s) from addition to upload completion. 
+It's user responsability to use or not the `async` version of `(async)?addFile` and `(async)?addFiles` according to the behavior of its processing hooks.
+ (Defining `async` callbacks for the `asyncAddFile(s)`)
+
+* `file-added(<FlowFile> file, event) : null` This event is also called before file is added to upload queue and after it's been fully initialized. `event` is the browser `event` object from when the file was added.
+* `files-added([<FlowFile> files], event) : null` Same as `file-added`, but used for multiple file validation.
+* `files-submitted([<FlowFile> files], event) : null` Same as `files-added`, but happens after the file is added to upload queue. Can be used to start upload of currently added files.
+* `filter-file(<FlowFile> file, event) : boolean` The boolean return value decide whether this particular file must be processed or ignored.
+
+### Hooks and events format
+- Events and hooks name are case-sensitive, snake-cased and return CustomEvent passed straight to `Flow.on()` callback.
+- Sample use `flow.on('file-removed', ({detail: [file]}) => { ... });`
+- In an attempt of backward compatibility, some support of camelCase events exist:
+```
+flow.on('filesAdded', async (files, event) => { // v2 events prototype
+   if (files instanceof CustomEvent) { // Handle v3+ events
+      var [files, event] = files.detail;
+   }
+   // Do something with files
+});
+```
 
 ### FlowFile
 FlowFile constructor can be accessed in `Flow.FlowFile`.
+
 #### Properties
 
 * `.flowObj` A back-reference to the parent `Flow` object.

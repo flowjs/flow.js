@@ -105,8 +105,6 @@ export default class FlowFile {
      * @private
      */
     this._prevProgress = 0;
-
-    this.bootstrap();
   }
 
   /**
@@ -143,32 +141,32 @@ export default class FlowFile {
           break;
         }
         this.measureSpeed();
-        this.flowObj.fire('fileProgress', this, chunk);
-        this.flowObj.fire('progress');
+        this.flowObj.emit('file-progress', this, chunk);
+        this.flowObj.emit('progress');
         this._lastProgressCallback = Date.now();
         break;
       case 'error':
         this.error = true;
         this.abort(true);
-        this.flowObj.fire('fileError', this, message, chunk);
-        this.flowObj.fire('error', message, this, chunk);
+        this.flowObj.emit('file-error', this, message, chunk);
+        this.flowObj.emit('error', message, this, chunk);
         break;
       case 'success':
         if (this.error) {
           return;
         }
         this.measureSpeed();
-        this.flowObj.fire('fileProgress', this, chunk);
-        this.flowObj.fire('progress');
+        this.flowObj.emit('file-progress', this, chunk);
+        this.flowObj.emit('progress');
         this._lastProgressCallback = Date.now();
         if (this.isComplete()) {
           this.currentSpeed = 0;
           this.averageSpeed = 0;
-          this.flowObj.fire('fileSuccess', this, message, chunk);
+          this.flowObj.emit('file-success', this, message, chunk);
         }
         break;
       case 'retry':
-        this.flowObj.fire('fileRetry', this, chunk);
+        this.flowObj.emit('file-retry', this, chunk);
         break;
     }
   }
@@ -223,7 +221,7 @@ export default class FlowFile {
    * @function
    */
   retry() {
-    this.bootstrap();
+    this.bootstrap('retry');
     this.flowObj.upload();
   }
 
@@ -231,14 +229,11 @@ export default class FlowFile {
    * Clear current chunks and slice file again
    * @function
    */
-  bootstrap() {
-    if (typeof this.flowObj.opts.initFileFn === "function") {
-      var ret = this.flowObj.opts.initFileFn(this);
-      if (ret && 'then' in ret) {
-        ret.then(this._bootstrap.bind(this));
-        return;
-      }
+  bootstrap(event = null, initFileFn = this.flowObj.opts.initFileFn) {
+    if (typeof initFileFn === "function") {
+      initFileFn(this);
     }
+
     this._bootstrap();
   }
 

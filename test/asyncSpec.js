@@ -8,30 +8,7 @@ describe('upload stream', function() {
    */
   var xhr_server;
 
-  var random_sizes = false;
-
-  /**
-   * Generate an ASCII file composed of <num> parts of <segment_size> characters long.
-   * The char for each part is randomly choosen from the below alphabet
-   */
-  function gen_file(num, segment_size = 64) {
-    var alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789()_-?!./|';
-    return alphabet
-      .repeat(Math.ceil(num / alphabet.length))
-      .split('')
-      .sort(() => Math.random()-0.5)
-      .map((v, i) => i < num ? v.repeat(segment_size) : null)
-      .filter(e => e)
-      .join('');
-  }
-
-  function hash(content) {
-    return window.crypto.subtle.digest('SHA-256', new TextEncoder('utf-8').encode(content));
-  }
-
-  function hex(buff) {
-    return [].map.call(new Uint8Array(buff), b => ('00' + b.toString(16)).slice(-2)).join('');
-  }
+  var random_sizes = true;
 
   class Streamer {
     constructor(chunk_size) {
@@ -90,16 +67,10 @@ describe('upload stream', function() {
 
   beforeAll(function() {
     jasmine.DEFAULT_TIMEOUT_INTERVAL = 5000;
-
-    xhr_server = sinon.createFakeServer({
-      // autoRespondAfter: 50
-      respondImmediately: true,
+    jasmine.getEnv().addReporter({
+      specStarted: result => (jasmine.currentTest = result),
+      specDone: result => (jasmine.currentTest = result),
     });
-  });
-
-
-  afterAll(function() {
-    xhr_server.restore();
   });
 
   beforeEach(function () {
@@ -114,6 +85,10 @@ describe('upload stream', function() {
       }
     });
 
+    xhr_server = sinon.createFakeServer({
+      // autoRespondAfter: 50
+      respondImmediately: true,
+    });
     xhr_server.respondWith('ok');
   });
 
@@ -151,10 +126,10 @@ describe('upload stream', function() {
     console.info(`Test File is ${chunk_num} bytes long (sha256: ${orig_hash}).`);
     console.info(`Now uploads ${simultaneousUploads} simultaneous chunks of at most ${upload_chunk_size} bytes`);
 
-    flow.on('fileError', jasmine.createSpy('error'));
-    flow.on('fileSuccess', jasmine.createSpy('success'));
+    flow.on('file-error', jasmine.createSpy('error'));
+    flow.on('file-success', jasmine.createSpy('success'));
     flow.on('complete', () => {
-      validate(done, content, orig_hash);
+      validatePayload(done, content, {orig_hash, flow, requests: xhr_server.requests});
     });
 
     var streamer = new Streamer(upload_chunk_size); // chunk_size);
@@ -167,24 +142,63 @@ describe('upload stream', function() {
     flow.upload();
   });
 
-  function validate(done, content, orig_hash) {
-    var predicted_request_number = Math.ceil(content.length / flow.opts.chunkSize);
-    expect(xhr_server.requests.length).toBe(predicted_request_number);
+  it('An asyncInitFile function', async function() {
+    var flowfiles,
+        content = gen_file(4, 512),
+        sample_file = new File([content], `foobar-asyncInitFileFn-${jasmine.currentTest.id}.bin`),
+        customFunction = jasmine.createSpy('fn'),
+        initFileFunction = async (flowObj) => {
+          await sleep(250);
+          customFunction();
+        };
+    flowfiles = await flow.asyncAddFiles([sample_file], null, initFileFunction);
+    expect(customFunction).toHaveBeenCalledTimes(1);
 
-    var file = flow.files[0];
-    expect(file.progress()).toBe(1);
-    expect(file.isUploading()).toBe(false);
-    expect(file.isComplete()).toBe(true);
+    // If re-adding the same file, it's ignored, not incrementing the number of
+    // calls to the initFileFn
+    await flow.asyncAddFiles([sample_file], null, initFileFunction);
+    expect(customFunction).toHaveBeenCalledTimes(1);
 
-    // An array of promises of obtaining the corresponding request's body (= payload)
-    var payload_contents = xhr_server.requests.map(x => x.requestBody.get('file').text());
-    Promise.all(payload_contents)
-      .then(values => hash(values.join('')))
-      .then(hash => hex(hash))
-      .then(hexhash => {
-        // console.log(orig_hash, hexhash);
-        expect(hexhash).toBe(orig_hash);
-        done();
-      });
-  }
+    // But if removed, then the function is run again
+    flow.removeFile(flowfiles[0]);
+    flowfiles = await flow.asyncAddFiles([sample_file], null, initFileFunction);
+    expect(customFunction).toHaveBeenCalledTimes(2);
+
+    // It should work with addFile() too.
+    flow.removeFile(flowfiles[0]);
+    flowfiles = await flow.asyncAddFile(sample_file, null, initFileFunction);
+    expect(customFunction).toHaveBeenCalledTimes(3);
+  });
+
+  it('An asyncInitFile function can still be passed as a Flow constructor', async function() {
+    var content = gen_file(2, 256),
+        sample_file = new File([content], `foobar-asyncInitFileFn-${jasmine.currentTest.id}.bin`),
+        customFunction = jasmine.createSpy('fn'),
+        // Also test non-async functions
+        initFileFunction = (flowObj) => {
+          customFunction();
+        };
+    flow.opts.initFileFn = initFileFunction;
+    await flow.asyncAddFile(sample_file);
+    expect(customFunction).toHaveBeenCalledTimes(1);
+  });
+
+  it('asyncAddFile can also be called with no initFileFunction', async function() {
+    var content = gen_file(2, 256),
+        sample_file = new File([content], `foobar-asyncInitFileFn-${jasmine.currentTest.id}.bin`),
+        customFunction = jasmine.createSpy('fn');
+    await flow.asyncAddFile(sample_file);
+    expect(flow.files.length).toEqual(1);
+  });
+
+  it('adding async hook but calling addFiles() should trigger a warning', async function () {
+    var content = gen_file(2, 256),
+        sample_file = new File([content], `async+addFiles-${jasmine.currentTest.id}.bin`),
+        customFunction = jasmine.createSpy('fn');
+    flow.on('files-added', async (file) => await file);
+
+    spyOn(console, 'warn');
+    flow.addFile(sample_file);
+    expect(console.warn).toHaveBeenCalled();
+  });
 });
