@@ -327,7 +327,7 @@ export default class FlowChunk {
     }
 
     if (data && data.size > 0) {
-      if (this.flowObj.chunkSize) {
+      if (this.fileObj.chunkSize && data.size > this.fileObj.chunkSize) {
         // This may imply a miscalculation of the total chunk numbers.
         console.warn(`Chunk ${this.offset}: returned too much data. Got ${data.size}. Expected not more than ${this.flowObj.chunkSize}.`);
       }
