@@ -595,7 +595,8 @@ describe('upload file', function() {
     expect(customFunction).toHaveBeenCalledTimes(1);
 
     flow.on('complete', async () => {
-      await validatePayload(done, content, {requests: xhr.requests, flow});
+      validateStatus({flow, content_length: content.length, requests: xhr.requests}, flow.files[0]);
+      await validatePayload(done, content, {requests: xhr.requests});
     });
 
     xhr.respondWith('ok');

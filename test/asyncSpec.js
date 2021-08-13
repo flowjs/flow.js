@@ -129,6 +129,7 @@ describe('upload stream', function() {
     flow.on('file-error', jasmine.createSpy('error'));
     flow.on('file-success', jasmine.createSpy('success'));
     flow.on('complete', () => {
+      validateStatus({flow, content_length: content.length, requests: xhr_server.requests}, flow.files[0]);
       validatePayload(done, content, {orig_hash, flow, requests: xhr_server.requests});
     });
 
