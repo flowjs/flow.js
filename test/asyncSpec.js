@@ -202,4 +202,42 @@ describe('upload stream', function() {
     flow.addFile(sample_file);
     expect(console.warn).toHaveBeenCalled();
   });
+
+  it('async stream support request temporary failure', async function (done) {
+    // ToDo: This test use low-level files[0].chunks[x].send(); to do atomic
+    // uploads and avoid the unstoppable (recursive) loop.
+    xhr_server.configure({autoRespond: false, respondImmediately: false});
+
+    var streamer = new Streamer(1);
+    flow.opts.initFileFn = streamer.init.bind(streamer);
+    flow.opts.asyncReadFileFn = streamer.read.bind(streamer);
+
+    flow.opts.chunkSize = 1;
+    flow.opts.maxChunkRetries = 3;
+    flow.opts.simultaneousUploads = 2;
+    await flow.asyncAddFile(new File(['12'], `stream-failure-${jasmine.currentTest.id}.bin`));
+    var files = flow.files;
+    expect(files[0].chunks.length).toBe(2);
+
+    await files[0].chunks[0].send();
+    // xhr.error() is unusable. See https://github.com/sinonjs/nise/issues/148
+    // xhr_server.respond(xhr => xhr.error());
+    xhr_server.respond([400, {}, 'Error']);
+
+    xhr_server.respondWith([200, { "Content-Type": "text/plain" }, 'ok']);
+    await files[0].chunks[0].send();
+    await files[0].chunks[1].send();
+
+    validateStatus({flow, request_number: 3, requests: xhr_server.requests});
+    // See the above comment about why the (inconsistent state can't be tested)
+    // expect(flow.files[0].isUploading()).toBe(false);
+    // expect(flow.files[0].isComplete()).toBe(true);
+    validatePayload(done,
+                    '12',
+                    {
+                      orig_hash: "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918",
+                      requests: xhr_server.requests,
+                    });
+
+  });
 });
