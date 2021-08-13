@@ -307,12 +307,20 @@ export default class FlowChunk {
 
   async readStreamChunk() {
     if (this.readStreamState.resolved) {
-      // This is normally impossible to reach. Has it been uploaded?
-      console.warn(`Chunk ${this.offset} already read. xhr initialized = ${this.xhr ? 1 : 0}`);
-      // We may want to retry (or not) to upload (but never try to read from the stream again or risk misordered chunks
-      return;
+      // Requiring to read the same chunk twice is unlikely but may happen (in case of retry a failed upload)
+      // If the bytes are still here (this.payload), then retry the upload...
+      if (this.payload && this.pendingRetry) {
+        console.info(`Retrying chunk ${this.offset} upload`);
+        return this.uploadStreamChunk(this.payload);
+      }
+
+      console.warn(`Chunk ${this.offset} already read. xhr initialized = ${this.xhr ? 1 : 0}. payload size = ${this.payload ? this.payload.size : null}. readState = ${this.readState}. retry = ${this.pendingRetry}`);
+      // ... but never try to read that same chunk from the (non-rewindable) stream again or we'd risk
+      // not only misordered chunks but a corrupted file.
+      return null;
     }
 
+    this.readState = 1;
     await this.readStreamGuard();
     var data, asyncRead = this.flowObj.opts.asyncReadFileFn;
 
@@ -326,6 +334,10 @@ export default class FlowChunk {
       this.readBytes = data.size || data.size === 0 ? data.size : -1;
     }
 
+    return this.uploadStreamChunk(data);
+  }
+
+  async uploadStreamChunk(data) {
     if (data && data.size > 0) {
       if (this.fileObj.chunkSize && data.size > this.fileObj.chunkSize) {
         // This may imply a miscalculation of the total chunk numbers.
@@ -377,7 +389,6 @@ export default class FlowChunk {
     }
 
     if (asyncRead) {
-      this.readState = 1;
       await this.readStreamChunk();
       return;
     }
