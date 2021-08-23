@@ -64,7 +64,7 @@ function validateStatus(args, file) {
  * @param content   File original content.
  * @param orig_hash (Optional) File original hash. if not provided, it will be computed from content.
  */
-async function validatePayload(done, content, args) {
+async function validatePayload(content, args) {
   let {
     orig_hash = null,
     requests: _requests = (typeof xhr_server !== 'undefined' ? xhr_server.requests : null),
@@ -72,18 +72,15 @@ async function validatePayload(done, content, args) {
 
   if (!_requests) {
     console.warn("Called validatePayload with no requests array");
-    done();
+    return;
   }
 
   // An array of promises of obtaining the corresponding request's body (= payload)
   var payload_contents = _requests.map(x => [0, 200, 201].includes(x.status) ? x.requestBody.get('file').text() : '');
   orig_hash = orig_hash || hex(await hash(content));
-  Promise.all(payload_contents)
-    .then(values => hash(values.join('')))
-    .then(hash => hex(hash))
-    .then(hexhash => {
-      // console.log(orig_hash, hexhash);
-      expect(hexhash).toBe(orig_hash);
-      done();
-    });
+  console.info(`Test File sha256: ${orig_hash}.`);
+  let values = await Promise.all(payload_contents);
+  let hexhash = hex(await hash(values.join('')));
+  // console.log(orig_hash, hexhash);
+  expect(hexhash).toBe(orig_hash);
 }

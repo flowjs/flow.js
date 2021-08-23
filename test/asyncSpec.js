@@ -97,7 +97,7 @@ describe('upload stream', function() {
     xhr_server.restore();
   });
 
-  it('synchronous initFileFn and asyncReadFileFn', async function (done) {
+  it('synchronous initFileFn and asyncReadFileFn', function (done) {
     // No File.stream() support : No test
     // No support for skipping() test from Jasmine (https://github.com/jasmine/jasmine/issues/1709)
     if (typeof Blob === 'undefined' || Blob.prototype.stream !== 'function') {
@@ -120,17 +120,17 @@ describe('upload stream', function() {
     }
 
     var content = gen_file(chunk_num, chunk_size),
-        orig_hash = hex(await hash(content)),
         sample_file = new File([content], 'foobar.bin');
 
-    console.info(`Test File is ${chunk_num} bytes long (sha256: ${orig_hash}).`);
+    console.info(`Test File is ${chunk_num} bytes long.`);
     console.info(`Now uploads ${simultaneousUploads} simultaneous chunks of at most ${upload_chunk_size} bytes`);
 
     flow.on('file-error', jasmine.createSpy('error'));
     flow.on('file-success', jasmine.createSpy('success'));
-    flow.on('complete', () => {
+    flow.on('complete', async () => {
       validateStatus({flow, content_length: content.length, requests: xhr_server.requests}, flow.files[0]);
-      validatePayload(done, content, {orig_hash, flow, requests: xhr_server.requests});
+      await validatePayload(content, {flow, requests: xhr_server.requests});
+      done();
     });
 
     var streamer = new Streamer(upload_chunk_size); // chunk_size);
@@ -203,7 +203,7 @@ describe('upload stream', function() {
     expect(console.warn).toHaveBeenCalled();
   });
 
-  it('async stream support request temporary failure', async function (done) {
+  it('async stream support request temporary failure', async function () {
     // ToDo: This test use low-level files[0].chunks[x].send(); to do atomic
     // uploads and avoid the unstoppable (recursive) loop.
     xhr_server.configure({autoRespond: false, respondImmediately: false});
@@ -232,12 +232,10 @@ describe('upload stream', function() {
     // See the above comment about why the (inconsistent state can't be tested)
     // expect(flow.files[0].isUploading()).toBe(false);
     // expect(flow.files[0].isComplete()).toBe(true);
-    validatePayload(done,
-                    '12',
-                    {
-                      orig_hash: "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918",
-                      requests: xhr_server.requests,
-                    });
-
+    await validatePayload('12',
+                          {
+                            orig_hash: "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918",
+                            requests: xhr_server.requests,
+                          });
   });
 });

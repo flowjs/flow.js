@@ -580,7 +580,7 @@ describe('upload file', function() {
     expect(xhr.requests.length).toBe(6);
   });
 
-  it('should allow to hook initFileFn function', function(done) {
+  it('should allow to hook initFileFn function', function() {
     var content = gen_file(6, 128),
         sample_file = new File([content], `foobar-initFileFn.bin`),
         customFunction = jasmine.createSpy('fn'),
@@ -596,7 +596,7 @@ describe('upload file', function() {
 
     flow.on('complete', async () => {
       validateStatus({flow, content_length: content.length, requests: xhr.requests}, flow.files[0]);
-      await validatePayload(done, content, {requests: xhr.requests});
+      await validatePayload(content, {requests: xhr.requests});
     });
 
     xhr.respondWith('ok');
