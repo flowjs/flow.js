@@ -12,52 +12,59 @@ describe('upload stream', function() {
 
   class Streamer {
     constructor(chunk_size) {
-      this._reader = null;
+      this._reader = {};
       this.chunk_size = chunk_size;
 
       // See the comment in read() for why we implement a custom reader here.
-      this.buffer = null;
-      this.index = 0;
+      this.buffer = {};
+      this.index = {};
     };
 
     init(flowObj) {
-      this._reader = flowObj.file.stream().getReader();
+      // ToDo: Use flowObj.uniqueIdentifier ?
+      this._reader[flowObj.name] = flowObj.file.stream().getReader();
+      this.buffer[flowObj.name] = null;
     };
 
     async read(flowObj, startByte, endByte, fileType, chunk) {
-      // chunk._log(`Start reading from ${this.buffer !== null ? 'existing' : 'the'} buffer`);
-      if (this.buffer === null) {
+      // console.log(`[asyncRead ${flowObj.name}#${chunk.offset}] start reading from ${this.buffer[flowObj.name] !== null ? 'existing' : 'the'} buffer`);
+      if (this.buffer[flowObj.name] === null) {
         // console.log(`[asyncRead ${chunk.offset}] no preexisting buffer => reader.read()`);
         /*
           Here we would expect a partial read of 64kb (by implementation) but it seems that
           *all* the buffer is returned making difficult to make a test based on ReadableStreamDefaultReader() behavior.
           As such we simulate it.
         */
-        const {value: buffer, done} = await this._reader.read();
-        this.buffer = buffer;
+        const {value: buffer, done} = await this._reader[flowObj.name].read();
+        this.buffer[flowObj.name] = buffer.slice(0);
 
         if (buffer) {
-          // console.log(`[asyncRead ${chunk.offset}] got a buffer of ${buffer.length} bytes...`);
+          // console.log(`[asyncRead ${flowObj.name}#${chunk.offset}] Read ${buffer.length} bytes`, buffer);
         } else {
           // console.log(`[asyncRead ${chunk.offset}] no buffer[bail]`);
           return null;
         }
       }
 
-      if (this.buffer.length === 0) {
-        // console.log(`[asyncRead ${chunk.offset}] this.buffer is null[bail]`);
+      if (this.buffer[flowObj.name].length === 0) {
+        // console.log(`[asyncRead ${chunk.offset}] this.buffer[${flowObj.name}] is null[bail]`);
         return null;
       }
 
-      // console.log(`[asyncRead ${chunk.offset}] Read slice[${this.index}:${this.index + this.chunk_size}] a buffer of ${this.buffer.length} bytes`);
-      var buffer_chunk = this.buffer.slice(this.index, this.index + this.chunk_size);
+      if (! this.index[flowObj.name]) {
+          this.index[flowObj.name] = 0;
+      }
+
+      // console.log(`[asyncRead ${chunk.offset}] Read slice[${this.index[flowObj.name]}:${this.index[flowObj.name] + this.chunk_size}] a buffer of ${this.buffer[flowObj.name].length} bytes`);
+      var buffer_chunk = this.buffer[flowObj.name].slice(this.index[flowObj.name], this.index[flowObj.name] + this.chunk_size);
+      // console.log(`[asyncRead] Read slice of ${buffer_chunk.length} bytes`);
 
       if (!buffer_chunk) {
         // console.log(`[asyncRead ${chunk.offset}] null slice`);
         // console.log(buffer_chunk);
       } else {
-        // chunk._log(`Read slice of ${buffer_chunk.length} bytes`);
-        this.index += this.chunk_size;
+        this.index[flowObj.name] += this.chunk_size;
+        // console.log(`[asyncRead] ${buffer_chunk}. index is now ${this.index[flowObj.name]}`);
         return new Blob([buffer_chunk], {type: 'application/octet-stream'});
       }
 
@@ -236,6 +243,50 @@ describe('upload stream', function() {
                           {
                             orig_hash: "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918",
                             requests: xhr_server.requests,
+                          });
+  });
+
+  it('Do not corrupt multiple streams', async function () {
+    xhr_server.configure({autoRespond: true, respondImmediately: true});
+    xhr_server.respondWith([200, { "Content-Type": "text/plain" }, 'ok']);
+    var streamer = new Streamer(1);
+    flow.opts.initFileFn = streamer.init.bind(streamer);
+    flow.opts.asyncReadFileFn = streamer.read.bind(streamer);
+
+    flow.opts.chunkSize = 1;
+    flow.opts.maxChunkRetries = 3;
+    flow.opts.simultaneousUploads = 2;
+    await flow.asyncAddFiles([
+      new File(['1234'], `multi1-${jasmine.currentTest.id}.bin`),
+      new File(['56789'], `multi2-${jasmine.currentTest.id}.bin`)
+    ]);
+
+    await flow.files[0].chunks[0].send();
+    await flow.files[1].chunks[0].send();
+    for (let i = 0; i < (9 - 2); i++) {
+      flow.uploadNextChunk(true);
+      await sleep(1);
+    }
+
+    for (let file of flow.files) {
+      expect(file.isUploading()).toBeFalsy();
+      expect(file.isComplete()).toBeTruthy();
+      expect(file.progress()).toBe(1);
+    }
+
+    expect(flow.progress()).toBe(1);
+    validateStatus({flow, request_number: 9, requests: xhr_server.requests});
+    await validatePayload(null,
+                          {
+                            orig_hash: '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4',
+                            requests: xhr_server.requests,
+                            filter: x => x.requestBody.get('file').name === `multi1-${jasmine.currentTest.id}.bin`
+                          });
+    await validatePayload(null,
+                          {
+                            orig_hash: 'f76043a74ec33b6aefbb289050faf7aa8d482095477397e3e63345125d49f527',
+                            requests: xhr_server.requests,
+                            filter: x => x.requestBody.get('file').name === `multi2-${jasmine.currentTest.id}.bin`
                           });
   });
 });
