@@ -289,4 +289,141 @@ describe('upload stream', function() {
                             filter: x => x.requestBody.get('file').name === `multi2-${jasmine.currentTest.id}.bin`
                           });
   });
+
+  it('should pause and resume stream', async function () {
+    xhr_server.configure({autoRespond: false, respondImmediately: false});
+    var streamer = new Streamer(1);
+    flow.opts.initFileFn = streamer.init.bind(streamer);
+    flow.opts.asyncReadFileFn = streamer.read.bind(streamer);
+
+    flow.opts.chunkSize = 1;
+    flow.opts.maxChunkRetries = 3;
+    flow.opts.simultaneousUploads = 2;
+    await flow.asyncAddFiles([
+      new File(['123456'], `foobar1-${jasmine.currentTest.id}.bin`),
+      new File(['789'], `foobar2-${jasmine.currentTest.id}.bin`)
+    ]);
+
+    let files = flow.files;
+    let counter = {};
+
+    /*
+      [      ]
+      [   ]
+    */
+    expect(files[0].chunks.length).toBe(6);
+    expect(files[1].chunks.length).toBe(3);
+    flow.upload();
+    expect(files[0].isReading()).toBeTruthy();
+    await sleep(1);
+
+    /*
+      [^^    ]
+      [   ]
+    */
+    expect(xhr_server.requests.length).toBe(2);
+    expect(xhr_server.requests[0].aborted).toBeUndefined();
+    expect(xhr_server.requests[1].aborted).toBeUndefined();
+
+    // Reply to XHR n°1 and 2
+    xhr_server.respond();
+    /*
+      [oo    ]
+      [   ]
+    */
+    expect(xhr_server.requests[0].status).toBe(200);
+    expect(xhr_server.requests[1].status).toBe(200);
+    await sleep(1);
+    /*
+      [oo^^__]
+      [   ]
+    */
+    expect(xhr_server.requests.length).toBe(4);
+    expect(files[0].isUploading()).toBeTruthy();
+    expect(files[0].isReading()).toBeFalsy();
+
+    // Next two chunks from file[0] were read but we abort() their
+    // corresponding `xhr`. They will get back to pending.
+    // Flow should start uploading second file now
+    files[0].pause();
+    await sleep(1);
+
+    /*
+      [oo____]
+      [^^ ]
+    */
+    expect(xhr_server.requests[2].aborted).toBeTruthy();
+    expect(xhr_server.requests[3].aborted).toBeTruthy();
+    expect(xhr_server.requests[4].aborted).toBeUndefined();
+    expect(files[0].isUploading()).toBeFalsy();
+
+    flow.upload();
+    await sleep(1);
+    expect(files[0].isUploading()).toBeFalsy();
+    expect(files[1].isUploading()).toBeTruthy();
+
+    // Reply to XHR n°4 and 5
+    xhr_server.respond();
+
+    expect(xhr_server.requests.length).toBe(6);
+    expect(xhr_server.requests[4].aborted).toBeFalsy();
+    expect(xhr_server.requests[5].aborted).toBeFalsy();
+
+    /*
+      [oo____]
+      [ooR]
+    */
+    // Should resume file after second file chunks is uploaded
+    files[0].resume();
+    await sleep(1);
+
+    /*
+      [oo^^__]
+      [oo^]
+    */
+    // Finish file 1
+    expect(files[0].isUploading()).toBeTruthy();
+    expect(files[1].isUploading()).toBeTruthy();
+    expect(xhr_server.requests.length).toBe(9); // Above 7 + 2 failed when pause()
+    xhr_server.respond();
+
+    /*
+      [oooo__]
+      [ooo]
+    */
+    // Upload finished
+    expect(files[1].isUploading()).toBeFalsy();
+    expect(files[1].isComplete()).toBeTruthy();
+    expect(files[1].progress()).toBe(1);
+
+    /*
+      [oooo__]
+      [ooo]
+    */
+    // Finish file 0
+    await sleep(1);
+    expect(xhr_server.requests.length).toBe(11);
+    xhr_server.respond();
+
+    /*
+      [oooooo]
+      [ooo]
+    */
+    expect(files[0].isUploading()).toBeFalsy();
+    expect(files[0].isComplete()).toBeTruthy();
+    expect(files[0].progress()).toBe(1);
+    expect(flow.progress()).toBe(1);
+
+    validateStatus({flow, request_number: 11, requests: xhr_server.requests});
+    await validatePayload(null, {
+      orig_hash: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', // "123456"
+      requests: xhr_server.requests,
+      filter: x => x.requestBody.get('file').name === `foobar1-${jasmine.currentTest.id}.bin`
+    });
+    await validatePayload(null, {
+      orig_hash: '35a9e381b1a27567549b5f8a6f783c167ebf809f1c4d6a9e367240484d8ce281', // "789"
+      requests: xhr_server.requests,
+      filter: x => x.requestBody.get('file').name === `foobar2-${jasmine.currentTest.id}.bin`
+    });
+  });
 });
