@@ -279,7 +279,7 @@ export default class Flow extends Eventizer {
     for (let file of this.files) {
       if (!file.isComplete()) {
         outstanding = true;
-        return false;
+        break;
       }
     }
 
