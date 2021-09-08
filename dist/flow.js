@@ -6121,11 +6121,11 @@
       value: function status(isTest) {
         if (this.readState === 1) {
           return 'reading';
-        } else if (this.pendingRetry || this.preprocessState === 1) {
+        } else if (this.preprocessState === 1) {
           // if pending retry then that's effectively the same as actively uploading,
           // there might just be a slight delay before the retry starts
           return 'uploading';
-        } else if (!this.xhr) {
+        } else if (!this.xhr || this.pendingRetry) {
           return 'pending';
         } else if (this.xhr.readyState < 4) {
           // Status is really 'OPENED', 'HEADERS_RECEIVED'
@@ -6464,18 +6464,29 @@
       value: function abort(reset) {
         this.currentSpeed = 0;
         this.averageSpeed = 0;
-        var chunks = this.chunks;
 
         if (reset) {
           this.chunks = [];
         }
 
-        each(chunks, function (c) {
-          if (c.status() === 'uploading') {
-            c.abort();
-            this.flowObj.uploadNextChunk();
+        var _iterator = _createForOfIteratorHelper(this.chunks),
+            _step;
+
+        try {
+          for (_iterator.s(); !(_step = _iterator.n()).done;) {
+            var c = _step.value;
+
+            if (c.status() === 'uploading') {
+              c.abort();
+              c.pendingRetry = true;
+              this.flowObj.uploadNextChunk();
+            }
           }
-        }, this);
+        } catch (err) {
+          _iterator.e(err);
+        } finally {
+          _iterator.f();
+        }
       }
       /**
        * Cancel current upload and remove from a list
@@ -7132,7 +7143,7 @@
 
             if (!_file2.isComplete()) {
               outstanding = true;
-              return false;
+              break;
             }
           }
         } catch (err) {
