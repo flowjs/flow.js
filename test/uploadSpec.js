@@ -127,6 +127,7 @@ describe('upload file', function() {
   it('should pause and resume file', function () {
     flow.opts.chunkSize = 1;
     flow.opts.simultaneousUploads = 2;
+    flow.opts.testChunks = false;
     flow.addFile(new Blob(['1234']));
     flow.addFile(new Blob(['56']));
     var files = flow.files;
@@ -271,6 +272,7 @@ describe('upload file', function() {
     flow.addFile(new Blob(['12']));
     var file = flow.files[0];
     flow.upload();
+    expect(file.chunks[0].status()).toBe('uploading');
     expect(xhr.requests.length).toBe(1);
 
     xhr.requests[0].respond(400);
@@ -278,7 +280,7 @@ describe('upload file', function() {
     expect(error).not.toHaveBeenCalled();
     expect(success).not.toHaveBeenCalled();
     expect(retry).toHaveBeenCalled();
-    expect(file.chunks[0].status()).toBe('uploading');
+    expect(file.chunks[0].status()).toBe('pending');
 
     jasmine.clock().tick(100);
     expect(xhr.requests.length).toBe(2);
