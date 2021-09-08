@@ -234,6 +234,7 @@ describe('upload stream', function() {
     xhr_server.respondWith([200, { "Content-Type": "text/plain" }, 'ok']);
     await files[0].chunks[0].send();
     await files[0].chunks[1].send();
+    xhr_server.respond();
 
     validateStatus({flow, request_number: 3, requests: xhr_server.requests});
     // See the above comment about why the (inconsistent state can't be tested)

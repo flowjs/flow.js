@@ -77,7 +77,7 @@ async function validatePayload(content, args) {
   }
 
   // An array of promises of obtaining the corresponding request's body (= payload)
-  var payload_contents = _requests.map(x => [0, 200, 201].includes(x.status) && filter(x) ? x.requestBody.get('file').text() : '');
+  var payload_contents = _requests.map(x => [200, 201].includes(x.status) && filter(x) ? x.requestBody.get('file').text() : '');
   orig_hash = orig_hash || hex(await hash(content));
   console.info(`Test File sha256: ${orig_hash}.`);
   let values = await Promise.all(payload_contents);
