@@ -341,12 +341,23 @@ export default class Flow extends Eventizer {
         input.setAttribute(key, value);
       });
       // When new files are added, simply append them to the overall list
-      input.addEventListener('change', (e) => {
-        if (e.target.value) {
-          this.addFiles(e.target.files, e);
-          e.target.value = '';
-        }
-      }, false);
+      // but adapt to the case where initFileFn is async.
+      var callback = this.opts.initFileFn
+          && typeof this.opts.initFileFn === 'function'
+          && this.opts.initFileFn.constructor.name  === 'AsyncFunction'
+          ? async e => {
+            if (e.target.value) {
+              await this.asyncAddFiles(e.target.files, e);
+              e.target.value = '';
+            }
+          }
+          : e => {
+            if (e.target.value) {
+              this.addFiles(e.target.files, e);
+              e.target.value = '';
+            }
+          };
+      input.addEventListener('change', callback, false);
     }, this);
   }
 
