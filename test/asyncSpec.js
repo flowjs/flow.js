@@ -240,11 +240,10 @@ describe('upload stream', function() {
     // See the above comment about why the (inconsistent state can't be tested)
     // expect(flow.files[0].isUploading()).toBe(false);
     // expect(flow.files[0].isComplete()).toBe(true);
-    await validatePayload('12',
-                          {
-                            orig_hash: "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918",
-                            requests: xhr_server.requests,
-                          });
+    await validatePayload(null, {
+      orig_hash: "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918", // "12"
+      requests: xhr_server.requests,
+    });
   });
 
   it('Do not corrupt multiple streams', async function () {
@@ -277,18 +276,16 @@ describe('upload stream', function() {
 
     expect(flow.progress()).toBe(1);
     validateStatus({flow, request_number: 9, requests: xhr_server.requests});
-    await validatePayload(null,
-                          {
-                            orig_hash: '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4',
-                            requests: xhr_server.requests,
-                            filter: x => x.requestBody.get('file').name === `multi1-${jasmine.currentTest.id}.bin`
-                          });
-    await validatePayload(null,
-                          {
-                            orig_hash: 'f76043a74ec33b6aefbb289050faf7aa8d482095477397e3e63345125d49f527',
-                            requests: xhr_server.requests,
-                            filter: x => x.requestBody.get('file').name === `multi2-${jasmine.currentTest.id}.bin`
-                          });
+    await validatePayload(null, {
+      orig_hash: '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4', // "1234"
+      requests: xhr_server.requests,
+      filter: x => x.requestBody.get('file').name === `multi1-${jasmine.currentTest.id}.bin`
+    });
+    await validatePayload(null, {
+      orig_hash: 'f76043a74ec33b6aefbb289050faf7aa8d482095477397e3e63345125d49f527', // "56789"
+      requests: xhr_server.requests,
+      filter: x => x.requestBody.get('file').name === `multi2-${jasmine.currentTest.id}.bin`
+    });
   });
 
   it('should pause and resume stream', async function () {
