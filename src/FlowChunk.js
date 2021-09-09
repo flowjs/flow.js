@@ -444,11 +444,11 @@ export default class FlowChunk {
   status(isTest) {
     if (this.readState === 1) {
       return 'reading';
-    } else if (this.pendingRetry || this.preprocessState === 1) {
+    } else if (this.preprocessState === 1) {
       // if pending retry then that's effectively the same as actively uploading,
       // there might just be a slight delay before the retry starts
       return 'uploading';
-    } else if (!this.xhr) {
+    } else if (!this.xhr || this.pendingRetry) {
       return 'pending';
     } else if (this.xhr.readyState < 4) {
       // Status is really 'OPENED', 'HEADERS_RECEIVED'

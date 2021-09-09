@@ -196,16 +196,16 @@ export default class FlowFile {
   abort(reset) {
     this.currentSpeed = 0;
     this.averageSpeed = 0;
-    var chunks = this.chunks;
     if (reset) {
       this.chunks = [];
     }
-    each(chunks, function (c) {
+    for (let c of this.chunks) {
       if (c.status() === 'uploading') {
         c.abort();
+        c.pendingRetry = true;
         this.flowObj.uploadNextChunk();
       }
-    }, this);
+    }
   }
 
   /**
