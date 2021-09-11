@@ -429,11 +429,10 @@ export default class FlowChunk {
    */
   abort() {
     // Abort and reset
-    var xhr = this.xhr;
-    this.xhr = null;
-    if (xhr) {
-      xhr.abort();
+    if (this.xhr) {
+      this.xhr.abort();
     }
+    this.xhr = null;
   }
 
   /**
