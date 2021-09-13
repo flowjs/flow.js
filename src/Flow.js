@@ -347,8 +347,10 @@ export default class Flow extends Eventizer {
           && this.opts.initFileFn.constructor.name  === 'AsyncFunction'
           ? async e => {
             if (e.target.value) {
+              input.setAttribute('readonly', 'readonly');
               await this.asyncAddFiles(e.target.files, e);
               e.target.value = '';
+              input.removeAttribute('readonly');
             }
           }
           : e => {
