@@ -428,7 +428,6 @@ export default class FlowChunk {
    * @function
    */
   abort() {
-    // Abort and reset
     if (this.xhr) {
       this.xhr.abort();
     }
