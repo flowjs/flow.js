@@ -346,7 +346,7 @@ export default class FlowChunk {
         // We make a fake request so that overall status is "complete" and we can move on
         // on this FlowFile.
         this.pendingRetry = false;
-        this.xhr = {readyState: 5, status: 1 };
+        this.xhr = {readyState: 4, status: 200, abort: e => null };
         this.doneHandler(null);
         return;
       }
@@ -428,12 +428,10 @@ export default class FlowChunk {
    * @function
    */
   abort() {
-    // Abort and reset
-    var xhr = this.xhr;
-    this.xhr = null;
-    if (xhr) {
-      xhr.abort();
+    if (this.xhr) {
+      this.xhr.abort();
     }
+    this.xhr = null;
   }
 
   /**
