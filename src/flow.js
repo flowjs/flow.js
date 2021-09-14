@@ -286,16 +286,19 @@
      * Generate unique identifier for a file
      * @function
      * @param {FlowFile} file
-     * @returns {string}
+     * @param {Function} callback
      */
-    generateUniqueIdentifier: function (file) {
+    generateUniqueIdentifier: function (file, callback) {
       var custom = this.opts.generateUniqueIdentifier;
       if (typeof custom === 'function') {
-        return custom(file);
+        // support async and sync
+        var res = custom(file, callback);
+        if (res && res != 0) callback(res);
+      } else {
+        // Some confusion in different versions of Firefox
+        var relativePath = file.relativePath || file.webkitRelativePath || file.fileName || file.name;
+        callback(file.size + '-' + relativePath.replace(/[^0-9a-zA-Z_-]/img, ''));
       }
-      // Some confusion in different versions of Firefox
-      var relativePath = file.relativePath || file.webkitRelativePath || file.fileName || file.name;
-      return file.size + '-' + relativePath.replace(/[^0-9a-zA-Z_-]/img, '');
     },
 
     /**
@@ -589,27 +592,36 @@
      */
     addFiles: function (fileList, event) {
       var files = [];
+      var that = this;
+      var fileListLen = fileList.length;
+      // count value
+      var index = 0;
       each(fileList, function (file) {
         // https://github.com/flowjs/flow.js/issues/55
         if ((!ie10plus || ie10plus && file.size > 0) && !(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
-          var uniqueIdentifier = this.generateUniqueIdentifier(file);
-          if (this.opts.allowDuplicateUploads || !this.getFromUniqueIdentifier(uniqueIdentifier)) {
-            var f = new FlowFile(this, file, uniqueIdentifier);
-            if (this.fire('fileAdded', f, event)) {
-              files.push(f);
+          that.generateUniqueIdentifier(file, function (uniqueIdentifier) {
+            if (that.opts.allowDuplicateUploads || !that.getFromUniqueIdentifier(uniqueIdentifier)) {
+              var f = new FlowFile(that, file, uniqueIdentifier);
+              if (that.fire('fileAdded', f, event)) {
+                files.push(f);
+              }
             }
-          }
+            ++index;
+            // all files are added
+            if (index >= fileListLen) {
+              if (that.fire('filesAdded', files, event)) {
+                each(files, function (file) {
+                  if (that.opts.singleFile && that.files.length > 0) {
+                    that.removeFile(that.files[0]);
+                  }
+                  that.files.push(file);
+                });
+                that.fire('filesSubmitted', files, event);
+              }
+            }
+          });
         }
-      }, this);
-      if (this.fire('filesAdded', files, event)) {
-        each(files, function (file) {
-          if (this.opts.singleFile && this.files.length > 0) {
-            this.removeFile(this.files[0]);
-          }
-          this.files.push(file);
-        }, this);
-        this.fire('filesSubmitted', files, event);
-      }
+      });
     },
 
 
@@ -744,7 +756,7 @@
      * File unique identifier
      * @type {string}
      */
-    this.uniqueIdentifier = (uniqueIdentifier === undefined ? flowObj.generateUniqueIdentifier(file) : uniqueIdentifier);
+    this.uniqueIdentifier = uniqueIdentifier;
 
     /**
      * Size of Each Chunk
