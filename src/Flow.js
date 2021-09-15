@@ -143,6 +143,25 @@ export default class Flow extends Eventizer {
   }
 
   /**
+   * On drop event when file/stream initialization is asynchronous
+   * @function
+   * @param {MouseEvent} event
+   */
+  async asyncOnDrop(event) {
+    if (this.opts.onDropStopPropagation) {
+      event.stopPropagation();
+    }
+    event.preventDefault();
+    var dataTransfer = event.dataTransfer;
+    if (dataTransfer.items && dataTransfer.items[0] &&
+        dataTransfer.items[0].webkitGetAsEntry) {
+      this.webkitReadDataTransfer(event);
+    } else {
+      await this.asyncAddFiles(dataTransfer.files, event);
+    }
+  }
+
+  /**
    * Prevent default
    * @function
    * @param {MouseEvent} event
@@ -341,12 +360,25 @@ export default class Flow extends Eventizer {
         input.setAttribute(key, value);
       });
       // When new files are added, simply append them to the overall list
-      input.addEventListener('change', (e) => {
-        if (e.target.value) {
-          this.addFiles(e.target.files, e);
-          e.target.value = '';
-        }
-      }, false);
+      // but adapt to the case where initFileFn is async.
+      var callback = this.opts.initFileFn
+          && typeof this.opts.initFileFn === 'function'
+          && this.opts.initFileFn.constructor.name  === 'AsyncFunction'
+          ? async e => {
+            if (e.target.value) {
+              input.setAttribute('readonly', 'readonly');
+              await this.asyncAddFiles(e.target.files, e);
+              e.target.value = '';
+              input.removeAttribute('readonly');
+            }
+          }
+          : e => {
+            if (e.target.value) {
+              this.addFiles(e.target.files, e);
+              e.target.value = '';
+            }
+          };
+      input.addEventListener('change', callback, false);
     }, this);
   }
 
@@ -360,7 +392,11 @@ export default class Flow extends Eventizer {
       domNodes = [domNodes];
     }
 
-    this._onDropBound = this.onDrop.bind(this);
+    this._onDropBound = this.opts.initFileFn
+          && typeof this.opts.initFileFn === 'function'
+          && this.opts.initFileFn.constructor.name  === 'AsyncFunction'
+          ? this.asyncOnDrop.bind(this)
+          : this.onDrop.bind(this);
     for (let domNode of domNodes) {
       domNode.addEventListener('dragover', this.preventEvent, false);
       domNode.addEventListener('dragenter', this.preventEvent, false);
