@@ -37,38 +37,51 @@ function uploadProgress(file) {
 /**
  * Validate whether a generated file is successfully reconstructed from Flow XHR.
  *
- * @param done      The Jasmine async test callback.
- * @param content   File original content.
- * @param orig_hash (Optional) File original hash. if not provided, it will be computed from content.
+ * @param args      Contains `flow` and either `content_length` or `request_number`
  */
-async function validatePayload(done, content, args) {
+function validateStatus(args, file) {
   let {
-    orig_hash = null,
     requests: _requests = (typeof xhr_server !== 'undefined' ? xhr_server.requests : null),
     flow: _flow = (typeof flow !== 'undefined' ? flow : null)
   } = args;
 
-  if (!_flow || !_requests) {
-    console.warn("Called validatePayload with no array requests");
-    done();
+  if (!_flow && !args.request_number) {
+    console.warn("Called validateStatus with no flow instance");
+  }
+  var predicted_request_number = args.request_number || Math.ceil(args.content_length / _flow.opts.chunkSize);
+  expect(_requests.length).toBe(predicted_request_number);
+  if (file) {
+    expect(file.progress()).toBe(1);
+    expect(file.isUploading()).toBe(false);
+    expect(file.isComplete()).toBe(true);
+  }
+}
+
+/**
+ * Validate whether a generated file is successfully reconstructed from Flow XHR.
+ *
+ * @param done      The Jasmine async test callback.
+ * @param content   File original content.
+ * @param orig_hash (Optional) File original hash. if not provided, it will be computed from content.
+ */
+async function validatePayload(content, args) {
+  let {
+    orig_hash = null,
+    requests: _requests = (typeof xhr_server !== 'undefined' ? xhr_server.requests : null),
+    filter = x => true
+  } = args;
+
+  if (!_requests) {
+    console.warn("Called validatePayload with no requests array");
+    return;
   }
 
-  var predicted_request_number = Math.ceil(content.length / _flow.opts.chunkSize);
-  expect(_requests.length).toBe(predicted_request_number);
-  var file = _flow.files[0];
-  expect(file.progress()).toBe(1);
-  expect(file.isUploading()).toBe(false);
-  expect(file.isComplete()).toBe(true);
-
   // An array of promises of obtaining the corresponding request's body (= payload)
-  var payload_contents = _requests.map(x => x.requestBody.get('file').text());
+  var payload_contents = _requests.map(x => [200, 201].includes(x.status) && filter(x) ? x.requestBody.get('file').text() : '');
   orig_hash = orig_hash || hex(await hash(content));
-  Promise.all(payload_contents)
-    .then(values => hash(values.join('')))
-    .then(hash => hex(hash))
-    .then(hexhash => {
-      // console.log(orig_hash, hexhash);
-      expect(hexhash).toBe(orig_hash);
-      done();
-    });
+  console.info(`Test File sha256: ${orig_hash}.`);
+  let values = await Promise.all(payload_contents);
+  let hexhash = hex(await hash(values.join('')));
+  // console.log(orig_hash, hexhash);
+  expect(hexhash).toBe(orig_hash);
 }

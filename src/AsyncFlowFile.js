@@ -33,4 +33,18 @@ export default class AsyncFlowFile extends FlowFile {
     // console.log("Flowfile returns [async]", this._bootstrapped);
     return this;
   }
+
+  /**
+   * Indicates if string is being read at the moment
+   * @function
+   * @returns {boolean}
+   */
+  isReading() {
+    for (let chunk of this.chunks) {
+      if (chunk.status() === 'reading') {
+        return true;
+      }
+    }
+    return false;
+  }
 }

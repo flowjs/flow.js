@@ -5892,31 +5892,41 @@
       key: "readStreamChunk",
       value: function () {
         var _readStreamChunk = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee3() {
-          var data, asyncRead, lastReadBytes;
+          var data, asyncRead;
           return regeneratorRuntime.wrap(function _callee3$(_context3) {
             while (1) {
               switch (_context3.prev = _context3.next) {
                 case 0:
                   if (!this.readStreamState.resolved) {
-                    _context3.next = 3;
+                    _context3.next = 6;
                     break;
                   }
 
-                  // This is normally impossible to reach. Has it been uploaded?
-                  console.warn("Chunk ".concat(this.offset, " already read. xhr initialized = ").concat(this.xhr ? 1 : 0)); // We may want to retry (or not) to upload (but never try to read from the stream again or risk misordered chunks
+                  if (!(this.payload && this.pendingRetry)) {
+                    _context3.next = 4;
+                    break;
+                  }
 
-                  return _context3.abrupt("return");
+                  console.info("Retrying chunk ".concat(this.offset, " upload"));
+                  return _context3.abrupt("return", this.uploadStreamChunk(this.payload));
 
-                case 3:
-                  _context3.next = 5;
+                case 4:
+                  console.warn("Chunk ".concat(this.offset, " already read. xhr initialized = ").concat(this.xhr ? 1 : 0, ". payload size = ").concat(this.payload ? this.payload.size : null, ". readState = ").concat(this.readState, ". retry = ").concat(this.pendingRetry)); // ... but never try to read that same chunk from the (non-rewindable) stream again or we'd risk
+                  // not only misordered chunks but a corrupted file.
+
+                  return _context3.abrupt("return", null);
+
+                case 6:
+                  this.readState = 1;
+                  _context3.next = 9;
                   return this.readStreamGuard();
 
-                case 5:
+                case 9:
                   asyncRead = this.flowObj.opts.asyncReadFileFn;
-                  _context3.next = 8;
+                  _context3.next = 12;
                   return asyncRead(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
 
-                case 8:
+                case 12:
                   data = _context3.sent;
                   this.readStreamState.resolve(); // Equivalent to readFinished()
 
@@ -5926,52 +5936,9 @@
                     this.readBytes = data.size || data.size === 0 ? data.size : -1;
                   }
 
-                  if (!(data && data.size > 0)) {
-                    _context3.next = 17;
-                    break;
-                  }
-
-                  if (this.flowObj.chunkSize) {
-                    // This may imply a miscalculation of the total chunk numbers.
-                    console.warn("Chunk ".concat(this.offset, ": returned too much data. Got ").concat(data.size, ". Expected not more than ").concat(this.flowObj.chunkSize, "."));
-                  }
-
-                  this.payload = data;
-                  this.xhrSend(data);
-                  return _context3.abrupt("return");
+                  return _context3.abrupt("return", this.uploadStreamChunk(data));
 
                 case 17:
-                  if (!(this.offset > 0)) {
-                    _context3.next = 25;
-                    break;
-                  }
-
-                  // last size of the buffer read for the previous chunk
-                  lastReadBytes = this.fileObj.chunks[this.offset - 1].readBytes;
-
-                  if (!(lastReadBytes < parseInt(this.chunkSize))) {
-                    _context3.next = 25;
-                    break;
-                  }
-
-                  console.warn("Chunk ".concat(this.offset, " seems superfluous. No byte read() meanwhile previous chunk was only ").concat(lastReadBytes, " bytes instead of ").concat(this.chunkSize)); // The last chunk's buffer wasn't even full. That means the number of chunk may
-                  // have been miscomputed and this chunk is superfluous.
-                  // We make a fake request so that overall status is "complete" and we can move on
-                  // on this FlowFile.
-
-                  this.pendingRetry = false;
-                  this.xhr = {
-                    readyState: 5,
-                    status: 1
-                  };
-                  this.doneHandler(null);
-                  return _context3.abrupt("return");
-
-                case 25:
-                  console.warn("Chunk ".concat(this.offset, ": no byte to read()"));
-                  this.pendingRetry = false;
-
-                case 27:
                 case "end":
                   return _context3.stop();
               }
@@ -5985,6 +5952,77 @@
 
         return readStreamChunk;
       }()
+    }, {
+      key: "uploadStreamChunk",
+      value: function () {
+        var _uploadStreamChunk = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee4(data) {
+          var lastReadBytes;
+          return regeneratorRuntime.wrap(function _callee4$(_context4) {
+            while (1) {
+              switch (_context4.prev = _context4.next) {
+                case 0:
+                  if (!(data && data.size > 0)) {
+                    _context4.next = 5;
+                    break;
+                  }
+
+                  if (this.fileObj.chunkSize && data.size > this.fileObj.chunkSize) {
+                    // This may imply a miscalculation of the total chunk numbers.
+                    console.warn("Chunk ".concat(this.offset, ": returned too much data. Got ").concat(data.size, ". Expected not more than ").concat(this.flowObj.chunkSize, "."));
+                  }
+
+                  this.payload = data;
+                  this.xhrSend(data);
+                  return _context4.abrupt("return");
+
+                case 5:
+                  if (!(this.offset > 0)) {
+                    _context4.next = 13;
+                    break;
+                  }
+
+                  // last size of the buffer read for the previous chunk
+                  lastReadBytes = this.fileObj.chunks[this.offset - 1].readBytes;
+
+                  if (!(lastReadBytes < parseInt(this.chunkSize))) {
+                    _context4.next = 13;
+                    break;
+                  }
+
+                  console.warn("Chunk ".concat(this.offset, " seems superfluous. No byte read() meanwhile previous chunk was only ").concat(lastReadBytes, " bytes instead of ").concat(this.chunkSize)); // The last chunk's buffer wasn't even full. That means the number of chunk may
+                  // have been miscomputed and this chunk is superfluous.
+                  // We make a fake request so that overall status is "complete" and we can move on
+                  // on this FlowFile.
+
+                  this.pendingRetry = false;
+                  this.xhr = {
+                    readyState: 4,
+                    status: 200,
+                    abort: function abort(e) {
+                      return null;
+                    }
+                  };
+                  this.doneHandler(null);
+                  return _context4.abrupt("return");
+
+                case 13:
+                  console.warn("Chunk ".concat(this.offset, ": no byte to read()"));
+                  this.pendingRetry = false;
+
+                case 15:
+                case "end":
+                  return _context4.stop();
+              }
+            }
+          }, _callee4, this);
+        }));
+
+        function uploadStreamChunk(_x) {
+          return _uploadStreamChunk.apply(this, arguments);
+        }
+
+        return uploadStreamChunk;
+      }()
       /**
        * Prepare data (preprocess/read) data then call xhrSend()
        * @function
@@ -5993,68 +6031,67 @@
     }, {
       key: "send",
       value: function () {
-        var _send = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee4() {
+        var _send = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee5() {
           var preprocess, read, asyncRead;
-          return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          return regeneratorRuntime.wrap(function _callee5$(_context5) {
             while (1) {
-              switch (_context4.prev = _context4.next) {
+              switch (_context5.prev = _context5.next) {
                 case 0:
                   preprocess = this.flowObj.opts.preprocess;
                   read = this.flowObj.opts.readFileFn;
                   asyncRead = this.flowObj.opts.asyncReadFileFn;
 
                   if (!(typeof preprocess === 'function')) {
-                    _context4.next = 11;
+                    _context5.next = 11;
                     break;
                   }
 
-                  _context4.t0 = this.preprocessState;
-                  _context4.next = _context4.t0 === 0 ? 7 : _context4.t0 === 1 ? 10 : 11;
+                  _context5.t0 = this.preprocessState;
+                  _context5.next = _context5.t0 === 0 ? 7 : _context5.t0 === 1 ? 10 : 11;
                   break;
 
                 case 7:
                   this.preprocessState = 1;
                   preprocess(this);
-                  return _context4.abrupt("return");
+                  return _context5.abrupt("return");
 
                 case 10:
-                  return _context4.abrupt("return");
+                  return _context5.abrupt("return");
 
                 case 11:
                   if (!asyncRead) {
-                    _context4.next = 16;
+                    _context5.next = 15;
                     break;
                   }
 
-                  this.readState = 1;
-                  _context4.next = 15;
+                  _context5.next = 14;
                   return this.readStreamChunk();
 
-                case 15:
-                  return _context4.abrupt("return");
+                case 14:
+                  return _context5.abrupt("return");
 
-                case 16:
-                  _context4.t1 = this.readState;
-                  _context4.next = _context4.t1 === 0 ? 19 : _context4.t1 === 1 ? 22 : 23;
+                case 15:
+                  _context5.t1 = this.readState;
+                  _context5.next = _context5.t1 === 0 ? 18 : _context5.t1 === 1 ? 21 : 22;
                   break;
 
-                case 19:
+                case 18:
                   this.readState = 1;
                   read(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
-                  return _context4.abrupt("return");
+                  return _context5.abrupt("return");
+
+                case 21:
+                  return _context5.abrupt("return");
 
                 case 22:
-                  return _context4.abrupt("return");
-
-                case 23:
                   this.xhrSend(this.payload);
 
-                case 24:
+                case 23:
                 case "end":
-                  return _context4.stop();
+                  return _context5.stop();
               }
             }
-          }, _callee4, this);
+          }, _callee5, this);
         }));
 
         function send() {
@@ -6102,13 +6139,11 @@
     }, {
       key: "abort",
       value: function abort() {
-        // Abort and reset
-        var xhr = this.xhr;
-        this.xhr = null;
-
-        if (xhr) {
-          xhr.abort();
+        if (this.xhr) {
+          this.xhr.abort();
         }
+
+        this.xhr = null;
       }
       /**
        * Retrieve current chunk upload status
@@ -6772,6 +6807,34 @@
 
         return bootstrap;
       }()
+      /**
+       * Indicates if string is being read at the moment
+       * @function
+       * @returns {boolean}
+       */
+
+    }, {
+      key: "isReading",
+      value: function isReading() {
+        var _iterator = _createForOfIteratorHelper(this.chunks),
+            _step;
+
+        try {
+          for (_iterator.s(); !(_step = _iterator.n()).done;) {
+            var chunk = _step.value;
+
+            if (chunk.status() === 'reading') {
+              return true;
+            }
+          }
+        } catch (err) {
+          _iterator.e(err);
+        } finally {
+          _iterator.f();
+        }
+
+        return false;
+      }
     }]);
 
     return AsyncFlowFile;
@@ -6919,6 +6982,55 @@
           this.addFiles(dataTransfer.files, event);
         }
       }
+      /**
+       * On drop event when file/stream initialization is asynchronous
+       * @function
+       * @param {MouseEvent} event
+       */
+
+    }, {
+      key: "asyncOnDrop",
+      value: function () {
+        var _asyncOnDrop = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee(event) {
+          var dataTransfer;
+          return regeneratorRuntime.wrap(function _callee$(_context) {
+            while (1) {
+              switch (_context.prev = _context.next) {
+                case 0:
+                  if (this.opts.onDropStopPropagation) {
+                    event.stopPropagation();
+                  }
+
+                  event.preventDefault();
+                  dataTransfer = event.dataTransfer;
+
+                  if (!(dataTransfer.items && dataTransfer.items[0] && dataTransfer.items[0].webkitGetAsEntry)) {
+                    _context.next = 7;
+                    break;
+                  }
+
+                  this.webkitReadDataTransfer(event);
+                  _context.next = 9;
+                  break;
+
+                case 7:
+                  _context.next = 9;
+                  return this.asyncAddFiles(dataTransfer.files, event);
+
+                case 9:
+                case "end":
+                  return _context.stop();
+              }
+            }
+          }, _callee, this);
+        }));
+
+        function asyncOnDrop(_x) {
+          return _asyncOnDrop.apply(this, arguments);
+        }
+
+        return asyncOnDrop;
+      }()
       /**
        * Prevent default
        * @function
@@ -7217,14 +7329,46 @@
           each(attributes, function (value, key) {
             input.setAttribute(key, value);
           }); // When new files are added, simply append them to the overall list
+          // but adapt to the case where initFileFn is async.
 
-          input.addEventListener('change', function (e) {
+          var callback = this.opts.initFileFn && typeof this.opts.initFileFn === 'function' && this.opts.initFileFn.constructor.name === 'AsyncFunction' ? /*#__PURE__*/function () {
+            var _ref = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee2(e) {
+              return regeneratorRuntime.wrap(function _callee2$(_context2) {
+                while (1) {
+                  switch (_context2.prev = _context2.next) {
+                    case 0:
+                      if (!e.target.value) {
+                        _context2.next = 6;
+                        break;
+                      }
+
+                      input.setAttribute('readonly', 'readonly');
+                      _context2.next = 4;
+                      return _this3.asyncAddFiles(e.target.files, e);
+
+                    case 4:
+                      e.target.value = '';
+                      input.removeAttribute('readonly');
+
+                    case 6:
+                    case "end":
+                      return _context2.stop();
+                  }
+                }
+              }, _callee2);
+            }));
+
+            return function (_x2) {
+              return _ref.apply(this, arguments);
+            };
+          }() : function (e) {
             if (e.target.value) {
               _this3.addFiles(e.target.files, e);
 
               e.target.value = '';
             }
-          }, false);
+          };
+          input.addEventListener('change', callback, false);
         }, this);
       }
       /**
@@ -7240,7 +7384,7 @@
           domNodes = [domNodes];
         }
 
-        this._onDropBound = this.onDrop.bind(this);
+        this._onDropBound = this.opts.initFileFn && typeof this.opts.initFileFn === 'function' && this.opts.initFileFn.constructor.name === 'AsyncFunction' ? this.asyncOnDrop.bind(this) : this.onDrop.bind(this);
 
         var _iterator7 = _createForOfIteratorHelper(domNodes),
             _step7;
@@ -7427,78 +7571,78 @@
       value: /*#__PURE__*/regeneratorRuntime.mark(function filterFileList(fileList, event) {
         var ie10plus, _iterator9, _step9, file, uniqueIdentifier;
 
-        return regeneratorRuntime.wrap(function filterFileList$(_context) {
+        return regeneratorRuntime.wrap(function filterFileList$(_context3) {
           while (1) {
-            switch (_context.prev = _context.next) {
+            switch (_context3.prev = _context3.next) {
               case 0:
                 // ie10+
                 ie10plus = window.navigator.msPointerEnabled;
                 _iterator9 = _createForOfIteratorHelper(fileList);
-                _context.prev = 2;
+                _context3.prev = 2;
 
                 _iterator9.s();
 
               case 4:
                 if ((_step9 = _iterator9.n()).done) {
-                  _context.next = 17;
+                  _context3.next = 17;
                   break;
                 }
 
                 file = _step9.value;
 
                 if (!(ie10plus && file.size === 0 || file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
-                  _context.next = 8;
+                  _context3.next = 8;
                   break;
                 }
 
-                return _context.abrupt("continue", 15);
+                return _context3.abrupt("continue", 15);
 
               case 8:
                 uniqueIdentifier = this.generateUniqueIdentifier(file);
 
                 if (!(!this.opts.allowDuplicateUploads && this.getFromUniqueIdentifier(uniqueIdentifier))) {
-                  _context.next = 11;
+                  _context3.next = 11;
                   break;
                 }
 
-                return _context.abrupt("continue", 15);
+                return _context3.abrupt("continue", 15);
 
               case 11:
                 if (this.hook('filter-file', file, event)) {
-                  _context.next = 13;
+                  _context3.next = 13;
                   break;
                 }
 
-                return _context.abrupt("continue", 15);
+                return _context3.abrupt("continue", 15);
 
               case 13:
-                _context.next = 15;
+                _context3.next = 15;
                 return [file, uniqueIdentifier];
 
               case 15:
-                _context.next = 4;
+                _context3.next = 4;
                 break;
 
               case 17:
-                _context.next = 22;
+                _context3.next = 22;
                 break;
 
               case 19:
-                _context.prev = 19;
-                _context.t0 = _context["catch"](2);
+                _context3.prev = 19;
+                _context3.t0 = _context3["catch"](2);
 
-                _iterator9.e(_context.t0);
+                _iterator9.e(_context3.t0);
 
               case 22:
-                _context.prev = 22;
+                _context3.prev = 22;
 
                 _iterator9.f();
 
-                return _context.finish(22);
+                return _context3.finish(22);
 
               case 25:
               case "end":
-                return _context.stop();
+                return _context3.stop();
             }
           }
         }, filterFileList, this, [[2, 19, 22, 25]]);
@@ -7599,35 +7743,35 @@
     }, {
       key: "asyncAddFile",
       value: function () {
-        var _asyncAddFile = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee(file) {
+        var _asyncAddFile = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee3(file) {
           var _len2,
               args,
               _key2,
-              _args2 = arguments;
+              _args4 = arguments;
 
-          return regeneratorRuntime.wrap(function _callee$(_context2) {
+          return regeneratorRuntime.wrap(function _callee3$(_context4) {
             while (1) {
-              switch (_context2.prev = _context2.next) {
+              switch (_context4.prev = _context4.next) {
                 case 0:
-                  for (_len2 = _args2.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-                    args[_key2 - 1] = _args2[_key2];
+                  for (_len2 = _args4.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+                    args[_key2 - 1] = _args4[_key2];
                   }
 
-                  _context2.next = 3;
+                  _context4.next = 3;
                   return this.asyncAddFiles.apply(this, [[file]].concat(args));
 
                 case 3:
-                  return _context2.abrupt("return", _context2.sent[0]);
+                  return _context4.abrupt("return", _context4.sent[0]);
 
                 case 4:
                 case "end":
-                  return _context2.stop();
+                  return _context4.stop();
               }
             }
-          }, _callee, this);
+          }, _callee3, this);
         }));
 
-        function asyncAddFile(_x) {
+        function asyncAddFile(_x3) {
           return _asyncAddFile.apply(this, arguments);
         }
 
@@ -7645,7 +7789,7 @@
     }, {
       key: "asyncAddFiles",
       value: function () {
-        var _asyncAddFiles = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee2(fileList) {
+        var _asyncAddFiles = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee4(fileList) {
           var event,
               initFileFn,
               item,
@@ -7663,90 +7807,90 @@
               _iterator12,
               _step12,
               _file3,
-              _args3 = arguments;
+              _args5 = arguments;
 
-          return regeneratorRuntime.wrap(function _callee2$(_context3) {
+          return regeneratorRuntime.wrap(function _callee4$(_context5) {
             while (1) {
-              switch (_context3.prev = _context3.next) {
+              switch (_context5.prev = _context5.next) {
                 case 0:
-                  event = _args3.length > 1 && _args3[1] !== undefined ? _args3[1] : null;
-                  initFileFn = _args3.length > 2 && _args3[2] !== undefined ? _args3[2] : this.opts.initFileFn;
+                  event = _args5.length > 1 && _args5[1] !== undefined ? _args5[1] : null;
+                  initFileFn = _args5.length > 2 && _args5[2] !== undefined ? _args5[2] : this.opts.initFileFn;
                   states = [];
                   iterator = this.filterFileList(fileList, event);
 
                 case 4:
                   if (!((item = iterator.next()) && !item.done)) {
-                    _context3.next = 16;
+                    _context5.next = 16;
                     break;
                   }
 
                   _item$value2 = _slicedToArray(item.value, 2);
                   file = _item$value2[0];
                   uniqueIdentifier = _item$value2[1];
-                  _context3.next = 10;
+                  _context5.next = 10;
                   return this.aHook('filter-file', file, event);
 
                 case 10:
-                  if (_context3.sent) {
-                    _context3.next = 12;
+                  if (_context5.sent) {
+                    _context5.next = 12;
                     break;
                   }
 
-                  return _context3.abrupt("continue", 4);
+                  return _context5.abrupt("continue", 4);
 
                 case 12:
                   // ToDo: parallelizable ?
                   flowFile = new AsyncFlowFile(this, file, uniqueIdentifier), state = flowFile.bootstrap(event, initFileFn);
                   states.push(state);
-                  _context3.next = 4;
+                  _context5.next = 4;
                   break;
 
                 case 16:
-                  _context3.next = 18;
+                  _context5.next = 18;
                   return Promise.all(states);
 
                 case 18:
-                  flowfiles = _context3.sent;
+                  flowfiles = _context5.sent;
                   _iterator11 = _createForOfIteratorHelper(flowfiles);
-                  _context3.prev = 20;
+                  _context5.prev = 20;
 
                   _iterator11.s();
 
                 case 22:
                   if ((_step11 = _iterator11.n()).done) {
-                    _context3.next = 29;
+                    _context5.next = 29;
                     break;
                   }
 
                   ff = _step11.value;
                   this.hook('file-added', ff, event);
-                  _context3.next = 27;
+                  _context5.next = 27;
                   return this.aHook('file-added', ff, event);
 
                 case 27:
-                  _context3.next = 22;
+                  _context5.next = 22;
                   break;
 
                 case 29:
-                  _context3.next = 34;
+                  _context5.next = 34;
                   break;
 
                 case 31:
-                  _context3.prev = 31;
-                  _context3.t0 = _context3["catch"](20);
+                  _context5.prev = 31;
+                  _context5.t0 = _context5["catch"](20);
 
-                  _iterator11.e(_context3.t0);
+                  _iterator11.e(_context5.t0);
 
                 case 34:
-                  _context3.prev = 34;
+                  _context5.prev = 34;
 
                   _iterator11.f();
 
-                  return _context3.finish(34);
+                  return _context5.finish(34);
 
                 case 37:
                   this.hook('files-added', flowfiles, event);
-                  _context3.next = 40;
+                  _context5.next = 40;
                   return this.aHook('files-added', flowfiles, event);
 
                 case 40:
@@ -7772,21 +7916,21 @@
                   }
 
                   this.hook('files-submitted', this.files, event);
-                  _context3.next = 46;
+                  _context5.next = 46;
                   return this.aHook('files-submitted', this.files, event);
 
                 case 46:
-                  return _context3.abrupt("return", flowfiles);
+                  return _context5.abrupt("return", flowfiles);
 
                 case 47:
                 case "end":
-                  return _context3.stop();
+                  return _context5.stop();
               }
             }
-          }, _callee2, this, [[20, 31, 34, 37]]);
+          }, _callee4, this, [[20, 31, 34, 37]]);
         }));
 
-        function asyncAddFiles(_x2) {
+        function asyncAddFiles(_x4) {
           return _asyncAddFiles.apply(this, arguments);
         }
 
