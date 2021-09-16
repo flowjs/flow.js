@@ -341,7 +341,7 @@ export default class Flow extends Eventizer {
         input.setAttribute(key, value);
       });
       // When new files are added, simply append them to the overall list
-      input.addEventListener('change', (e) => {
+      input.addEventListener('change', async e => {
         if (e.target.value) {
           await this.addFiles(e.target.files, e);
           e.target.value = '';
