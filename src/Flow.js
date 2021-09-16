@@ -231,7 +231,7 @@ export default class Flow extends Eventizer {
    * @returns {boolean}
    * @private
    */
-  uploadNextChunk(preventEvents) {
+  async uploadNextChunk(preventEvents) {
     // In some cases (such as videos) it's really handy to upload the first
     // and last chunk of a file quickly; this let's the server check the file's
     // metadata and determine if there's even a point in continuing.
@@ -240,13 +240,13 @@ export default class Flow extends Eventizer {
       for (let file of this.files) {
         if (!file.paused && file.chunks.length &&
             file.chunks[0].status() === 'pending') {
-          file.chunks[0].send();
+          await file.chunks[0].send();
           found = true;
           break;
         }
         if (!file.paused && file.chunks.length > 1 &&
             file.chunks[file.chunks.length - 1].status() === 'pending') {
-          file.chunks[file.chunks.length - 1].send();
+          await file.chunks[file.chunks.length - 1].send();
           found = true;
           break;
         }
@@ -264,7 +264,7 @@ export default class Flow extends Eventizer {
       }
       for (let chunk of file.chunks) {
         if (chunk.status() === 'pending') {
-          chunk.send();
+          await chunk.send();
           found = true;
           break outer_loop;
         }
@@ -430,7 +430,7 @@ export default class Flow extends Eventizer {
    * Start or resume uploading.
    * @function
    */
-  upload() {
+  async upload() {
     // Make sure we don't start too many uploads at once
     var ret = this._shouldUploadNext();
     if (ret === false) {
@@ -440,7 +440,7 @@ export default class Flow extends Eventizer {
     this.emit('upload-start');
     var started = false;
     for (var num = 1; num <= this.opts.simultaneousUploads - ret; num++) {
-      started = this.uploadNextChunk(true) || started;
+      started = await this.uploadNextChunk(true) || started;
     }
     if (!started) {
       this.emit('complete');
