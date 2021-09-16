@@ -215,10 +215,10 @@ export default class Flow extends Eventizer {
    * @param {FlowFile} file
    * @returns {string}
    */
-  generateUniqueIdentifier(file) {
+  async generateUniqueIdentifier(file) {
     var custom = this.opts.generateUniqueIdentifier;
     if (typeof custom === 'function') {
-      return custom(file);
+      return await custom(file);
     }
     // Some confusion in different versions of Firefox
     var relativePath = file.relativePath || file.webkitRelativePath || file.fileName || file.name;
@@ -528,7 +528,7 @@ export default class Flow extends Eventizer {
         continue;
       }
 
-      var uniqueIdentifier = this.generateUniqueIdentifier(file);
+      var uniqueIdentifier = await this.generateUniqueIdentifier(file);
       if (!this.opts.allowDuplicateUploads && this.getFromUniqueIdentifier(uniqueIdentifier)) {
         // console.log(`file ${file.name} non-unique. skipping`);
         continue;
