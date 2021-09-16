@@ -315,6 +315,8 @@ export default class extends EventTarget {
 
       if (isFilter) {
         returns = returns.includes(true);
+      } else if (name === 'file-added' && returns.includes(false)) {
+        console.warn('In Flow.js 3.x, file-added event is an action rather than a filter. Return value is ignored but removing the `file` property allows to skip an enqueued file.');
       }
     } else {
       returns = isFilter ? true : args[0];
