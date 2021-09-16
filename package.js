@@ -18,7 +18,5 @@ Package.describe({
 Package.onUse(function(api) {
   api.versionsFrom(['METEOR@0.9.0', 'METEOR@1.0']); // Meteor versions
 
-  
   api.addFiles('./dist/flow.js', where); // Files in use
-
 });

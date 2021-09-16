@@ -1,12 +1,12 @@
 {
-    "inputSourceMap": true,
-    "presets": [
-	[
-	    "@babel/preset-env",
-	    {
-		"useBuiltIns": "usage",
-		"corejs": 3,
-	    }
-	]
+  "inputSourceMap": true,
+  "presets": [
+    [
+      "@babel/preset-env",
+      {
+        "useBuiltIns": "usage",
+        "corejs": 3,
+      }
     ]
+  ]
 }
