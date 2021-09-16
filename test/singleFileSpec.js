@@ -23,7 +23,7 @@ describe('add single file', function() {
     expect(flow.files.length).toBe(1);
     expect(file.isUploading()).toBeFalsy();
   });
-  
+
   it('should emit remove event after adding another file', function(){
     var events = [];
     flow.on('catch-all', ({detail: [event_name]}) => {
@@ -35,7 +35,7 @@ describe('add single file', function() {
 
     var removedFile = flow.files[0];
     flow.on('file-removed', ({detail: [file]}) => {
-        expect(file).toBe(removedFile); 
+        expect(file).toBe(removedFile);
     });
     flow.addFile(new Blob(['file part 2']));
     expect(flow.files.length).toBe(1);
