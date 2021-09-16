@@ -321,7 +321,7 @@ export default class Flow extends Eventizer {
    *  eg: accept: 'image/*'
    * be selected (Chrome only).
    */
-  assignBrowse(domNodes, isDirectory, singleFile, attributes) {
+  async assignBrowse(domNodes, isDirectory, singleFile, attributes) {
     if (domNodes instanceof Element) {
       domNodes = [domNodes];
     }
@@ -533,8 +533,7 @@ export default class Flow extends Eventizer {
   }
 
   /**
-   * A generator to yield files and factor the sync part of the filtering logic used by both
-   * addFiles & asyncAddFiles
+   * A generator to yield files and factor the sync part of the filtering logic used in addFiles
    */
   *filterFileList(fileList, event) {
     // ie10+
@@ -566,65 +565,12 @@ export default class Flow extends Eventizer {
    * Add a HTML5 File object to the list of files.
    * @function
    * @param {File} file
-   * @param Any other parameters supported by addFiles
-   */
-  addFile(file, ...args) {
-    this.addFiles([file], ...args);
-  }
-
-  /**
-   * Add a HTML5 File object to the list of files.
-   * @function
-   * @param {FileList|Array} fileList
-   * @param {Event} [event] event is optional
-   */
-  addFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
-    if (this.hasHook(true)) {
-      console.warn('Using addFiles() while settings asynchronous events can lead to unpredictable results. Use asyncAddFiles() instead.');
-    }
-
-    let item, file, flowfile, uniqueIdentifier, files = [];
-    const iterator = this.filterFileList(fileList, event);
-    while ((item = iterator.next()) && !item.done) {
-      [file, uniqueIdentifier] = item.value;
-
-      var f = new FlowFile(this, file, uniqueIdentifier);
-      f.bootstrap(event, initFileFn);
-      this.hook('file-added', f, event);
-      this.aHook('file-added', f, event);
-      if (! f.file) {
-        continue;
-      }
-      files.push(f);
-    }
-
-    this.hook('files-added', files, event);
-    this.aHook('files-added', files, event);
-
-    files = files.filter(e => e);
-    for (file of files) {
-      if (this.opts.singleFile && this.files.length > 0) {
-        this.removeFile(this.files[0]);
-      }
-      this.files.push(file);
-      // console.log(`enqueue file ${file.name} of ${file.chunks.length} chunks`);
-    }
-
-    this.hook('files-submitted', this.files, event);
-    this.aHook('files-submitted', this.files, event);
-  }
-
-
-  /**
-   * Add a HTML5 File object to the list of files.
-   * @function
-   * @param {File} file
-   * @param Any other parameters supported by asyncAddFiles.
+   * @param Any other parameters supported by addFiles.
    *
    * @return (async) An initialized <AsyncFlowFile>.
    */
-  async asyncAddFile(file, ...args) {
-    return (await this.asyncAddFiles([file], ...args))[0];
+  async addFile(file, ...args) {
+    return (await this.addFiles([file], ...args))[0];
   }
 
   /**
@@ -635,13 +581,13 @@ export default class Flow extends Eventizer {
    *
    * @return Promise{[<AsyncFlowFile>,...]} The promise of getting an array of AsyncFlowFile.
    */
-  async asyncAddFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
+  async addFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
     let item, file, flowfile, uniqueIdentifier, states = [];
     const iterator = this.filterFileList(fileList, event);
 
     while ((item = iterator.next()) && !item.done) {
       [file, uniqueIdentifier] = item.value;
-      if (! await this.aHook('filter-file', file, event)) {
+      if (! await this.hook('filter-file', file, event)) {
         // console.log(`file ${file.name} filtered-out. skipping`);
         continue;
       }
@@ -654,13 +600,11 @@ export default class Flow extends Eventizer {
 
     var flowfiles = await Promise.all(states);
     for (let ff of flowfiles) {
-      this.hook('file-added', ff, event);
-      await this.aHook('file-added', ff, event);
+      await this.hook('file-added', ff, event);
     }
 
-    this.hook('files-added', flowfiles, event);
-    await this.aHook('files-added', flowfiles, event);
-
+    await this.hook('files-added', flowfiles, event);
+    
     flowfiles = flowfiles.filter(e => e && e.file);
     for (let file of flowfiles) {
       if (this.opts.singleFile && this.files.length > 0) {
@@ -668,9 +612,7 @@ export default class Flow extends Eventizer {
       }
       this.files.push(file);
     }
-
-    this.hook('files-submitted', this.files, event);
-    await this.aHook('files-submitted', this.files, event);
+    await this.hook('files-submitted', this.files, event);
 
     return flowfiles;
   }

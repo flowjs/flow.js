@@ -5,7 +5,7 @@
 /**
  * Hooks exist to allow users to alter flow.js file processing. This is intended for users relying on a dropzone and other higher-level components
  * when the flow between `addFiles()` and `upload()` is hardly configurable.
- * Users calling `await flow.asyncAddFiles()` have more room for customization before calling `upload();` without having to rely upon hooks.
+ * Users calling `await flow.addFiles()` have more room for customization before calling `upload();` without having to rely upon hooks.
  *
  * Hooks can *alter* the parameters they receive (javascript pass-by-reference rules will apply).
  * For example, the `file-added` hook receives a `flowfile` parameter. `delete flowfile` or `flowfile = {}` have no effect
@@ -49,20 +49,18 @@ const EVENTS = [
  * This class:
  * - add EventListener support to an object.
  * - wrap EventListener attachment in order to ease their removal
- * - add the concept of processing hooks similar to native events (explained below) 
+ * - add the concept of processing hooks similar to native events (explained below)
  *
  * The file is organized in three parts:
  * 1. isHook, isFilter, isEvent, on, off
- *    wrap the above concept and offer an unified interface. Whether a callback
- *    apply to a hook or an event is determined by its name (and the "async" nature of
- *    the callback).
+ *    wrap the above concept and offer a unified interface. Whether a callback
+ *    apply to a hook or an event is determined by its name.
  *
  * 2. Events: addEventListener, removeEventListener and *emit()*
  *    apply to addition/removal/dispatching of *events*.
  *
  * 3. Hooks: addHook, hasHook, removeHook apply to addition/removal of *hooks*.
  *    - *hook()* trigger the hook execution.
- *    - *aHook()* is the async counterpart.
  */
 
 EventTarget.prototype._addEventListener = EventTarget.prototype.addEventListener;
@@ -77,8 +75,7 @@ export default class extends EventTarget {
    *
    * Each key is check against an hardcoded to list to defined whether:
    * - it's a "native" CustomEvent (dispatched asynchronously dirsregarding its value)
-   * - it's a known event (whether a "filter" or an "action", and in this case, whether
-   *   each callback is asynchronous or not.
+   * - it's a known event (whether a "filter" or an "action")
    * @type {}
    */
   constructor(hooks_events = {}) {
@@ -86,7 +83,6 @@ export default class extends EventTarget {
 
     this._events = {};
     this._hooks = {};
-    this._asyncHooks = {};
 
     /**
      * Hooks and events are distinguished based on the name.
@@ -252,8 +248,7 @@ export default class extends EventTarget {
    * ### HOOKS ###
    */
   addHook(event, callback, options) {
-    var isAsync = callback.constructor.name === 'AsyncFunction',
-        target = isAsync ? this._asyncHooks : this._hooks;
+    var target = this._hooks;
     if (!target.hasOwnProperty(event)) {
       target[event] = [];
     }
@@ -262,7 +257,7 @@ export default class extends EventTarget {
 
   hasHook(async, events) {
     events = typeof events === 'string' ? [events] : events || [];
-    var target = async ? this._asyncHooks : this._hooks;
+    var target = this._hooks;
     for (let [k, v] of Object.entries(target)) {
       if (events.length > 0 && ! events.includes(k)) {
         continue;
@@ -288,53 +283,16 @@ export default class extends EventTarget {
 
     if (event && event != '*') {
       if (callback) {
-        var isAsync = callback.constructor.name === 'AsyncFunction',
-            target = isAsync ? this._asyncHooks : this._hooks;
+        var target = this._hooks;
         if (target.hasOwnProperty(event)) {
           arrayRemove(target[event], callback);
         }
       } else {
         delete this._hooks[event];
-        delete this._asyncHooks[event];
       }
     } else {
       this._hooks = {};
-      this._asyncHooks = {};
     }
-  }
-
-  /**
-   * Run a synchronous hook (action or filter).
-   *
-   * @param {string} event event name
-   * @param {...} args arguments of a callback
-   *
-   * @return {bool} In the case of *filters*, indicates whether processing must continue.
-   * @return null   In the case of *actions*.
-   */
-  hook(name, ...args) {
-    let value,
-        preventDefault = false,
-        isFilter = this.isFilter(name),
-        callbacks = this._hooks[name] || [];
-
-    for (let callback of callbacks) {
-      // console.log(`[event] Fire hook "${name}"${args.length ? ' with ' + args.length + ' arguments' : ''}`);
-      value = callback.apply(this, args);
-      if (name === 'file-added' && value === false) {
-        console.warn('In Flow.js 3.x, file-added event is an action rather than a fitler. return value is ignored but removing the `file` property allows to skip an enqueued file.');
-      }
-
-      if (isFilter) {
-        // console.log(`[filter-event] ${event} returned:`, item.value);
-        preventDefault |= (value === false);
-      } else {
-        // Changes happen by reference. We ignore iterator.next().value.
-      }
-    }
-
-    this.emitCatchAll(name, ...args);
-    return isFilter ? !preventDefault : null;
   }
 
   /**
@@ -346,8 +304,8 @@ export default class extends EventTarget {
    * @return {bool} In the case of *filters*, indicates whether processing must continue.
    * @return {mixed} In the case of *actions*: The first argument (possibly modified by hooks).
    */
-  async aHook(name, ...args) {
-    let calls = this._asyncHooks[name] || [],
+  async hook(name, ...args) {
+    let calls = this._hooks[name] || [],
         isFilter = this.isFilter(name);
 
     if (! calls.length) {
