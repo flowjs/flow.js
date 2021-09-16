@@ -12,7 +12,7 @@ export default class AsyncFlowFile extends FlowFile {
    */
   async retry() {
     await this.bootstrap('retry');
-    return this.flowObj.upload();
+    return await this.flowObj.upload();
   }
 
   async bootstrap(event = null, initFileFn = this.flowObj.opts.initFileFn) {
