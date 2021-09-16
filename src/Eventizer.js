@@ -306,16 +306,22 @@ export default class extends EventTarget {
    */
   async hook(name, ...args) {
     let calls = this._hooks[name] || [],
-        isFilter = this.isFilter(name);
+        isFilter = this.isFilter(name),
+        returns;
 
-    if (! calls.length) {
-      return isFilter ? true : args[0];
+    if (calls.length) {
+      // console.log(`[event] Fire ${calls.length} async hook for "${name}"${args.length ? ' with ' + args.length + ' arguments' : ''}`);
+      returns = await Promise.all(calls.map(e => e.apply(this, args)));
+
+      if (isFilter) {
+        returns = returns.includes(true);
+      }
+    } else {
+      returns = isFilter ? true : args[0];
     }
 
-    // console.log(`[event] Fire ${calls.length} async hook for "${name}"${args.length ? ' with ' + args.length + ' arguments' : ''}`);
-    var returns = await Promise.all(calls.map(e => e.apply(this, args)));
-
     this.emitCatchAll(name, ...args);
-    return isFilter ? returns.includes(false) : returns;
+
+    return returns;
   }
 }
