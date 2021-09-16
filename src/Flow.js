@@ -592,6 +592,7 @@ export default class Flow extends Eventizer {
         this.files.splice(i, 1);
         file.abort();
         this.emit('file-removed', file);
+        break;
       }
     }
   }
