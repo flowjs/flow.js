@@ -215,11 +215,11 @@ export default class extends EventTarget {
     for (const [i, v] of this._events[event].entries()) {
       if ((!callback || v.listener == callback) && v.useCapture == options) {
         // console.log(`[event] Removed one callback from "${event}"`);
-	this._events[event].splice(i, 1);
+        this._events[event].splice(i, 1);
         if (! callback) {
           this._removeEventListener(event, v.listener, v);
         } else {
-	  break;
+          break;
         }
       }
     }
