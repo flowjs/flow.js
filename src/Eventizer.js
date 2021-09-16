@@ -316,6 +316,6 @@ export default class extends EventTarget {
     var returns = await Promise.all(calls.map(e => e.apply(this, args)));
 
     this.emitCatchAll(name, ...args);
-    return isFilter ? returns.include(false) : returns;
+    return isFilter ? returns.includes(false) : returns;
   }
 }
