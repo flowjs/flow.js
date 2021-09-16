@@ -41,5 +41,4 @@ describe('file-removed event', function() {
     expect(removedFile).toBe(addedFile);
     expect(valid).toBeTruthy();
   });
-
 });
