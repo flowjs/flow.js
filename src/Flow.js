@@ -497,35 +497,6 @@ export default class Flow extends Eventizer {
   }
 
   /**
-   * A generator to yield files and factor the sync part of the filtering logic used in addFiles
-   */
-  *filterFileList(fileList, event) {
-    // ie10+
-    var ie10plus = window.navigator.msPointerEnabled;
-
-    for (let file of fileList) {
-      // https://github.com/flowjs/flow.js/issues/55
-      if ((ie10plus && file.size === 0) || (file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
-        // console.log(`file ${file.name} empty. skipping`);
-        continue;
-      }
-
-      var uniqueIdentifier = this.generateUniqueIdentifier(file);
-      if (!this.opts.allowDuplicateUploads && this.getFromUniqueIdentifier(uniqueIdentifier)) {
-        // console.log(`file ${file.name} non-unique. skipping`);
-        continue;
-      }
-
-      if (! this.hook('filter-file', file, event)) {
-        // console.log(`file ${file.name} filtered-out. skipping`);
-        continue;
-      }
-
-      yield [file, uniqueIdentifier];
-    }
-  }
-
-  /**
    * Add a HTML5 File object to the list of files.
    * @function
    * @param {File} file
@@ -546,39 +517,59 @@ export default class Flow extends Eventizer {
    * @return Promise{[<AsyncFlowFile>,...]} The promise of getting an array of AsyncFlowFile.
    */
   async addFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
-    let item, file, flowfile, uniqueIdentifier, states = [];
-    const iterator = this.filterFileList(fileList, event);
+    let states = [];
 
-    while ((item = iterator.next()) && !item.done) {
-      [file, uniqueIdentifier] = item.value;
+    const ie10plus = window.navigator.msPointerEnabled;
+
+    for (let file of fileList) {
+      // https://github.com/flowjs/flow.js/issues/55
+      if ((ie10plus && file.size === 0) || (file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
+        // console.log(`file ${file.name} empty. skipping`);
+        continue;
+      }
+
+      var uniqueIdentifier = this.generateUniqueIdentifier(file);
+      if (!this.opts.allowDuplicateUploads && this.getFromUniqueIdentifier(uniqueIdentifier)) {
+        // console.log(`file ${file.name} non-unique. skipping`);
+        continue;
+      }
+
       if (! await this.hook('filter-file', file, event)) {
         // console.log(`file ${file.name} filtered-out. skipping`);
         continue;
       }
 
-      // ToDo: parallelizable ?
-      var flowFile = new AsyncFlowFile(this, file, uniqueIdentifier),
-          state = flowFile.bootstrap(event, initFileFn);
+      let flowFile = new AsyncFlowFile(this, file, uniqueIdentifier);
+
+      let state = flowFile.bootstrap(event, initFileFn);
       states.push(state);
     }
 
-    var flowfiles = await Promise.all(states);
-    for (let ff of flowfiles) {
+    let flowFiles = await Promise.all(states);
+    for (let ff of flowFiles) {
       await this.hook('file-added', ff, event);
     }
 
-    await this.hook('files-added', flowfiles, event);
+    // TODO: It's kinda ugly to have the same filter run once after both hooks,
+    // but it matches the old v2 and v3's synchronous behaviour where `files-added`
+    // received the list filtered by individual `file-added`s
+    flowFiles = flowFiles.filter(f => f && f.file);
 
-    flowfiles = flowfiles.filter(e => e && e.file);
-    for (let file of flowfiles) {
+    await this.hook('files-added', flowFiles, event);
+
+    // TODO: see above
+    flowFiles = flowFiles.filter(f => f && f.file);
+
+    for (let file of flowFiles) {
       if (this.opts.singleFile && this.files.length > 0) {
         this.removeFile(this.files[0]);
       }
       this.files.push(file);
     }
+
     await this.hook('files-submitted', this.files, event);
 
-    return flowfiles;
+    return flowFiles;
   }
 
   /**
