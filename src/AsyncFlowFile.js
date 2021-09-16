@@ -26,9 +26,6 @@ export default class AsyncFlowFile extends FlowFile {
     }
 
     this._bootstrap();
-    if (event !== 'retry') {
-      this.flowObj.hook('file-added', this, event);
-    }
 
     // console.log("Flowfile returns [async]", this._bootstrapped);
     return this;
