@@ -659,6 +659,8 @@ export default class Flow extends Eventizer {
       await this.aHook('file-added', ff, event);
     }
 
+    flowFiles = flowFiles.filter(f => f && f.file);
+
     this.hook('files-added', flowFiles, event);
     await this.aHook('files-added', flowFiles, event);
 
