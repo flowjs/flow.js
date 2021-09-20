@@ -7,49 +7,45 @@ import resolve from '@rollup/plugin-node-resolve';
 import strip from '@rollup/plugin-strip';
 import { terser } from "rollup-plugin-terser";
 
-let plugins = [
-    resolve(),
-    commonjs(),
-    replace({
-        "<%= version %>": `'${pkg.version}'`,
-        delimiters: ["'", "'"]
-    }),
-
-    babel({ babelHelpers: 'bundled' })
+const plugins = [
+  resolve(),
+  commonjs(),
+  replace({
+    "<%= version %>": `'${pkg.version}'`,
+    delimiters: ["'", "'"]
+  }),
+  babel({
+    babelHelpers: 'bundled'
+  })
 ];
 
-export default [
-    {
-        input: 'src/Flow.js',
-        plugins,
-        output: {
-            name: 'Flow',
-            file: pkg.browser,
-            sourcemap: true,
-            format: 'umd',
-	},
-    },
-    {
-        input: 'src/Flow.js',
-        plugins: plugins.concat([strip({functions:['console.(log|debug)','debug','alert']}), terser()]),
-        output: {
-            name: 'Flow',
-            banner: `/*! ${pkg.name} ${pkg.version} */\n`,
-            file: pkg.browser.replace(/js$/, 'min.js'),
-            sourcemap: true,
-            format: 'esm',
-	},
-    },
-    {
-        input: 'src/Flow.js',
-        plugins: plugins.concat([istanbul({exclude: ['node_modules/**/*.js']})]),
-        output: {
-            name: 'Flow',
-            banner: `/*! ${pkg.name} ${pkg.version} */\n`,
-            file: pkg.browser.replace(/js$/, 'cov.js'),
-            sourcemap: true,
-            format: 'umd',
-	},
-    }
-
-];
+export default [{
+  input: 'src/Flow.js',
+  plugins,
+  output: {
+    name: 'Flow',
+    file: pkg.browser,
+    sourcemap: true,
+    format: 'umd'
+  }
+}, {
+  input: 'src/Flow.js',
+  plugins: plugins.concat(strip({ functions: ['console.(log|debug)', 'debug', 'alert'] }), terser()),
+  output: {
+    name: 'Flow',
+    banner: `/*! ${pkg.name} ${pkg.version} */\n`,
+    file: pkg.browser.replace(/js$/, 'min.js'),
+    sourcemap: true,
+    format: 'esm'
+  }
+}, {
+  input: 'src/Flow.js',
+  plugins: plugins.concat(istanbul({ exclude: ['node_modules/**/*.js'] })),
+  output: {
+    name: 'Flow',
+    banner: `/*! ${pkg.name} ${pkg.version} */\n`,
+    file: pkg.browser.replace(/js$/, 'cov.js'),
+    sourcemap: true,
+    format: 'umd'
+  }
+}];
