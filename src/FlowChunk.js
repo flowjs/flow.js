@@ -466,7 +466,7 @@ export default class FlowChunk {
     } else {
       if (this.flowObj.opts.successStatuses.indexOf(this.xhr.status) > -1) {
         // HTTP 200, perfect
-	// HTTP 202 Accepted - The request has been accepted for processing, but the processing has not been completed.
+        // HTTP 202 Accepted - The request has been accepted for processing, but the processing has not been completed.
         return 'success';
       } else if (this.flowObj.opts.permanentErrors.indexOf(this.xhr.status) > -1 ||
                  !isTest && this.retries >= this.flowObj.opts.maxChunkRetries) {

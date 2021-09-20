@@ -134,5 +134,4 @@ describe('setup', function() {
       expect(flow.onDrop).toHaveBeenCalledTimes(1);
     });
   });
-
 });

@@ -26,7 +26,7 @@ describe('file-removed event', function() {
     expect(removedFile).toBe(addedFile);
     expect(valid).toBeTruthy();
   });
-  
+
   it('should call file-removed event FlowFile.cancel', function() {
     var valid = false;
     var removedFile = null;
@@ -40,6 +40,5 @@ describe('file-removed event', function() {
     addedFile.cancel();
     expect(removedFile).toBe(addedFile);
     expect(valid).toBeTruthy();
-  });  
-
+  });
 });
