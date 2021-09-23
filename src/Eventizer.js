@@ -322,7 +322,7 @@ export default class extends EventTarget {
       // console.log(`[event] Fire hook "${name}"${args.length ? ' with ' + args.length + ' arguments' : ''}`);
       value = callback.apply(this, args);
       if (name === 'file-added' && value === false) {
-        console.warn('In Flow.js 3.x, file-added event is an action rather than a fitler. return value is ignored but removing the `file` property allows to skip an enqueued file.');
+        console.warn('In Flow.js 3.x, file-added event is an action rather than a filter. Return value is ignored but removing the `file` property allows to skip an enqueued file.');
       }
 
       if (isFilter) {
@@ -347,17 +347,18 @@ export default class extends EventTarget {
    * @return {mixed} In the case of *actions*: The first argument (possibly modified by hooks).
    */
   async aHook(name, ...args) {
-    let calls = this._asyncHooks[name] || [],
-        isFilter = this.isFilter(name);
+    const calls = this._asyncHooks[name] || [],
+          isFilter = this.isFilter(name);
 
     if (! calls.length) {
       return isFilter ? true : args[0];
     }
 
     // console.log(`[event] Fire ${calls.length} async hook for "${name}"${args.length ? ' with ' + args.length + ' arguments' : ''}`);
-    var returns = await Promise.all(calls.map(e => e.apply(this, args)));
+    const returns = await Promise.all(calls.map(e => e.apply(this, args)));
 
     this.emitCatchAll(name, ...args);
-    return isFilter ? returns.include(false) : returns;
+
+    return isFilter ? !returns.includes(false) : returns;
   }
 }
