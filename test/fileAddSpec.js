@@ -87,6 +87,29 @@ describe('fileAdd event', function() {
     expect(valid).toBeTruthy();
   });
 
+  it('should validate multiple filter-file aHooks', async function() {
+    const customFunction = jasmine.createSpy('fn');
+    flow.on('filter-file', async () => {
+      customFunction();
+      return true;
+    });
+    flow.on('filter-file', async () => {
+      customFunction();
+      return false; // a single hook returning false should prevail
+    });
+    flow.on('filter-file', async () => {
+      customFunction();
+      return true;
+    });
+    let valid = false;
+    flow.on('files-added', (files) => {
+      valid = files.length === 0;
+    });
+    await flow.asyncAddFile(new Blob(['file part']));
+    expect(valid).toBeTruthy();
+    expect(customFunction).toHaveBeenCalledTimes(3);
+  });
+
   describe('async/sync hooks', function () {
     beforeAll(function() {
       jasmine.getEnv().addReporter({
