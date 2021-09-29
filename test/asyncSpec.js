@@ -313,7 +313,7 @@ describe('upload stream', function() {
     expect(files[1].chunks.length).toBe(3);
     flow.upload();
     expect(files[0].isReading()).toBeTruthy();
-    await sleep(1);
+    await waitFor(() => xhr_server.requests.length);
 
     /*
       [^^    ]
@@ -331,7 +331,8 @@ describe('upload stream', function() {
     */
     expect(xhr_server.requests[0].status).toBe(200);
     expect(xhr_server.requests[1].status).toBe(200);
-    await sleep(1);
+    await waitFor(() => xhr_server.requests.length == 4);
+
     /*
       [oo^^__]
       [   ]
@@ -344,19 +345,19 @@ describe('upload stream', function() {
     // corresponding `xhr`. They will get back to pending.
     // Flow should start uploading second file now
     files[0].pause();
-    await sleep(1);
+    await waitFor(() => xhr_server.requests.length == 6);
 
     /*
       [oo____]
       [^^ ]
     */
+    expect(xhr_server.requests.length).toBe(6);
     expect(xhr_server.requests[2].aborted).toBeTruthy();
     expect(xhr_server.requests[3].aborted).toBeTruthy();
     expect(xhr_server.requests[4].aborted).toBeUndefined();
     expect(files[0].isUploading()).toBeFalsy();
 
     flow.upload();
-    await sleep(1);
     expect(files[0].isUploading()).toBeFalsy();
     expect(files[1].isUploading()).toBeTruthy();
 

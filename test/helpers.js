@@ -21,6 +21,13 @@ function hex(buff) {
   return [].map.call(new Uint8Array(buff), b => ('00' + b.toString(16)).slice(-2)).join('');
 }
 
+async function waitFor(condition, milliseconds = 10, step = 1) {
+  while(!condition() && milliseconds) {
+    await sleep(step);
+    milliseconds--;
+  }
+}
+
 function sleep(milliseconds) {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
 }
