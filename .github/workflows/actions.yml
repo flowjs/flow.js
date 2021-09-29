@@ -1,0 +1,60 @@
+name: "CI"
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'feature/*'
+  workflow_dispatch:
+
+env:
+  SAUCE_USERNAME: ${{secrets.SAUCE_USERNAME}}
+  SAUCE_ACCESS_KEY: ${{secrets.SAUCE_ACCESS_KEY}}
+  CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
+  DISPLAY: ':99.0'
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.x
+
+      - name: Install xvfb
+        run: |
+          sudo apt-get install xvfb
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm install -g grunt-cli
+          node_modules/.bin/rollup -c
+
+      - name: Install saucectl
+        uses: saucelabs/saucectl-run-action@v1
+        with:
+          skip-run: true
+          testing-environment: ""
+          concurrency: 10
+
+      - run: grunt --version
+
+      - name: Run tests
+        run: grunt karma:saucelabs
+
+      - name: Run code coverage
+        uses: paambaati/codeclimate-action@v2.7.5
+        with:
+          coverageCommand: grunt karma:coverage
+          debug: true
+          prefix: .
+          coverageLocations: |
+            ${{github.workspace}}/coverage/lcov/result.lcov:lcov
+
+      - name: debug
+        run: ls -lhR coverage

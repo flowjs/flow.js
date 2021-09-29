@@ -108,9 +108,13 @@ module.exports = function(config) {
     // test results reporter to use
     // possible values: 'dots', 'progress', 'junit', 'growl', 'coverage'
     reporters: ['progress', 'coverage'],
-    coverageReporter: [
-      {type: "lcov", dir: "coverage", subdir: "."}
-    ],
+    coverageReporter: {
+        dir: "coverage",
+        reporters: [
+            {type: "lcov", subdir: "."},
+            {type: "lcovonly", subdir: "lcov", file: "result.lcov"}
+        ]
+    },
 
     // web server port
     port: 9876,
