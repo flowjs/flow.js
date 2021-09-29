@@ -4,7 +4,9 @@ on:
   pull_request:
   push:
     branches:
+      - 'v3'
       - 'feature/*'
+      - 'fix/*'
   workflow_dispatch:
 
 env:
@@ -42,10 +44,13 @@ jobs:
           testing-environment: ""
           concurrency: 10
 
-      - run: grunt --version
+      - run: |
+          grunt --version
+          sed -i '/log.info(`Check out job at/a\\ console.log(`::set-output name=urls-${sessionId}::${getSauceEndpoint(browserData.region)}${sessionId}`);' node_modules/karma-sauce-launcher/dist/reporter/reporter.js || true
 
       - name: Run tests
         run: grunt karma:saucelabs
+        id: test
 
       - name: Run code coverage
         uses: paambaati/codeclimate-action@v2.7.5
@@ -55,6 +60,16 @@ jobs:
           prefix: .
           coverageLocations: |
             ${{github.workspace}}/coverage/lcov/result.lcov:lcov
+        id: coverage
 
       - name: debug
-        run: ls -lhR coverage
+        run: ls -lhR coverage || true
+
+      - uses: LouisBrunner/checks-action@v1.1.1
+        if: always()
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: Testsuite passed
+          conclusion: ${{ job.status }}
+          output: |
+            {"summary":"${{join(steps.test.outputs.*, ', ')}}"}
