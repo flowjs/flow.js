@@ -51,6 +51,7 @@ jobs:
         run: |
           echo $SAUCE_USERNAME
           echo ${{ github.event.pull_request.base.sha }}  ${{ github.sha }} ${{ github.event.pull_request.head.sha }}
+          echo abcd
 
       - name: Get specific changed files
         id: source-changed
