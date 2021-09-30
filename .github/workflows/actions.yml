@@ -1,7 +1,7 @@
 name: "CI"
 
 on:
-  pull_request:
+  pull_request_target:
   push:
     branches:
       - 'v3'
@@ -15,13 +15,21 @@ env:
   CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
   DISPLAY: ':99.0'
 jobs:
+  approve:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Approve
+      run: echo For security reasons, all pull requests need to be approved first before running any automated CI.
+
   prepare:
     runs-on: ubuntu-latest
+    needs: [approve]
     environment: open-env
     steps:
       - name: Checkout
         uses: actions/checkout@v2
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 2
 
       - name: Is environment ok
