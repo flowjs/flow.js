@@ -368,19 +368,19 @@ describe('upload file', function() {
     }
   });
 
-  it('should not upload folder', function () {
+  it('should not upload folder', async function () {
     // http://stackoverflow.com/questions/8856628/detecting-folders-directories-in-javascript-filelist-objects
-    flow.addFile({
+    await flow.addFile({
       name: '.',
       size: 0
     });
     expect(flow.files.length).toBe(0);
-    flow.addFile({
+    await flow.addFile({
       name: '.',
       size: 4096
     });
     expect(flow.files.length).toBe(0);
-    flow.addFile({
+    await flow.addFile({
       name: '.',
       size: 4096 * 2
     });

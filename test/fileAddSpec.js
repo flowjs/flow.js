@@ -43,7 +43,7 @@ describe('fileAdd event', function() {
     expect(event).toHaveBeenCalledTimes(1);
 
     flow.off('file-added');
-    flow.addFile(new File(['file part'], 'b.bin'));
+    await flow.addFile(new File(['file part'], 'b.bin'));
     expect(event).toHaveBeenCalledTimes(1);
   });
 
@@ -54,25 +54,23 @@ describe('fileAdd event', function() {
     expect(event).toHaveBeenCalledTimes(1);
 
     flow.off('file-added', event);
-    flow.addFile(new File(['file part'], 'd.bin'));
+    await flow.addFile(new File(['file part'], 'd.bin'));
     expect(event).toHaveBeenCalledTimes(1);
   });
 
   it('should validate file-added', async function() {
-    spyOn(console, 'warn');
     flow.on('file-added', (file) => {
       delete file.file;
       return false;
     });
     await flow.addFile(new Blob(['file part']));
     expect(flow.files.length).toBe(0);
-    expect(console.warn).toHaveBeenCalledTimes(1);
   });
 
-  it('should keeps file from being queued', function() {
+  it('should keeps file from being queued', async function() {
     spyOn(console, 'warn');
     flow.on('filter-file', () => false);
-    flow.addFile(new Blob(['file part']));
+    await flow.addFile(new Blob(['file part']));
     expect(flow.files.length).toBe(0);
     expect(console.warn).not.toHaveBeenCalled();
   });
@@ -156,7 +154,7 @@ describe('fileAdd event', function() {
         new File(['GGG'], 'GGG.bin'),
       ]);
       expect(flowfiles[0].name).toBe('bbb.bin');
-      expectAsync(flowfiles[0].file.text()).toBeResolvedTo('xxx');
+      await expectAsync(flowfiles[0].file.text()).toBeResolvedTo('xxx');
     });
 
     it('A files-added hook can actually change files', async function() {

@@ -146,8 +146,10 @@ describe('upload stream', function() {
     flow.opts.initFileFn = streamer.init.bind(streamer);
     flow.opts.readFileFn = streamer.read.bind(streamer);
     flow.opts.asyncReadFileFn = streamer.read.bind(streamer);
-    flow.addFile(sample_file);
-    flow.upload();
+    (async function() {
+      await flow.addFile(sample_file);
+      await flow.upload();
+    })();
   });
 
   it('An asyncInitFile function', async function() {
