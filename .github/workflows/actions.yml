@@ -17,42 +17,68 @@ env:
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    environment: open-env
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+
+      - name: Is environment ok
+        run: |
+          echo $SAUCE_USERNAME
+
+      - name: Get specific changed files
+        id: source-changed
+        uses: tj-actions/changed-files@v1.1.3
+        with:
+          files: |
+            src
+            test
+            karma.conf.js
+            Gruntfile.js
+            rollup.config.js
 
       - name: Install node.js
+        if: steps.source-changed.outputs.any_changed == 'true'
         uses: actions/setup-node@v1
         with:
           node-version: 14.x
 
       - name: Install xvfb
+        if: steps.source-changed.outputs.any_changed == 'true'
         run: |
           sudo apt-get install xvfb
           Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
 
       - name: Install dependencies
+        if: steps.source-changed.outputs.any_changed == 'true'
         run: |
           npm install
           npm install -g grunt-cli
           node_modules/.bin/rollup -c
 
       - name: Install saucectl
+        if: steps.source-changed.outputs.any_changed == 'true'
         uses: saucelabs/saucectl-run-action@v1
         with:
           skip-run: true
           testing-environment: ""
           concurrency: 10
 
-      - run: |
+      - name: Grunt test
+        if: steps.source-changed.outputs.any_changed == 'true'
+        run: |
           grunt --version
           sed -i '/log.info(`Check out job at/a\\ console.log(`::set-output name=urls-${sessionId}::${getSauceEndpoint(browserData.region)}${sessionId}`);' node_modules/karma-sauce-launcher/dist/reporter/reporter.js || true
 
       - name: Run tests
+        if: steps.source-changed.outputs.any_changed == 'true'
         run: grunt karma:saucelabs
         id: test
 
       - name: Run code coverage
+        if: steps.source-changed.outputs.any_changed == 'true'
         uses: paambaati/codeclimate-action@v2.7.5
         with:
           coverageCommand: grunt karma:coverage
@@ -66,7 +92,7 @@ jobs:
         run: ls -lhR coverage || true
 
       - uses: LouisBrunner/checks-action@v1.1.1
-        if: always()
+        if: steps.source-changed.outputs.any_changed == 'true'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           name: Testsuite passed
