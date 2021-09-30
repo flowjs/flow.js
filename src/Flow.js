@@ -4,7 +4,6 @@
 
 import Eventizer from './Eventizer';
 import FlowFile from './FlowFile';
-import AsyncFlowFile from './AsyncFlowFile';
 import {each, webAPIFileRead} from './tools';
 
 /**
@@ -533,7 +532,7 @@ export default class Flow extends Eventizer {
    * @param {File} file
    * @param Any other parameters supported by addFiles.
    *
-   * @return (async) An initialized <AsyncFlowFile>.
+   * @return (async) An initialized <FlowFile>.
    */
   async addFile(file, ...args) {
     return (await this.addFiles([file], ...args))[0];
@@ -545,7 +544,7 @@ export default class Flow extends Eventizer {
    * @param {FileList|Array} fileList
    * @param {Event} [event] event is optional
    *
-   * @return Promise{[<AsyncFlowFile>,...]} The promise of getting an array of AsyncFlowFile.
+   * @return Promise{[<FlowFile>,...]} The promise of getting an array of FlowFile.
    */
   async addFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
     let item, file, flowfile, uniqueIdentifier, states = [];
@@ -559,7 +558,7 @@ export default class Flow extends Eventizer {
       }
 
       // ToDo: parallelizable ?
-      var flowFile = new AsyncFlowFile(this, file, uniqueIdentifier),
+      var flowFile = new FlowFile(this, file, uniqueIdentifier),
           state = flowFile.bootstrap(event, initFileFn);
       states.push(state);
     }

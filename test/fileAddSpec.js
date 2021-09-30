@@ -156,7 +156,7 @@ describe('fileAdd event', function() {
         new File(['GGG'], 'GGG.bin'),
       ]);
       expect(flowfiles[0].name).toBe('bbb.bin');
-      expect(await flowfiles[0].file.text()).toBe('xxx');
+      expectAsync(flowfiles[0].file.text()).toBeResolvedTo('xxx');
     });
 
     it('A files-added hook can actually change files', async function() {

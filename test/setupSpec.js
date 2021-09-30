@@ -33,7 +33,7 @@ describe('setup', function() {
   });
 
   it('should show methods initial state', async function() {
-    expect(await flow.uploadNextChunk()).toBe(false);
+    expectAsync(flow.uploadNextChunk()).toBeResolvedTo(false);
 
     expect(flow.progress()).toBe(0);
     expect(flow.isUploading()).toBe(false);

@@ -182,11 +182,11 @@ export default class FlowFile {
 
   /**
    * Resume file upload
-   * @function
+   * @return Promise
    */
   resume() {
     this.paused = false;
-    this.flowObj.upload();
+    return this.flowObj.upload();
   }
 
   /**
@@ -220,21 +220,25 @@ export default class FlowFile {
    * Retry aborted file upload
    * @function
    */
-  retry() {
-    this.bootstrap('retry');
-    this.flowObj.upload();
+  async retry() {
+    await this.bootstrap('retry');
+    return await this.flowObj.upload();
   }
 
-  /**
-   * Clear current chunks and slice file again
-   * @function
-   */
-  bootstrap(event = null, initFileFn = this.flowObj.opts.initFileFn) {
-    if (typeof initFileFn === "function") {
-      initFileFn(this);
+  async bootstrap(event = null, initFileFn = this.flowObj.opts.initFileFn) {
+    /**
+     * Asynchronous initialization function, if defined, is run
+     * Then _bootstrap follow-up occurs
+     * And, optionally (in case of initial FlowFile creation), the `file-added` event is fired.
+     */
+    if (typeof initFileFn === 'function') {
+      await initFileFn(this, event);
     }
 
     this._bootstrap();
+
+    // console.log("Flowfile returns [async]", this._bootstrapped);
+    return this;
   }
 
   _bootstrap() {
@@ -293,6 +297,20 @@ export default class FlowFile {
       }
     });
     return uploading;
+  }
+
+  /**
+   * Indicates if string is being read at the moment
+   * @function
+   * @returns {boolean}
+   */
+  isReading() {
+    for (let chunk of this.chunks) {
+      if (chunk.status() === 'reading') {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
