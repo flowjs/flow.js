@@ -517,11 +517,6 @@ export default class Flow extends Eventizer {
         continue;
       }
 
-      if (! this.hook('filter-file', file, event)) {
-        // console.log(`file ${file.name} filtered-out. skipping`);
-        continue;
-      }
-
       yield [file, uniqueIdentifier];
     }
   }
