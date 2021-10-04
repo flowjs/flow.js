@@ -126,7 +126,7 @@ function, it will be passed a FlowFile, a FlowChunk and isTest boolean (Default:
 * `testChunks` Make a GET request to the server for each chunks to see if it already exists. If implemented on the server-side, this will allow for upload resumes even after a browser crash or even a computer restart. (Default: `true`)
 * `preprocess` Optional function to process each chunk before testing & sending. To the function it will be passed the chunk as parameter, and should call the `preprocessFinished` method on the chunk when finished. (Default: `null`)
 * `changeRawDataBeforeSend` Optional function to change Raw Data just before the XHR Request can be sent for each chunk. To the function, it will be passed the chunk and the data as a Parameter. Return the data which will be then sent to the XHR request without further modification. (Default: `null`). This is helpful when using FlowJS with [Google Cloud Storage](https://cloud.google.com/storage/docs/json_api/v1/how-tos/multipart-upload). Usage example can be seen [#276](https://github.com/flowjs/flow.js/pull/276). (For more, check issue [#170](https://github.com/flowjs/flow.js/issues/170)).
-* `initFileFn` Optional function to initialize the fileObject. To the function it will be passed a FlowFile and a FlowChunk arguments.
+* `initFileFn` Optional (asynchronous) function to initialize the fileObject. To the function it will be passed a FlowFile and a FlowChunk arguments.
 * `readFileFn` Optional function wrapping reading operation from the original file. To the function it will be passed the FlowFile, the startByte and endByte, the fileType and the FlowChunk.
 * `generateUniqueIdentifier` Override the function that generates unique identifiers for each file. (Default: `null`)
 * `maxChunkRetries` The maximum number of retries for a chunk before the upload is failed. Valid values are any positive integer and `undefined` for no limit. (Default: `0`)
@@ -167,23 +167,17 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
     * `.off()` All events are removed.
     * `.off(event)` Remove all callbacks of specific event.
     * `.off(event, callback)` Remove specific callback of event. `callback` should be a `Function`.
-* `.upload()` Start or resume uploading.
+* `.upload()` [async] Start or resume uploading.
 * `.pause()` Pause uploading.
 * `.resume()` Resume uploading.
 * `.cancel()` Cancel upload of all `FlowFile` objects and remove them from the list.
 * `.progress()` Returns a float between 0 and 1 indicating the current upload progress of all files.
 * `.isUploading()` Returns a boolean indicating whether or not the instance is currently uploading anything.
-* `.addFile(file, event = null, initFileFn = undefined)` Add a HTML5 File object to the list of files.
+* `.addFile(file, event = null, initFileFn = undefined)` [async] Add a HTML5 File object to the list of files.
     * Accept the same `event` and `initFileFn` parameters thant `addFiles` which is used under the hood.
-* `.addFiles([files], event = null, initFileFn = undefined)` Add multiple File objects to the list of files.
+* `.addFiles([files], event = null, initFileFn = undefined)` [async] Add multiple File objects to the list of files and returns the promise of the corresponding FlowFiles.
     * `event` The optional event that trigger the addition (for internal purposes)
-    * `initFileFn` An override of Flow.initFileFn
-* `.asyncAddFile(file, event = null, initFileFn = undefined)` Add a HTML5 File object to the list of files.
-* `.asyncAddFiles([files], event = null, initFileFn = undefined)` Add multiple File objects to the list of files.
-    * `asyncAddFile` and `asyncAddFiles` rely on the same parameters than they non-async counterparts with one
-      difference: They accept an asynchronous `initFileFn` file function and return, in a promise, the corresponding FlowFiles.
-    * Note: Calling `asyncAddFile` or `asyncAddFiles` with no `initFileFn` being defined is aimed identical to there non-async
-      counterpart but this may change in the future [TBD].
+    * `initFileFn` An [async] override of Flow.initFileFn
 * `.removeFile(file)` Cancel upload of a specific `FlowFile` object on the list from the list.
 * `.getFromUniqueIdentifier(uniqueIdentifier)` Look up a `FlowFile` object by its unique identifier.
 * `.getSize()` Returns the total size of the upload in bytes.
@@ -207,27 +201,16 @@ Events are native, synchronous and provide information about the internal state 
 
 #### Processing hooks
 
-Hooks allows for either synchronous or asynchronous operations and allow altering the regular processing of the file(s) from addition to upload completion. 
-It's user responsability to use or not the `async` version of `(async)?addFile` and `(async)?addFiles` according to the behavior of its processing hooks.
- (Defining `async` callbacks for the `asyncAddFile(s)`)
-
+Hooks allows for either (possibly asynchronous) operations and allow altering the regular processing of the file(s) from addition to upload completion.
 * `file-added(<FlowFile> file, event) : null` This event is also called before file is added to upload queue and after it's been fully initialized. `event` is the browser `event` object from when the file was added.
 * `files-added([<FlowFile> files], event) : null` Same as `file-added`, but used for multiple file validation.
 * `files-submitted([<FlowFile> files], event) : null` Same as `files-added`, but happens after the file is added to upload queue. Can be used to start upload of currently added files.
 * `filter-file(<FlowFile> file, event) : boolean` The boolean return value decide whether this particular file must be processed or ignored.
 
 ### Hooks and events format
-- Events and hooks name are case-sensitive, snake-cased and return CustomEvent passed straight to `Flow.on()` callback.
+- Events and hooks name are case-sensitive, snake-cased.
+- In the case of events, a CustomEvent passed straight to callback passed to `Flow.on()`.
 - Sample use `flow.on('file-removed', ({detail: [file]}) => { ... });`
-- In an attempt of backward compatibility, some support of camelCase events exist:
-```
-flow.on('filesAdded', async (files, event) => { // v2 events prototype
-   if (files instanceof CustomEvent) { // Handle v3+ events
-      var [files, event] = files.detail;
-   }
-   // Do something with files
-});
-```
 
 ### FlowFile
 FlowFile constructor can be accessed in `Flow.FlowFile`.
@@ -250,11 +233,12 @@ FlowFile constructor can be accessed in `Flow.FlowFile`.
 
 * `.progress(relative)` Returns a float between 0 and 1 indicating the current upload progress of the file. If `relative` is `true`, the value is returned relative to all files in the Flow.js instance.
 * `.pause()` Pause uploading the file.
-* `.resume()` Resume uploading the file.
+* `.resume()` [async] Resume uploading the file.
 * `.cancel()` Abort uploading the file and delete it from the list of files to upload.
-* `.retry()` Retry uploading the file.
-* `.bootstrap()` Rebuild the state of a `FlowFile` object, including reassigning chunks and XMLHttpRequest instances.
+* `.retry()` [async] Retry uploading the file.
+* `.bootstrap()` [async / internal use only] Rebuild the state of a `FlowFile` object, including reassigning chunks and XMLHttpRequest instances.
 * `.isUploading()` Returns a boolean indicating whether file chunks is uploading.
+* `.isReading()` Returns a boolean indicating whether the file/stream is being read.
 * `.isComplete()` Returns a boolean indicating whether the file has completed uploading and received a server response.
 * `.sizeUploaded()` Returns size uploaded in bytes.
 * `.timeRemaining()` Returns remaining time to finish upload file in seconds. Accuracy is based on average speed. If speed is zero, time remaining will be equal to positive infinity `Number.POSITIVE_INFINITY`
