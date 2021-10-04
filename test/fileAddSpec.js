@@ -67,6 +67,16 @@ describe('fileAdd event', function() {
     expect(flow.files.length).toBe(0);
   });
 
+  it('should validate async file-added', async function() {
+    flow.on('file-added', async (file) => {
+      await sleep(200);
+      delete file.file;
+      return false;
+    });
+    await flow.addFile(new Blob(['file part']));
+    expect(flow.files.length).toBe(0);
+  });
+
   it('should keeps file from being queued', async function() {
     spyOn(console, 'warn');
     flow.on('filter-file', () => false);
