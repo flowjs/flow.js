@@ -301,7 +301,7 @@ export default class Flow extends Eventizer {
    *  eg: accept: 'image/*'
    * be selected (Chrome only).
    */
-  async assignBrowse(domNodes, isDirectory, singleFile, attributes) {
+  assignBrowse(domNodes, isDirectory, singleFile, attributes) {
     if (domNodes instanceof Element) {
       domNodes = [domNodes];
     }
