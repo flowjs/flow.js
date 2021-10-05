@@ -260,30 +260,7 @@ export default class FlowChunk {
   }
 
   /**
-   * Finish preprocess state
-   * @function
-   */
-  async preprocessFinished() {
-    // Re-compute the endByte after the preprocess function to allow an
-    // implementer of preprocess to set the fileObj size
-    this.endByte = this.computeEndByte();
-
-    this.preprocessState = 2;
-    await this.send();
-  }
-
-  /**
-   * Finish read state
-   * @function
-   */
-  readFinished(payload) {
-    this.readState = 2;
-    this.payload = payload;
-    this.send();
-  }
-
-  /**
-   * asyncReadFileFn() helper provides the ability of asynchronous read()
+   * readFileFn() helper provides the ability of asynchronous read()
    * Eg: When reading from a ReadableStream.getReader().
    *
    * But:
@@ -322,15 +299,17 @@ export default class FlowChunk {
 
     this.readState = 1;
     await this.readStreamGuard();
-    var data, asyncRead = this.flowObj.opts.asyncReadFileFn;
-
-    data = await asyncRead(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
+    let data = await this.flowObj.opts.readFileFn(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
     this.readStreamState.resolve();
 
-    // Equivalent to readFinished()
+    // Equivalent to former readFinished()
     this.readState = 2;
 
     if (data) {
+      if (typeof data === 'string') { // In case a regular string is returned
+        data = new Blob([data], {type: 'application/octet-stream'});
+      }
+
       this.readBytes = data.size || data.size === 0 ? data.size : -1;
     }
 
@@ -374,36 +353,17 @@ export default class FlowChunk {
    */
   async send() {
     var preprocess = this.flowObj.opts.preprocess;
-    var read = this.flowObj.opts.readFileFn;
-    var asyncRead = this.flowObj.opts.asyncReadFileFn;
-
     if (typeof preprocess === 'function') {
-      switch (this.preprocessState) {
-        case 0:
-          this.preprocessState = 1;
-          preprocess(this);
-          return;
-        case 1:
-          return;
-      }
+      this.preprocessState = 1;
+      await preprocess(this);
+      // Finish preprocess state
+      // Re-compute the endByte after the preprocess function to allow an
+      // implementer of preprocess to set the fileObj size
+      this.endByte = this.computeEndByte();
+      this.preprocessState = 2;
     }
 
-    if (asyncRead) {
-      await this.readStreamChunk();
-      return;
-    }
-
-    switch (this.readState) {
-      case 0:
-        this.readState = 1;
-        const data = read(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
-        this.readFinished(data);
-        return;
-      case 1:
-        return;
-    }
-
-    this.xhrSend(this.payload);
+    await this.readStreamChunk();
   }
 
   /**

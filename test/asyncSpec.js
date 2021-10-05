@@ -104,7 +104,7 @@ describe('upload stream', function() {
     xhr_server.restore();
   });
 
-  it('synchronous initFileFn and asyncReadFileFn', function (done) {
+  it('synchronous initFileFn and async readFileFn', function (done) {
     // No File.stream() support : No test
     // No support for skipping() test from Jasmine (https://github.com/jasmine/jasmine/issues/1709)
     if (typeof Blob === 'undefined' || Blob.prototype.stream !== 'function') {
@@ -145,7 +145,7 @@ describe('upload stream', function() {
     flow.opts.simultaneousUploads = simultaneousUploads;
     flow.opts.initFileFn = streamer.init.bind(streamer);
     flow.opts.readFileFn = streamer.read.bind(streamer);
-    flow.opts.asyncReadFileFn = streamer.read.bind(streamer);
+
     (async function() {
       await flow.addFile(sample_file);
       await flow.upload();
@@ -208,7 +208,7 @@ describe('upload stream', function() {
 
     var streamer = new Streamer(1);
     flow.opts.initFileFn = streamer.init.bind(streamer);
-    flow.opts.asyncReadFileFn = streamer.read.bind(streamer);
+    flow.opts.readFileFn = streamer.read.bind(streamer);
 
     flow.opts.chunkSize = 1;
     flow.opts.maxChunkRetries = 3;
@@ -242,7 +242,7 @@ describe('upload stream', function() {
     xhr_server.respondWith([200, { "Content-Type": "text/plain" }, 'ok']);
     var streamer = new Streamer(1);
     flow.opts.initFileFn = streamer.init.bind(streamer);
-    flow.opts.asyncReadFileFn = streamer.read.bind(streamer);
+    flow.opts.readFileFn = streamer.read.bind(streamer);
 
     flow.opts.chunkSize = 1;
     flow.opts.maxChunkRetries = 3;
@@ -283,7 +283,7 @@ describe('upload stream', function() {
     xhr_server.configure({autoRespond: false, respondImmediately: false});
     var streamer = new Streamer(1);
     flow.opts.initFileFn = streamer.init.bind(streamer);
-    flow.opts.asyncReadFileFn = streamer.read.bind(streamer);
+    flow.opts.readFileFn = streamer.read.bind(streamer);
 
     flow.opts.chunkSize = 1;
     flow.opts.maxChunkRetries = 3;

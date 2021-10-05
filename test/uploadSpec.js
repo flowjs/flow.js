@@ -400,7 +400,6 @@ describe('upload file', function() {
     expect(xhr.requests.length).toBe(0);
     expect(preprocess).toHaveBeenCalledWith(file.chunks[0]);
     expect(file.chunks[0].preprocessState).toBe(1);
-    file.chunks[0].preprocessFinished();
     expect(xhr.requests.length).toBe(1);
     xhr.requests[0].respond(200, [], "response");
     expect(success).toHaveBeenCalledWith(asCustomEvent(file, "response", file.chunks[0]));
@@ -416,7 +415,7 @@ describe('upload file', function() {
     var file = flow.files[0];
     var secondFile = flow.files[1];
     await flow.upload();
-    expect(xhr.requests.length).toBe(0);
+    expect(xhr.requests.length).toBe(1);
     expect(preprocess).toHaveBeenCalledWith(file.chunks[0]);
     expect(preprocess).not.toHaveBeenCalledWith(secondFile.chunks[0]);
 
@@ -439,7 +438,6 @@ describe('upload file', function() {
     await flow.upload();
     for(var i=0; i<file.chunks.length; i++) {
       expect(preprocess).toHaveBeenCalledWith(file.chunks[i]);
-      file.chunks[i].preprocessFinished();
       await file.pause();
       await file.resume();
       xhr.requests[xhr.requests.length-1].respond(200, [], "response");

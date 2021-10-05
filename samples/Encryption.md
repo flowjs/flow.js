@@ -30,7 +30,7 @@ const flow = new Flow({
     uploadMethod: 'POST',
     fileParameterName: 'file',
     // Asynchronous function called before each chunk upload request
-    asyncReadFileFn: async function(flowObj, startByte, endByte, fileType, chunk) {
+    readFileFn: async function(flowObj, startByte, endByte, fileType, chunk) {
         // Load file chunk in memory
         const plaintextbytes = await readFileChunk(flowObj.file, startByte, endByte);
         // Encrypt chunk
@@ -109,7 +109,7 @@ class StreamEncryptor {
 var encryptor = new StreamEncryptor(gpgKeys);
 new Flow({
     // ...
-    asyncReadFileFn: encryptor.read.bind(encryptor),
+    readFileFn: encryptor.read.bind(encryptor),
     initFileFn: encryptor.init.bind(encryptor),
     forceChunkSize: true,
 });
