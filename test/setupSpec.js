@@ -20,10 +20,8 @@ describe('setup', function() {
   it('events should be empty', function() {
     expect(flow._events).toBeDefined();
     expect(flow._hooks).toBeDefined();
-    expect(flow._asyncHooks).toBeDefined();
     expect(Object.keys(flow._events).length).toBe(0);
     expect(Object.keys(flow._hooks).length).toBe(0);
-    expect(Object.keys(flow._asyncHooks).length).toBe(0);
   });
 
   it('set opts', function() {
@@ -34,8 +32,8 @@ describe('setup', function() {
     expect(flow.opts.simultaneousUploads).toBe(flow.defaults.simultaneousUploads);
   });
 
-  it('should show methods initial state', function() {
-    expect(flow.uploadNextChunk()).toBe(false);
+  it('should show methods initial state', async function() {
+    await expectAsync(flow.uploadNextChunk()).toBeResolvedTo(false);
 
     expect(flow.progress()).toBe(0);
     expect(flow.isUploading()).toBe(false);
@@ -43,17 +41,17 @@ describe('setup', function() {
     expect(flow.sizeUploaded()).toBe(0);
   });
 
-  it('should return total files size', function() {
+  it('should return total files size', async function() {
     expect(flow.getSize()).toBe(0);
-    flow.addFile(new Blob(['1234']));
+    await flow.addFile(new Blob(['1234']));
     expect(flow.getSize()).toBe(4);
-    flow.addFile(new Blob(['123']));
+    await flow.addFile(new Blob(['123']));
     expect(flow.getSize()).toBe(7);
   });
 
-  it('should find file by identifier', function() {
+  it('should find file by identifier', async function() {
     expect(flow.getFromUniqueIdentifier('')).toBe(false);
-    flow.addFile(new Blob(['1234']));
+    await flow.addFile(new Blob(['1234']));
     expect(flow.getFromUniqueIdentifier(4)).toBe(flow.files[0]);
   });
 

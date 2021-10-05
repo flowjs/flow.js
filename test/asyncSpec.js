@@ -146,8 +146,10 @@ describe('upload stream', function() {
     flow.opts.initFileFn = streamer.init.bind(streamer);
     flow.opts.readFileFn = streamer.read.bind(streamer);
     flow.opts.asyncReadFileFn = streamer.read.bind(streamer);
-    flow.addFile(sample_file);
-    flow.upload();
+    (async function() {
+      await flow.addFile(sample_file);
+      await flow.upload();
+    })();
   });
 
   it('An asyncInitFile function', async function() {
@@ -159,22 +161,22 @@ describe('upload stream', function() {
           await sleep(250);
           customFunction();
         };
-    flowfiles = await flow.asyncAddFiles([sample_file], null, initFileFunction);
+    flowfiles = await flow.addFiles([sample_file], null, initFileFunction);
     expect(customFunction).toHaveBeenCalledTimes(1);
 
     // If re-adding the same file, it's ignored, not incrementing the number of
     // calls to the initFileFn
-    await flow.asyncAddFiles([sample_file], null, initFileFunction);
+    await flow.addFiles([sample_file], null, initFileFunction);
     expect(customFunction).toHaveBeenCalledTimes(1);
 
     // But if removed, then the function is run again
-    flow.removeFile(flowfiles[0]);
-    flowfiles = await flow.asyncAddFiles([sample_file], null, initFileFunction);
+    await flow.removeFile(flowfiles[0]);
+    flowfiles = await flow.addFiles([sample_file], null, initFileFunction);
     expect(customFunction).toHaveBeenCalledTimes(2);
 
     // It should work with addFile() too.
-    flow.removeFile(flowfiles[0]);
-    flowfiles = await flow.asyncAddFile(sample_file, null, initFileFunction);
+    await flow.removeFile(flowfiles[0]);
+    flowfiles = await flow.addFile(sample_file, null, initFileFunction);
     expect(customFunction).toHaveBeenCalledTimes(3);
   });
 
@@ -187,27 +189,16 @@ describe('upload stream', function() {
           customFunction();
         };
     flow.opts.initFileFn = initFileFunction;
-    await flow.asyncAddFile(sample_file);
+    await flow.addFile(sample_file);
     expect(customFunction).toHaveBeenCalledTimes(1);
   });
 
-  it('asyncAddFile can also be called with no initFileFunction', async function() {
+  it('addFile can also be called with no initFileFunction', async function() {
     var content = gen_file(2, 256),
         sample_file = new File([content], `foobar-asyncInitFileFn-${jasmine.currentTest.id}.bin`),
         customFunction = jasmine.createSpy('fn');
-    await flow.asyncAddFile(sample_file);
+    await flow.addFile(sample_file);
     expect(flow.files.length).toEqual(1);
-  });
-
-  it('adding async hook but calling addFiles() should trigger a warning', async function () {
-    var content = gen_file(2, 256),
-        sample_file = new File([content], `async+addFiles-${jasmine.currentTest.id}.bin`),
-        customFunction = jasmine.createSpy('fn');
-    flow.on('files-added', async (file) => await file);
-
-    spyOn(console, 'warn');
-    flow.addFile(sample_file);
-    expect(console.warn).toHaveBeenCalled();
   });
 
   it('async stream support request temporary failure', async function () {
@@ -222,7 +213,7 @@ describe('upload stream', function() {
     flow.opts.chunkSize = 1;
     flow.opts.maxChunkRetries = 3;
     flow.opts.simultaneousUploads = 2;
-    await flow.asyncAddFile(new File(['12'], `stream-failure-${jasmine.currentTest.id}.bin`));
+    await flow.addFile(new File(['12'], `stream-failure-${jasmine.currentTest.id}.bin`));
     var files = flow.files;
     expect(files[0].chunks.length).toBe(2);
 
@@ -256,7 +247,7 @@ describe('upload stream', function() {
     flow.opts.chunkSize = 1;
     flow.opts.maxChunkRetries = 3;
     flow.opts.simultaneousUploads = 2;
-    await flow.asyncAddFiles([
+    await flow.addFiles([
       new File(['1234'], `multi1-${jasmine.currentTest.id}.bin`),
       new File(['56789'], `multi2-${jasmine.currentTest.id}.bin`)
     ]);
@@ -264,7 +255,7 @@ describe('upload stream', function() {
     await flow.files[0].chunks[0].send();
     await flow.files[1].chunks[0].send();
     for (let i = 0; i < (9 - 2); i++) {
-      flow.uploadNextChunk(true);
+      await flow.uploadNextChunk(true);
       await sleep(1);
     }
 
@@ -297,7 +288,7 @@ describe('upload stream', function() {
     flow.opts.chunkSize = 1;
     flow.opts.maxChunkRetries = 3;
     flow.opts.simultaneousUploads = 2;
-    await flow.asyncAddFiles([
+    await flow.addFiles([
       new File(['123456'], `foobar1-${jasmine.currentTest.id}.bin`),
       new File(['789'], `foobar2-${jasmine.currentTest.id}.bin`)
     ]);
@@ -311,7 +302,7 @@ describe('upload stream', function() {
     */
     expect(files[0].chunks.length).toBe(6);
     expect(files[1].chunks.length).toBe(3);
-    flow.upload();
+    flow.upload(); // intentionally don't await here
     expect(files[0].isReading()).toBeTruthy();
     await waitFor(() => xhr_server.requests.length);
 
@@ -344,7 +335,7 @@ describe('upload stream', function() {
     // Next two chunks from file[0] were read but we abort() their
     // corresponding `xhr`. They will get back to pending.
     // Flow should start uploading second file now
-    files[0].pause();
+    await files[0].pause();
     await waitFor(() => xhr_server.requests.length == 6);
 
     /*
@@ -357,7 +348,7 @@ describe('upload stream', function() {
     expect(xhr_server.requests[4].aborted).toBeUndefined();
     expect(files[0].isUploading()).toBeFalsy();
 
-    flow.upload();
+    await flow.upload();
     expect(files[0].isUploading()).toBeFalsy();
     expect(files[1].isUploading()).toBeTruthy();
 
@@ -373,7 +364,7 @@ describe('upload stream', function() {
       [ooR]
     */
     // Should resume file after second file chunks is uploaded
-    files[0].resume();
+    await files[0].resume();
     await sleep(1);
 
     /*

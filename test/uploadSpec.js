@@ -32,16 +32,16 @@ describe('upload file', function() {
     xhr.restore();
   });
 
-  it('should pass query params', function() {
+  it('should pass query params', async function() {
     flow.opts.query = {};
     flow.opts.target = 'file';
-    flow.addFile(new Blob(['123']));
-    flow.upload();
+    await flow.addFile(new Blob(['123']));
+    await flow.upload();
     expect(xhr.requests.length).toBe(1);
     expect(xhr.requests[0].url).toContain('file');
 
     flow.opts.query = {a:1};
-    flow.files[0].retry();
+    await flow.files[0].retry();
     expect(xhr.requests.length).toBe(2);
     expect(xhr.requests[1].url).toContain('file');
     expect(xhr.requests[1].url).toContain('a=1');
@@ -51,7 +51,7 @@ describe('upload file', function() {
       expect(chunk).toBe(flow.files[0].chunks[0]);
       return {b:2};
     };
-    flow.files[0].retry();
+    await flow.files[0].retry();
     expect(xhr.requests.length).toBe(3);
     expect(xhr.requests[2].url).toContain('file');
     expect(xhr.requests[2].url).toContain('b=2');
@@ -59,19 +59,19 @@ describe('upload file', function() {
 
     flow.opts.target = 'file?w=w';
     flow.opts.query = {};
-    flow.files[0].retry();
+    await flow.files[0].retry();
     expect(xhr.requests.length).toBe(4);
     expect(xhr.requests[3].url).toContain('file?w=w&');
     expect(xhr.requests[3].url).not.toContain('a=1');
     expect(xhr.requests[3].url).not.toContain('b=2');
   });
 
-  it('should track file upload status with lots of chunks', function() {
+  it('should track file upload status with lots of chunks', async function() {
     flow.opts.chunkSize = 1;
-    flow.addFile(new Blob(['IIIIIIIIII']));
+    await flow.addFile(new Blob(['IIIIIIIIII']));
     var file = flow.files[0];
     expect(file.chunks.length).toBe(10);
-    flow.upload();
+    await flow.upload();
     expect(file.progress()).toBe(0);
     for (var i = 0; i < 9; i++) {
       expect(xhr.requests[i]).toBeDefined();
@@ -93,17 +93,17 @@ describe('upload file', function() {
     expect(flow.progress()).toBe(1);
   });
 
-  it('should throw expected events', function () {
+  it('should throw expected events', async function () {
     var events = [],
         evl = 0;
     flow.on('catch-all', ({detail: [event_name]}) => {
       events.push(event_name);
     });
     flow.opts.chunkSize = 1;
-    flow.addFile(new Blob(['12']));
+    await flow.addFile(new Blob(['12']));
     var file = flow.files[0];
     expect(file.chunks.length).toBe(2);
-    flow.upload();
+    await flow.upload();
     // Sync events
     expect(events).toEqual(['filter-file', 'file-added', 'files-added', 'files-submitted', 'upload-start']);
     // Async
@@ -119,27 +119,27 @@ describe('upload file', function() {
     expect(events.length).toBe(15);
     expect(events.slice(-4)).toEqual(['file-progress', 'progress', 'file-success', 'complete']);
 
-    flow.upload();
+    await flow.upload();
     expect(events.length).toBe(17);
     expect(events.slice(-2)).toEqual(['upload-start', 'complete']);
   });
 
-  it('should pause and resume file', function () {
+  it('should pause and resume file', async function () {
     flow.opts.chunkSize = 1;
     flow.opts.simultaneousUploads = 2;
     flow.opts.testChunks = false;
-    flow.addFile(new Blob(['1234']));
-    flow.addFile(new Blob(['56']));
+    await flow.addFile(new Blob(['1234']));
+    await flow.addFile(new Blob(['56']));
     var files = flow.files;
     expect(files[0].chunks.length).toBe(4);
     expect(files[1].chunks.length).toBe(2);
-    flow.upload();
+    await flow.upload();
     expect(files[0].isUploading()).toBeTruthy();
     expect(xhr.requests.length).toBe(2);
     expect(xhr.requests[0].aborted).toBeUndefined();
     expect(xhr.requests[1].aborted).toBeUndefined();
     // should start upload second file
-    files[0].pause();
+    await files[0].pause();
     expect(files[0].isUploading()).toBeFalsy();
     expect(files[1].isUploading()).toBeTruthy();
     expect(xhr.requests.length).toBe(4);
@@ -148,7 +148,7 @@ describe('upload file', function() {
     expect(xhr.requests[2].aborted).toBeUndefined();
     expect(xhr.requests[3].aborted).toBeUndefined();
     // Should resume file after second file chunks is uploaded
-    files[0].resume();
+    await files[0].resume();
     expect(files[0].isUploading()).toBeFalsy();
     expect(xhr.requests.length).toBe(4);
     xhr.requests[2].respond(200);// second file chunk
@@ -178,7 +178,7 @@ describe('upload file', function() {
     expect(flow.progress()).toBe(1);
   });
 
-  it('should retry file', function () {
+  it('should retry file', async function () {
     flow.opts.testChunks = false;
     flow.opts.chunkSize = 1;
     flow.opts.simultaneousUploads = 1;
@@ -193,7 +193,7 @@ describe('upload file', function() {
     flow.on('file-success', success);
     flow.on('file-retry', retry);
 
-    flow.addFile(new Blob(['12']));
+    await flow.addFile(new Blob(['12']));
     var file = flow.files[0];
     expect(file.chunks.length).toBe(2);
     var firstChunk = file.chunks[0];
@@ -201,7 +201,7 @@ describe('upload file', function() {
     expect(firstChunk.status()).toBe('pending');
     expect(secondChunk.status()).toBe('pending');
 
-    flow.upload();
+    await flow.upload();
     expect(xhr.requests.length).toBe(1);
     expect(firstChunk.status()).toBe('uploading');
     expect(secondChunk.status()).toBe('pending');
@@ -257,7 +257,7 @@ describe('upload file', function() {
     expect(file.progress()).toBe(1);
   });
 
-  it('should retry file with timeout', function () {
+  it('should retry file with timeout', async function () {
     flow.opts.testChunks = false;
     flow.opts.maxChunkRetries = 1;
     flow.opts.chunkRetryInterval = 100;
@@ -269,9 +269,9 @@ describe('upload file', function() {
     flow.on('file-success', success);
     flow.on('file-retry', retry);
 
-    flow.addFile(new Blob(['12']));
+    await flow.addFile(new Blob(['12']));
     var file = flow.files[0];
-    flow.upload();
+    await flow.upload();
     expect(file.chunks[0].status()).toBe('uploading');
     expect(xhr.requests.length).toBe(1);
 
@@ -290,7 +290,7 @@ describe('upload file', function() {
     expect(retry).toHaveBeenCalled();
   });
 
-  it('should fail on permanent error', function () {
+  it('should fail on permanent error', async function () {
     xhr.autoRespond = false;
     flow.opts.testChunks = false;
     flow.opts.chunkSize = 1;
@@ -305,10 +305,10 @@ describe('upload file', function() {
     flow.on('file-success', success);
     flow.on('file-retry', retry);
 
-    flow.addFile(new Blob(['abc']));
+    await flow.addFile(new Blob(['abc']));
     var file = flow.files[0];
     expect(file.chunks.length).toBe(3);
-    flow.upload();
+    await flow.upload();
     expect(xhr.requests.length).toBe(2);
     xhr.requests[0].respond(500);
     expect(xhr.requests.length).toBe(2);
@@ -317,7 +317,7 @@ describe('upload file', function() {
     expect(success).not.toHaveBeenCalled();
   });
 
-  it('should fail on permanent test error', function () {
+  it('should fail on permanent test error', async function () {
     flow.opts.testChunks = true;
     flow.opts.chunkSize = 1;
     flow.opts.simultaneousUploads = 2;
@@ -331,8 +331,8 @@ describe('upload file', function() {
     flow.on('file-success', success);
     flow.on('file-retry', retry);
 
-    flow.addFile(new Blob(['abc']));
-    flow.upload();
+    await flow.addFile(new Blob(['abc']));
+    await flow.upload();
     expect(xhr.requests.length).toBe(2);
     xhr.requests[0].respond(500);
     expect(xhr.requests.length).toBe(2);
@@ -341,13 +341,13 @@ describe('upload file', function() {
     expect(success).not.toHaveBeenCalled();
   });
 
-  it('should upload empty file', function () {
+  it('should upload empty file', async function () {
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
     flow.on('file-error', error);
     flow.on('file-success', success);
 
-    flow.addFile(new Blob([]));
+    await flow.addFile(new Blob([]));
 
     // https://github.com/flowjs/flow.js/issues/55
     if (window.navigator.msPointerEnabled) {
@@ -355,7 +355,7 @@ describe('upload file', function() {
     } else {
       expect(flow.files.length, 1);
       var file = flow.files[0];
-      flow.upload();
+      await flow.upload();
       expect(xhr.requests.length).toBe(1);
       expect(file.progress()).toBe(0);
       xhr.requests[0].respond(200);
@@ -368,35 +368,35 @@ describe('upload file', function() {
     }
   });
 
-  it('should not upload folder', function () {
+  it('should not upload folder', async function () {
     // http://stackoverflow.com/questions/8856628/detecting-folders-directories-in-javascript-filelist-objects
-    flow.addFile({
+    await flow.addFile({
       name: '.',
       size: 0
     });
     expect(flow.files.length).toBe(0);
-    flow.addFile({
+    await flow.addFile({
       name: '.',
       size: 4096
     });
     expect(flow.files.length).toBe(0);
-    flow.addFile({
+    await flow.addFile({
       name: '.',
       size: 4096 * 2
     });
     expect(flow.files.length).toBe(0);
   });
 
-  it('should preprocess chunks', function () {
+  it('should preprocess chunks', async function () {
     var preprocess = jasmine.createSpy('preprocess');
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
     flow.on('file-error', error);
     flow.on('file-success', success);
     flow.opts.preprocess = preprocess;
-    flow.addFile(new Blob(['abc']));
+    await flow.addFile(new Blob(['abc']));
     var file = flow.files[0];
-    flow.upload();
+    await flow.upload();
     expect(xhr.requests.length).toBe(0);
     expect(preprocess).toHaveBeenCalledWith(file.chunks[0]);
     expect(file.chunks[0].preprocessState).toBe(1);
@@ -407,24 +407,24 @@ describe('upload file', function() {
     expect(error).not.toHaveBeenCalled();
   });
 
-  it('should preprocess chunks and wait for preprocess to finish', function () {
+  it('should preprocess chunks and wait for preprocess to finish', async function () {
     flow.opts.simultaneousUploads = 1;
     var preprocess = jasmine.createSpy('preprocess');
     flow.opts.preprocess = preprocess;
-    flow.addFile(new Blob(['abc']));
-    flow.addFile(new Blob(['abca']));
+    await flow.addFile(new Blob(['abc']));
+    await flow.addFile(new Blob(['abca']));
     var file = flow.files[0];
     var secondFile = flow.files[1];
-    flow.upload();
+    await flow.upload();
     expect(xhr.requests.length).toBe(0);
     expect(preprocess).toHaveBeenCalledWith(file.chunks[0]);
     expect(preprocess).not.toHaveBeenCalledWith(secondFile.chunks[0]);
 
-    flow.upload();
+    await flow.upload();
     expect(preprocess).not.toHaveBeenCalledWith(secondFile.chunks[0]);
   });
 
-  it('should resume preprocess chunks after pause', function () {
+  it('should resume preprocess chunks after pause', async function () {
     flow.opts.chunkSize = 1;
     flow.opts.simultaneousUploads = 1;
     flow.opts.testChunks = false;
@@ -434,40 +434,40 @@ describe('upload file', function() {
     flow.on('file-error', error);
     flow.on('file-success', success);
     flow.opts.preprocess = preprocess;
-    flow.addFile(new Blob(['abc']));
+    await flow.addFile(new Blob(['abc']));
     var file = flow.files[0];
-    flow.upload();
+    await flow.upload();
     for(var i=0; i<file.chunks.length; i++) {
       expect(preprocess).toHaveBeenCalledWith(file.chunks[i]);
       file.chunks[i].preprocessFinished();
-      file.pause();
-      file.resume();
+      await file.pause();
+      await file.resume();
       xhr.requests[xhr.requests.length-1].respond(200, [], "response");
     }
     expect(success).toHaveBeenCalledWith(asCustomEvent(file, "response", file.chunks[file.chunks.length-1]));
     expect(error).not.toHaveBeenCalled();
   });
 
-  it('should set chunk as a third event parameter', function () {
+  it('should set chunk as a third event parameter', async function () {
     var success = jasmine.createSpy('success');
     flow.on('file-success', success);
-    flow.addFile(new Blob(['abc']));
+    await flow.addFile(new Blob(['abc']));
     var file = flow.files[0];
-    flow.upload();
+    await flow.upload();
     xhr.requests[0].respond(200, [], "response");
 
     expect(success).toHaveBeenCalledWith(asCustomEvent(file, "response", file.chunks[0]));
   });
 
-  it('should have upload speed', function() {
+  it('should have upload speed', async function() {
     var clock = sinon.useFakeTimers();
     flow.opts.testChunks = false;
     flow.opts.speedSmoothingFactor = 0.5;
     flow.opts.simultaneousUploads = 1;
     var fileProgress = jasmine.createSpy('file-progress');
     flow.on('file-progress', fileProgress);
-    flow.addFile(new Blob(['0123456789']));
-    flow.addFile(new Blob(['12345']));
+    await flow.addFile(new Blob(['0123456789']));
+    await flow.addFile(new Blob(['12345']));
     var fileFirst = flow.files[0];
     var fileSecond = flow.files[1];
     expect(fileFirst.currentSpeed).toBe(0);
@@ -476,7 +476,7 @@ describe('upload file', function() {
     expect(fileFirst.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
     expect(flow.sizeUploaded()).toBe(0);
     expect(flow.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
-    flow.upload();
+    await flow.upload();
 
     clock.tick(1000);
     xhr.requests[0].uploadProgress({loaded: 50, total: 100});
@@ -507,18 +507,18 @@ describe('upload file', function() {
     expect(flow.timeRemaining()).toBe(0);
 
     // paused and resumed
-    flow.addFile(new Blob(['012345678901234']));
+    await flow.addFile(new Blob(['012345678901234']));
     var fileThird = flow.files[2];
     expect(fileThird.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
-    flow.upload();
+    await flow.upload();
     clock.tick(1000);
     xhr.requests[2].uploadProgress({loaded: 10, total: 15});
     expect(fileThird.timeRemaining()).toBe(1);
     expect(flow.timeRemaining()).toBe(1);
-    fileThird.pause();
+    await fileThird.pause();
     expect(fileThird.timeRemaining()).toBe(0);
     expect(flow.timeRemaining()).toBe(0);
-    fileThird.resume();
+    await fileThird.resume();
     expect(fileThird.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
     expect(flow.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
     clock.tick(1000);
@@ -537,7 +537,7 @@ describe('upload file', function() {
     expect(flow.timeRemaining()).toBe(0);
   });
 
-  it('should allow to hook initFileFn and readFileFn', function () {
+  it('should allow to hook initFileFn and readFileFn', async function () {
     var error = jasmine.createSpy('error');
     var success = jasmine.createSpy('success');
     flow.on('file-error', error);
@@ -558,13 +558,11 @@ describe('upload file', function() {
       flowObj.size = flowObj.file.size;
     }
 
-    flow.opts.readFileFn = function(fileObj, startByte, endByte, fileType, chunk) {
-      chunk.readFinished('X');
-    }
+    flow.opts.readFileFn = (fileObj, startByte, endByte, fileType, chunk) => 'X';
 
-    flow.addFile(new Blob(['0123456789']));
+    await flow.addFile(new Blob(['0123456789']));
 
-    flow.upload();
+    await flow.upload();
 
     expect(xhr.requests.length).toBe(6);
 
@@ -580,7 +578,7 @@ describe('upload file', function() {
     expect(xhr.requests.length).toBe(6);
   });
 
-  it('should allow to hook initFileFn function', function() {
+  it('should allow to hook initFileFn function', async function() {
     var content = gen_file(6, 128),
         sample_file = new File([content], `foobar-initFileFn.bin`),
         customFunction = jasmine.createSpy('fn'),
@@ -591,7 +589,7 @@ describe('upload file', function() {
     flow.opts.testChunks = false;
     flow.opts.initFileFn = initFileFunction;
     flow.opts.chunkSize = 64;
-    flow.addFile(sample_file);
+    await flow.addFile(sample_file);
     expect(customFunction).toHaveBeenCalledTimes(1);
 
     flow.on('complete', async () => {
@@ -603,7 +601,7 @@ describe('upload file', function() {
     xhr.respondImmediately = xhr.autoRespond = true;
 
     flow.opts.simultaneousUploads = 3;
-    flow.upload();
+    await flow.upload();
     jasmine.clock().tick(1);
   });
 });

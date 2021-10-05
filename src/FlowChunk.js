@@ -396,7 +396,8 @@ export default class FlowChunk {
     switch (this.readState) {
       case 0:
         this.readState = 1;
-        read(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
+        const data = read(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
+        this.readFinished(data);
         return;
       case 1:
         return;

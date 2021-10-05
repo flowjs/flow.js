@@ -12,22 +12,22 @@ describe('fileAdd event', function() {
     });
   });
 
-  it('should call file-added event', function() {
+  it('should call file-added event', async function() {
     var valid = false;
     flow.on('file-added', (file) => {
       expect(file.file instanceof Blob).toBeTruthy();
       valid = true;
     });
-    flow.addFile(new Blob(['file part']));
+    await flow.addFile(new Blob(['file part']));
     expect(valid).toBeTruthy();
   });
 
-  it('should call files-added event', function() {
+  it('should call files-added event', async function() {
     var count = 0;
     flow.on('files-added', (files) => {
       count = files.length;
     });
-    flow.addFiles([
+    await flow.addFiles([
       new Blob(['file part']),
       new Blob(['file 2 part'])
     ]);
@@ -35,59 +35,67 @@ describe('fileAdd event', function() {
     expect(flow.files.length).toBe(2);
   });
 
-  it('should call file-added only when bound', function() {
+  it('should call file-added only when bound', async function() {
     var event = jasmine.createSpy('event');
 
     flow.on('file-added', event);
-    flow.addFile(new File(['file part'], 'a.bin'));
+    await flow.addFile(new File(['file part'], 'a.bin'));
     expect(event).toHaveBeenCalledTimes(1);
 
     flow.off('file-added');
-    flow.addFile(new File(['file part'], 'b.bin'));
+    await flow.addFile(new File(['file part'], 'b.bin'));
     expect(event).toHaveBeenCalledTimes(1);
   });
 
-  it('file-added can be removed specifying the callback', function() {
+  it('file-added can be removed specifying the callback', async function() {
     var event = jasmine.createSpy('event');
     flow.on('file-added', event);
-    flow.addFile(new File(['file part'], 'c.bin'));
+    await flow.addFile(new File(['file part'], 'c.bin'));
     expect(event).toHaveBeenCalledTimes(1);
 
     flow.off('file-added', event);
-    flow.addFile(new File(['file part'], 'd.bin'));
+    await flow.addFile(new File(['file part'], 'd.bin'));
     expect(event).toHaveBeenCalledTimes(1);
   });
 
-  it('should validate file-added', function() {
-    spyOn(console, 'warn');
+  it('should validate file-added', async function() {
     flow.on('file-added', (file) => {
       delete file.file;
       return false;
     });
-    flow.addFile(new Blob(['file part']));
+    await flow.addFile(new Blob(['file part']));
     expect(flow.files.length).toBe(0);
-    expect(console.warn).toHaveBeenCalledTimes(1);
   });
 
-  it('should keeps file from being queued', function() {
+  it('should validate async file-added', async function() {
+    flow.on('file-added', async (file) => {
+      await sleep(200);
+      delete file.file;
+      return false;
+    });
+    await flow.addFile(new Blob(['file part']));
+    expect(flow.files.length).toBe(0);
+  });
+
+  it('should keeps file from being queued', async function() {
     spyOn(console, 'warn');
     flow.on('filter-file', () => false);
-    flow.addFile(new Blob(['file part']));
+    await flow.addFile(new Blob(['file part']));
     expect(flow.files.length).toBe(0);
     expect(console.warn).not.toHaveBeenCalled();
   });
 
-  it('should validate filter-file and files-added', function() {
+  it('should validate filter-file and files-added', async function() {
     flow.on('filter-file', () => false);
     var valid = false;
     flow.on('files-added', (files) => {
       valid = files.length === 0;
     });
-    flow.addFile(new Blob(['file part']));
+    await flow.addFile(new Blob(['file part']));
     expect(valid).toBeTruthy();
   });
 
-  it('should validate multiple filter-file aHooks', async function() {
+  it('should validate multiple filter-file hooks', async function() {
     const customFunction = jasmine.createSpy('fn');
     flow.on('filter-file', async () => {
       customFunction();
@@ -105,7 +113,7 @@ describe('fileAdd event', function() {
     flow.on('files-added', (files) => {
       valid = files.length === 0;
     });
-    await flow.asyncAddFile(new Blob(['file part']));
+    await flow.addFile(new Blob(['file part']));
     expect(valid).toBeTruthy();
     expect(customFunction).toHaveBeenCalledTimes(3);
   });
@@ -132,7 +140,7 @@ describe('fileAdd event', function() {
         customFunction2();
       });
 
-      flowfiles = await flow.asyncAddFiles([sample_file]);
+      flowfiles = await flow.addFiles([sample_file]);
       expect(customFunction1).toHaveBeenCalledTimes(1);
       expect(customFunction2).toHaveBeenCalledTimes(1);
     });
@@ -151,12 +159,12 @@ describe('fileAdd event', function() {
         flowfile.file = new File([text], flowfile.name);
       });
 
-      var flowfiles = await flow.asyncAddFiles([
+      var flowfiles = await flow.addFiles([
         new File(['aaa'], 'aaa.bin'),
         new File(['GGG'], 'GGG.bin'),
       ]);
       expect(flowfiles[0].name).toBe('bbb.bin');
-      expect(await flowfiles[0].file.text()).toBe('xxx');
+      await expectAsync(flowfiles[0].file.text()).toBeResolvedTo('xxx');
     });
 
     it('A files-added hook can actually change files', async function() {
@@ -173,7 +181,7 @@ describe('fileAdd event', function() {
         files.reverse();
       });
 
-      flowfiles = await flow.asyncAddFiles(files);
+      flowfiles = await flow.addFiles(files);
       expect(customFunction).toHaveBeenCalledTimes(1);
       expect(flowfiles.length).toEqual(2);
       // The files have been inverted by the hook
@@ -191,7 +199,7 @@ describe('fileAdd event', function() {
         return /\b(abc|def)\b/.test(flowFile.name);
       });
 
-      flowfiles = await flow.asyncAddFiles(files);
+      flowfiles = await flow.addFiles(files);
       expect(customFunction).toHaveBeenCalledTimes(7);
       expect(flowfiles.length).toEqual(2);
     });

@@ -4,8 +4,7 @@
 
 import Eventizer from './Eventizer';
 import FlowFile from './FlowFile';
-import AsyncFlowFile from './AsyncFlowFile';
-import {each, webAPIFileRead} from './tools';
+import {each} from './tools';
 
 /**
  * Flow.js is a library providing multiple simultaneous, stable and
@@ -34,7 +33,6 @@ import {each, webAPIFileRead} from './tools';
  * @param {Array.<number>} [opts.successStatuses]
  * @param {Function} [opts.initFileFn]
  * @param {Function} [opts.readFileFn]
- * @param {Function} [opts.asyncReadFileFn]
  * @param {Function} [opts.generateUniqueIdentifier]
  * @constructor
  */
@@ -102,7 +100,7 @@ export default class Flow extends Eventizer {
       successStatuses: [200, 201, 202],
       onDropStopPropagation: false,
       initFileFn: null,
-      readFileFn: webAPIFileRead,
+      readFileFn: (fileObj, startByte, endByte, fileType, chunk) => fileObj.file.slice(startByte, endByte, fileType),
       asyncReadFileFn: null
     };
 
@@ -128,7 +126,7 @@ export default class Flow extends Eventizer {
    * @function
    * @param {MouseEvent} event
    */
-  onDrop(event) {
+  async onDrop(event) {
     if (this.opts.onDropStopPropagation) {
       event.stopPropagation();
     }
@@ -138,26 +136,7 @@ export default class Flow extends Eventizer {
         dataTransfer.items[0].webkitGetAsEntry) {
       this.webkitReadDataTransfer(event);
     } else {
-      this.addFiles(dataTransfer.files, event);
-    }
-  }
-
-  /**
-   * On drop event when file/stream initialization is asynchronous
-   * @function
-   * @param {MouseEvent} event
-   */
-  async asyncOnDrop(event) {
-    if (this.opts.onDropStopPropagation) {
-      event.stopPropagation();
-    }
-    event.preventDefault();
-    var dataTransfer = event.dataTransfer;
-    if (dataTransfer.items && dataTransfer.items[0] &&
-        dataTransfer.items[0].webkitGetAsEntry) {
-      this.webkitReadDataTransfer(event);
-    } else {
-      await this.asyncAddFiles(dataTransfer.files, event);
+      await this.addFiles(dataTransfer.files, event);
     }
   }
 
@@ -250,7 +229,7 @@ export default class Flow extends Eventizer {
    * @returns {boolean}
    * @private
    */
-  uploadNextChunk(preventEvents) {
+  async uploadNextChunk(preventEvents) {
     // In some cases (such as videos) it's really handy to upload the first
     // and last chunk of a file quickly; this let's the server check the file's
     // metadata and determine if there's even a point in continuing.
@@ -259,13 +238,13 @@ export default class Flow extends Eventizer {
       for (let file of this.files) {
         if (!file.paused && file.chunks.length &&
             file.chunks[0].status() === 'pending') {
-          file.chunks[0].send();
+          await file.chunks[0].send();
           found = true;
           break;
         }
         if (!file.paused && file.chunks.length > 1 &&
             file.chunks[file.chunks.length - 1].status() === 'pending') {
-          file.chunks[file.chunks.length - 1].send();
+          await file.chunks[file.chunks.length - 1].send();
           found = true;
           break;
         }
@@ -283,7 +262,7 @@ export default class Flow extends Eventizer {
       }
       for (let chunk of file.chunks) {
         if (chunk.status() === 'pending') {
-          chunk.send();
+          await chunk.send();
           found = true;
           break outer_loop;
         }
@@ -360,25 +339,14 @@ export default class Flow extends Eventizer {
         input.setAttribute(key, value);
       });
       // When new files are added, simply append them to the overall list
-      // but adapt to the case where initFileFn is async.
-      var callback = this.opts.initFileFn
-          && typeof this.opts.initFileFn === 'function'
-          && this.opts.initFileFn.constructor.name  === 'AsyncFunction'
-          ? async e => {
-            if (e.target.value) {
-              input.setAttribute('readonly', 'readonly');
-              await this.asyncAddFiles(e.target.files, e);
-              e.target.value = '';
-              input.removeAttribute('readonly');
-            }
-          }
-          : e => {
-            if (e.target.value) {
-              this.addFiles(e.target.files, e);
-              e.target.value = '';
-            }
-          };
-      input.addEventListener('change', callback, false);
+      input.addEventListener('change', async e => {
+        if (e.target.value) {
+          input.setAttribute('readonly', 'readonly');
+          await this.addFiles(e.target.files, e);
+          e.target.value = '';
+          input.removeAttribute('readonly');
+        }
+      }, false);
     }, this);
   }
 
@@ -392,11 +360,7 @@ export default class Flow extends Eventizer {
       domNodes = [domNodes];
     }
 
-    this._onDropBound = this.opts.initFileFn
-          && typeof this.opts.initFileFn === 'function'
-          && this.opts.initFileFn.constructor.name  === 'AsyncFunction'
-          ? this.asyncOnDrop.bind(this)
-          : this.onDrop.bind(this);
+    this._onDropBound = this.onDrop.bind(this);
     for (let domNode of domNodes) {
       domNode.addEventListener('dragover', this.preventEvent, false);
       domNode.addEventListener('dragenter', this.preventEvent, false);
@@ -466,7 +430,7 @@ export default class Flow extends Eventizer {
    * Start or resume uploading.
    * @function
    */
-  upload() {
+  async upload() {
     // Make sure we don't start too many uploads at once
     var ret = this._shouldUploadNext();
     if (ret === false) {
@@ -476,7 +440,7 @@ export default class Flow extends Eventizer {
     this.emit('upload-start');
     var started = false;
     for (var num = 1; num <= this.opts.simultaneousUploads - ret; num++) {
-      started = this.uploadNextChunk(true) || started;
+      started = await this.uploadNextChunk(true) || started;
     }
     if (!started) {
       this.emit('complete');
@@ -485,34 +449,29 @@ export default class Flow extends Eventizer {
 
   /**
    * Resume uploading.
+   * @return [<Promise>]
    * @function
    */
   resume() {
-    each(this.files, function (file) {
-      if (!file.isComplete()) {
-        file.resume();
-      }
-    });
+    return Promise.all(this.files.filter(file => !file.isComplete()).map(file => file.resume()));
   }
 
   /**
    * Pause uploading.
+   * @return [<Promise>]
    * @function
    */
   pause() {
-    each(this.files, function (file) {
-      file.pause();
-    });
+    return Promise.all(this.files.map(file => file.pause()));
   }
 
   /**
    * Cancel upload of all FlowFile objects and remove them from the list.
+   * @return [<Promise>]
    * @function
    */
   cancel() {
-    for (var i = this.files.length - 1; i >= 0; i--) {
-      this.files[i].cancel();
-    }
+    return Promise.all(this.files.reverse().map(file => file.cancel()));
   }
 
   /**
@@ -533,8 +492,7 @@ export default class Flow extends Eventizer {
   }
 
   /**
-   * A generator to yield files and factor the sync part of the filtering logic used by both
-   * addFiles & asyncAddFiles
+   * A generator to yield files and factor the sync part of the filtering logic used in addFiles
    */
   *filterFileList(fileList, event) {
     // ie10+
@@ -553,11 +511,6 @@ export default class Flow extends Eventizer {
         continue;
       }
 
-      if (! this.hook('filter-file', file, event)) {
-        // console.log(`file ${file.name} filtered-out. skipping`);
-        continue;
-      }
-
       yield [file, uniqueIdentifier];
     }
   }
@@ -566,65 +519,12 @@ export default class Flow extends Eventizer {
    * Add a HTML5 File object to the list of files.
    * @function
    * @param {File} file
-   * @param Any other parameters supported by addFiles
-   */
-  addFile(file, ...args) {
-    this.addFiles([file], ...args);
-  }
-
-  /**
-   * Add a HTML5 File object to the list of files.
-   * @function
-   * @param {FileList|Array} fileList
-   * @param {Event} [event] event is optional
-   */
-  addFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
-    if (this.hasHook(true)) {
-      console.warn('Using addFiles() while settings asynchronous events can lead to unpredictable results. Use asyncAddFiles() instead.');
-    }
-
-    let item, file, flowfile, uniqueIdentifier, files = [];
-    const iterator = this.filterFileList(fileList, event);
-    while ((item = iterator.next()) && !item.done) {
-      [file, uniqueIdentifier] = item.value;
-
-      var f = new FlowFile(this, file, uniqueIdentifier);
-      f.bootstrap(event, initFileFn);
-      this.hook('file-added', f, event);
-      this.aHook('file-added', f, event);
-      if (! f.file) {
-        continue;
-      }
-      files.push(f);
-    }
-
-    this.hook('files-added', files, event);
-    this.aHook('files-added', files, event);
-
-    files = files.filter(e => e);
-    for (file of files) {
-      if (this.opts.singleFile && this.files.length > 0) {
-        this.removeFile(this.files[0]);
-      }
-      this.files.push(file);
-      // console.log(`enqueue file ${file.name} of ${file.chunks.length} chunks`);
-    }
-
-    this.hook('files-submitted', this.files, event);
-    this.aHook('files-submitted', this.files, event);
-  }
-
-
-  /**
-   * Add a HTML5 File object to the list of files.
-   * @function
-   * @param {File} file
-   * @param Any other parameters supported by asyncAddFiles.
+   * @param Any other parameters supported by addFiles.
    *
-   * @return (async) An initialized <AsyncFlowFile>.
+   * @return (async) An initialized <FlowFile>.
    */
-  async asyncAddFile(file, ...args) {
-    return (await this.asyncAddFiles([file], ...args))[0];
+  async addFile(file, ...args) {
+    return (await this.addFiles([file], ...args))[0];
   }
 
   /**
@@ -633,44 +533,40 @@ export default class Flow extends Eventizer {
    * @param {FileList|Array} fileList
    * @param {Event} [event] event is optional
    *
-   * @return Promise{[<AsyncFlowFile>,...]} The promise of getting an array of AsyncFlowFile.
+   * @return Promise{[<FlowFile>,...]} The promise of getting an array of FlowFile.
    */
-  async asyncAddFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
+  async addFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
     let item, file, flowfile, uniqueIdentifier, states = [];
     const iterator = this.filterFileList(fileList, event);
 
     while ((item = iterator.next()) && !item.done) {
       [file, uniqueIdentifier] = item.value;
-      if (! await this.aHook('filter-file', file, event)) {
+      if (! await this.hook('filter-file', file, event)) {
         // console.log(`file ${file.name} filtered-out. skipping`);
         continue;
       }
 
       // ToDo: parallelizable ?
-      var flowFile = new AsyncFlowFile(this, file, uniqueIdentifier),
+      var flowFile = new FlowFile(this, file, uniqueIdentifier),
           state = flowFile.bootstrap(event, initFileFn);
       states.push(state);
     }
 
     var flowfiles = await Promise.all(states);
     for (let ff of flowfiles) {
-      this.hook('file-added', ff, event);
-      await this.aHook('file-added', ff, event);
+      await this.hook('file-added', ff, event);
     }
 
-    this.hook('files-added', flowfiles, event);
-    await this.aHook('files-added', flowfiles, event);
+    await this.hook('files-added', flowfiles, event);
 
     flowfiles = flowfiles.filter(e => e && e.file);
     for (let file of flowfiles) {
       if (this.opts.singleFile && this.files.length > 0) {
-        this.removeFile(this.files[0]);
+        await this.removeFile(this.files[0]);
       }
       this.files.push(file);
     }
-
-    this.hook('files-submitted', this.files, event);
-    await this.aHook('files-submitted', this.files, event);
+    await this.hook('files-submitted', this.files, event);
 
     return flowfiles;
   }
@@ -680,11 +576,11 @@ export default class Flow extends Eventizer {
    * @function
    * @param {FlowFile} file
    */
-  removeFile(file) {
+  async removeFile(file) {
     for (var i = this.files.length - 1; i >= 0; i--) {
       if (this.files[i] === file) {
         this.files.splice(i, 1);
-        file.abort();
+        await file.abort();
         this.emit('file-removed', file);
 
         if (!this.opts.allowDuplicateUploads) {

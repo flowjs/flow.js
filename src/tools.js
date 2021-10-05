@@ -1,23 +1,4 @@
 /**
- * Default read function using the webAPI
- *
- * @function webAPIFileRead(fileObj, startByte, endByte, fileType, chunk)
- *
- */
-function webAPIFileRead(fileObj, startByte, endByte, fileType, chunk) {
-  var function_name = 'slice';
-
-  if (fileObj.file.slice)
-    function_name =  'slice';
-  else if (fileObj.file.mozSlice)
-    function_name = 'mozSlice';
-  else if (fileObj.file.webkitSlice)
-    function_name = 'webkitSlice';
-
-  chunk.readFinished(fileObj.file[function_name](startByte, endByte, fileType));
-}
-
-/**
  * If option is a function, evaluate it with given params
  * @param {*} data
  * @param {...} args arguments of a callback
@@ -72,6 +53,5 @@ g.evalOpts = evalOpts;
 
 export {
   each,
-  evalOpts,
-  webAPIFileRead
+  evalOpts
 };

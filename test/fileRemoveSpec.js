@@ -12,7 +12,7 @@ describe('file-removed event', function() {
     });
   });
 
-  it('should call file-removed event on Flow.removeFile', function() {
+  it('should call file-removed event on Flow.removeFile', async function() {
     var valid = false;
     var removedFile = null;
     flow.on('file-removed', ({detail: [file]}) => {
@@ -20,14 +20,14 @@ describe('file-removed event', function() {
       removedFile = file;
       valid = true;
     });
-    flow.addFile(new Blob(['file part']));
+    await flow.addFile(new Blob(['file part']));
     var addedFile = flow.files[0];
-    flow.removeFile(addedFile);
+    await flow.removeFile(addedFile);
     expect(removedFile).toBe(addedFile);
     expect(valid).toBeTruthy();
   });
 
-  it('should call file-removed event FlowFile.cancel', function() {
+  it('should call file-removed event FlowFile.cancel', async function() {
     var valid = false;
     var removedFile = null;
     flow.on('file-removed', ({detail: [file]}) => {
@@ -35,9 +35,9 @@ describe('file-removed event', function() {
       removedFile = file;
       valid = true;
     });
-    flow.addFile(new Blob(['file part']));
+    await flow.addFile(new Blob(['file part']));
     var addedFile = flow.files[0];
-    addedFile.cancel();
+    await addedFile.cancel();
     expect(removedFile).toBe(addedFile);
     expect(valid).toBeTruthy();
   });

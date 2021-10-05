@@ -173,27 +173,29 @@ export default class FlowFile {
 
   /**
    * Pause file upload
+   * @return Promise
    * @function
    */
   pause() {
     this.paused = true;
-    this.abort();
+    return this.abort();
   }
 
   /**
    * Resume file upload
+   * @return Promise
    * @function
    */
   resume() {
     this.paused = false;
-    this.flowObj.upload();
+    return this.flowObj.upload();
   }
 
   /**
    * Abort current upload
    * @function
    */
-  abort(reset) {
+  async abort(reset) {
     this.currentSpeed = 0;
     this.averageSpeed = 0;
     if (reset) {
@@ -203,38 +205,44 @@ export default class FlowFile {
       if (c.status() === 'uploading') {
         c.abort();
         c.pendingRetry = true;
-        this.flowObj.uploadNextChunk();
+        await this.flowObj.uploadNextChunk();
       }
     }
   }
 
   /**
    * Cancel current upload and remove from a list
+   * @return Promise
    * @function
    */
   cancel() {
-    this.flowObj.removeFile(this);
+    return this.flowObj.removeFile(this);
   }
 
   /**
    * Retry aborted file upload
+   * @return Promise
    * @function
    */
-  retry() {
-    this.bootstrap('retry');
-    this.flowObj.upload();
+  async retry() {
+    await this.bootstrap('retry');
+    return this.flowObj.upload();
   }
 
-  /**
-   * Clear current chunks and slice file again
-   * @function
-   */
-  bootstrap(event = null, initFileFn = this.flowObj.opts.initFileFn) {
-    if (typeof initFileFn === "function") {
-      initFileFn(this);
+  async bootstrap(event = null, initFileFn = this.flowObj.opts.initFileFn) {
+    /**
+     * Asynchronous initialization function, if defined, is run
+     * Then _bootstrap follow-up occurs
+     * And, optionally (in case of initial FlowFile creation), the `file-added` event is fired.
+     */
+    if (typeof initFileFn === 'function') {
+      await initFileFn(this, event);
     }
 
     this._bootstrap();
+
+    // console.log("Flowfile returns [async]", this._bootstrapped);
+    return this;
   }
 
   _bootstrap() {
@@ -293,6 +301,20 @@ export default class FlowFile {
       }
     });
     return uploading;
+  }
+
+  /**
+   * Indicates if string is being read at the moment
+   * @function
+   * @returns {boolean}
+   */
+  isReading() {
+    for (let chunk of this.chunks) {
+      if (chunk.status() === 'reading') {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
