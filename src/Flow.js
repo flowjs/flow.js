@@ -4,7 +4,7 @@
 
 import Eventizer from './Eventizer';
 import FlowFile from './FlowFile';
-import {each, webAPIFileRead} from './tools';
+import {each} from './tools';
 
 /**
  * Flow.js is a library providing multiple simultaneous, stable and
@@ -33,7 +33,6 @@ import {each, webAPIFileRead} from './tools';
  * @param {Array.<number>} [opts.successStatuses]
  * @param {Function} [opts.initFileFn]
  * @param {Function} [opts.readFileFn]
- * @param {Function} [opts.asyncReadFileFn]
  * @param {Function} [opts.generateUniqueIdentifier]
  * @constructor
  */
@@ -101,7 +100,7 @@ export default class Flow extends Eventizer {
       successStatuses: [200, 201, 202],
       onDropStopPropagation: false,
       initFileFn: null,
-      readFileFn: webAPIFileRead,
+      readFileFn: (fileObj, startByte, endByte, fileType, chunk) => fileObj.file.slice(startByte, endByte, fileType),
       asyncReadFileFn: null
     };
 
@@ -450,34 +449,29 @@ export default class Flow extends Eventizer {
 
   /**
    * Resume uploading.
+   * @return [<Promise>]
    * @function
    */
   resume() {
-    each(this.files, function (file) {
-      if (!file.isComplete()) {
-        file.resume();
-      }
-    });
+    return Promise.all(this.files.filter(file => !file.isComplete()).map(file => file.resume()));
   }
 
   /**
    * Pause uploading.
+   * @return [<Promise>]
    * @function
    */
   pause() {
-    each(this.files, function (file) {
-      file.pause();
-    });
+    return Promise.all(this.files.map(file => file.pause()));
   }
 
   /**
    * Cancel upload of all FlowFile objects and remove them from the list.
+   * @return [<Promise>]
    * @function
    */
   cancel() {
-    for (var i = this.files.length - 1; i >= 0; i--) {
-      this.files[i].cancel();
-    }
+    return Promise.all(this.files.reverse().map(file => file.cancel()));
   }
 
   /**
@@ -568,7 +562,7 @@ export default class Flow extends Eventizer {
     flowfiles = flowfiles.filter(e => e && e.file);
     for (let file of flowfiles) {
       if (this.opts.singleFile && this.files.length > 0) {
-        this.removeFile(this.files[0]);
+        await this.removeFile(this.files[0]);
       }
       this.files.push(file);
     }
@@ -582,11 +576,11 @@ export default class Flow extends Eventizer {
    * @function
    * @param {FlowFile} file
    */
-  removeFile(file) {
+  async removeFile(file) {
     for (var i = this.files.length - 1; i >= 0; i--) {
       if (this.files[i] === file) {
         this.files.splice(i, 1);
-        file.abort();
+        await file.abort();
         this.emit('file-removed', file);
 
         if (!this.opts.allowDuplicateUploads) {

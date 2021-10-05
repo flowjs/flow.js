@@ -168,9 +168,9 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
     * `.off(event)` Remove all callbacks of specific event.
     * `.off(event, callback)` Remove specific callback of event. `callback` should be a `Function`.
 * `.upload()` [async] Start or resume uploading.
-* `.pause()` Pause uploading.
-* `.resume()` Resume uploading.
-* `.cancel()` Cancel upload of all `FlowFile` objects and remove them from the list.
+* `.pause()` [async] Pause uploading.
+* `.resume()` [async] Resume uploading.
+* `.cancel()` [asyc] Cancel upload of all `FlowFile` objects and remove them from the list.
 * `.progress()` Returns a float between 0 and 1 indicating the current upload progress of all files.
 * `.isUploading()` Returns a boolean indicating whether or not the instance is currently uploading anything.
 * `.addFile(file, event = null, initFileFn = undefined)` [async] Add a HTML5 File object to the list of files.
@@ -178,7 +178,7 @@ parameter must be adjusted together with `progressCallbacksInterval` parameter. 
 * `.addFiles([files], event = null, initFileFn = undefined)` [async] Add multiple File objects to the list of files and returns the promise of the corresponding FlowFiles.
     * `event` The optional event that trigger the addition (for internal purposes)
     * `initFileFn` An [async] override of Flow.initFileFn
-* `.removeFile(file)` Cancel upload of a specific `FlowFile` object on the list from the list.
+* `.removeFile(file)` [asyc] Cancel upload of a specific `FlowFile` object on the list from the list.
 * `.getFromUniqueIdentifier(uniqueIdentifier)` Look up a `FlowFile` object by its unique identifier.
 * `.getSize()` Returns the total size of the upload in bytes.
 * `.sizeUploaded()` Returns the total size uploaded of all files in bytes.
@@ -234,7 +234,7 @@ FlowFile constructor can be accessed in `Flow.FlowFile`.
 * `.progress(relative)` Returns a float between 0 and 1 indicating the current upload progress of the file. If `relative` is `true`, the value is returned relative to all files in the Flow.js instance.
 * `.pause()` Pause uploading the file.
 * `.resume()` [async] Resume uploading the file.
-* `.cancel()` Abort uploading the file and delete it from the list of files to upload.
+* `.cancel()` [async] Abort uploading the file and delete it from the list of files to upload.
 * `.retry()` [async] Retry uploading the file.
 * `.bootstrap()` [async / internal use only] Rebuild the state of a `FlowFile` object, including reassigning chunks and XMLHttpRequest instances.
 * `.isUploading()` Returns a boolean indicating whether file chunks is uploading.

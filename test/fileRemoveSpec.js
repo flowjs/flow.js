@@ -22,7 +22,7 @@ describe('file-removed event', function() {
     });
     await flow.addFile(new Blob(['file part']));
     var addedFile = flow.files[0];
-    flow.removeFile(addedFile);
+    await flow.removeFile(addedFile);
     expect(removedFile).toBe(addedFile);
     expect(valid).toBeTruthy();
   });
@@ -37,7 +37,7 @@ describe('file-removed event', function() {
     });
     await flow.addFile(new Blob(['file part']));
     var addedFile = flow.files[0];
-    addedFile.cancel();
+    await addedFile.cancel();
     expect(removedFile).toBe(addedFile);
     expect(valid).toBeTruthy();
   });

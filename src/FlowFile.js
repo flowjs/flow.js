@@ -173,16 +173,18 @@ export default class FlowFile {
 
   /**
    * Pause file upload
+   * @return Promise
    * @function
    */
   pause() {
     this.paused = true;
-    this.abort();
+    return this.abort();
   }
 
   /**
    * Resume file upload
    * @return Promise
+   * @function
    */
   resume() {
     this.paused = false;
@@ -193,7 +195,7 @@ export default class FlowFile {
    * Abort current upload
    * @function
    */
-  abort(reset) {
+  async abort(reset) {
     this.currentSpeed = 0;
     this.averageSpeed = 0;
     if (reset) {
@@ -203,26 +205,28 @@ export default class FlowFile {
       if (c.status() === 'uploading') {
         c.abort();
         c.pendingRetry = true;
-        this.flowObj.uploadNextChunk();
+        await this.flowObj.uploadNextChunk();
       }
     }
   }
 
   /**
    * Cancel current upload and remove from a list
+   * @return Promise
    * @function
    */
   cancel() {
-    this.flowObj.removeFile(this);
+    return this.flowObj.removeFile(this);
   }
 
   /**
    * Retry aborted file upload
+   * @return Promise
    * @function
    */
   async retry() {
     await this.bootstrap('retry');
-    return await this.flowObj.upload();
+    return this.flowObj.upload();
   }
 
   async bootstrap(event = null, initFileFn = this.flowObj.opts.initFileFn) {

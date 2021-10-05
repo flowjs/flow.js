@@ -139,7 +139,7 @@ describe('upload file', function() {
     expect(xhr.requests[0].aborted).toBeUndefined();
     expect(xhr.requests[1].aborted).toBeUndefined();
     // should start upload second file
-    files[0].pause();
+    await files[0].pause();
     expect(files[0].isUploading()).toBeFalsy();
     expect(files[1].isUploading()).toBeTruthy();
     expect(xhr.requests.length).toBe(4);
@@ -148,7 +148,7 @@ describe('upload file', function() {
     expect(xhr.requests[2].aborted).toBeUndefined();
     expect(xhr.requests[3].aborted).toBeUndefined();
     // Should resume file after second file chunks is uploaded
-    files[0].resume();
+    await files[0].resume();
     expect(files[0].isUploading()).toBeFalsy();
     expect(xhr.requests.length).toBe(4);
     xhr.requests[2].respond(200);// second file chunk
@@ -440,8 +440,8 @@ describe('upload file', function() {
     for(var i=0; i<file.chunks.length; i++) {
       expect(preprocess).toHaveBeenCalledWith(file.chunks[i]);
       file.chunks[i].preprocessFinished();
-      file.pause();
-      file.resume();
+      await file.pause();
+      await file.resume();
       xhr.requests[xhr.requests.length-1].respond(200, [], "response");
     }
     expect(success).toHaveBeenCalledWith(asCustomEvent(file, "response", file.chunks[file.chunks.length-1]));
@@ -515,10 +515,10 @@ describe('upload file', function() {
     xhr.requests[2].uploadProgress({loaded: 10, total: 15});
     expect(fileThird.timeRemaining()).toBe(1);
     expect(flow.timeRemaining()).toBe(1);
-    fileThird.pause();
+    await fileThird.pause();
     expect(fileThird.timeRemaining()).toBe(0);
     expect(flow.timeRemaining()).toBe(0);
-    fileThird.resume();
+    await fileThird.resume();
     expect(fileThird.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
     expect(flow.timeRemaining()).toBe(Number.POSITIVE_INFINITY);
     clock.tick(1000);
@@ -558,9 +558,7 @@ describe('upload file', function() {
       flowObj.size = flowObj.file.size;
     }
 
-    flow.opts.readFileFn = function(fileObj, startByte, endByte, fileType, chunk) {
-      chunk.readFinished('X');
-    }
+    flow.opts.readFileFn = (fileObj, startByte, endByte, fileType, chunk) => 'X';
 
     await flow.addFile(new Blob(['0123456789']));
 

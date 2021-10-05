@@ -170,12 +170,12 @@ describe('upload stream', function() {
     expect(customFunction).toHaveBeenCalledTimes(1);
 
     // But if removed, then the function is run again
-    flow.removeFile(flowfiles[0]);
+    await flow.removeFile(flowfiles[0]);
     flowfiles = await flow.addFiles([sample_file], null, initFileFunction);
     expect(customFunction).toHaveBeenCalledTimes(2);
 
     // It should work with addFile() too.
-    flow.removeFile(flowfiles[0]);
+    await flow.removeFile(flowfiles[0]);
     flowfiles = await flow.addFile(sample_file, null, initFileFunction);
     expect(customFunction).toHaveBeenCalledTimes(3);
   });
@@ -335,7 +335,7 @@ describe('upload stream', function() {
     // Next two chunks from file[0] were read but we abort() their
     // corresponding `xhr`. They will get back to pending.
     // Flow should start uploading second file now
-    files[0].pause();
+    await files[0].pause();
     await waitFor(() => xhr_server.requests.length == 6);
 
     /*
@@ -364,7 +364,7 @@ describe('upload stream', function() {
       [ooR]
     */
     // Should resume file after second file chunks is uploaded
-    files[0].resume();
+    await files[0].resume();
     await sleep(1);
 
     /*
