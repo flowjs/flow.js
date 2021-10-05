@@ -118,6 +118,18 @@ describe('fileAdd event', function() {
     expect(customFunction).toHaveBeenCalledTimes(3);
   });
 
+  it('should validate catch-all emitting after hooks', async function() {
+    let valid = false;
+    flow.on('catch-all', () => {
+      valid = true;
+    });
+    flow.on('files-submitted', () => {
+      valid = false;
+    });
+    await flow.addFile(new Blob(['file part']));
+    expect(valid).toBeTruthy();
+  });
+
   describe('async/sync hooks', function () {
     beforeAll(function() {
       jasmine.getEnv().addReporter({
