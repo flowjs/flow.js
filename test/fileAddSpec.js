@@ -95,6 +95,23 @@ describe('fileAdd event', function() {
     expect(valid).toBeTruthy();
   });
 
+  it('should validate file-added filtering before files-added', async function() {
+    var valid = false;
+    flow.on('file-added', (flowFile) => {
+      if(flowFile.name === 'f2') {
+        delete flowFile.file;
+      }
+    });
+    flow.on('files-added', (files) => {
+      valid = files.length === 1;
+    });
+    await flow.addFiles([
+      new File(['file'], 'f1'),
+      new File(['file2'], 'f2')
+    ]);
+    expect(valid).toBeTruthy();
+  });
+
   it('should validate multiple filter-file hooks', async function() {
     const customFunction = jasmine.createSpy('fn');
     flow.on('filter-file', async () => {
