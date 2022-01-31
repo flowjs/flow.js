@@ -13,9 +13,9 @@ matrix:
   fast_finish: true
   include:
     - env: TEST='unit-tests'
-      node_js: "4.2"
+      node_js: "lts/*"
     - env: TEST='browser-tests'
-      node_js: "4.2"
+      node_js: "lts/*"
       addons:
         sauce_connect: true
   allow_failures:
