@@ -536,7 +536,7 @@ export default class Flow extends Eventizer {
    * @return Promise{[<FlowFile>,...]} The promise of getting an array of FlowFile.
    */
   async addFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
-    let item, file, flowfile, uniqueIdentifier, states = [];
+    let item, file, uniqueIdentifier, flowFiles = [];
     const iterator = this.filterFileList(fileList, event);
 
     while ((item = iterator.next()) && !item.done) {
@@ -546,21 +546,19 @@ export default class Flow extends Eventizer {
         continue;
       }
 
-      // ToDo: parallelizable ?
-      var flowFile = new FlowFile(this, file, uniqueIdentifier),
-          state = flowFile.bootstrap(event, initFileFn);
-      states.push(state);
+      let flowFile = new FlowFile(this, file, uniqueIdentifier);
+      await flowFile.bootstrap(event, initFileFn);
+      await this.hook('file-added', flowFile, event);
+
+      if(flowFile && flowFile.file) {
+        flowFiles.push(flowFile);
+      }
     }
 
-    var flowfiles = await Promise.all(states);
-    for (let ff of flowfiles) {
-      await this.hook('file-added', ff, event);
-    }
+    await this.hook('files-added', flowFiles, event);
 
-    await this.hook('files-added', flowfiles, event);
-
-    flowfiles = flowfiles.filter(e => e && e.file);
-    for (let file of flowfiles) {
+    flowFiles = flowFiles.filter(flowFile => flowFile && flowFile.file);
+    for (let file of flowFiles) {
       if (this.opts.singleFile && this.files.length > 0) {
         await this.removeFile(this.files[0]);
       }
@@ -568,7 +566,7 @@ export default class Flow extends Eventizer {
     }
     await this.hook('files-submitted', this.files, event);
 
-    return flowfiles;
+    return flowFiles;
   }
 
   /**
