@@ -61,11 +61,16 @@
      * Check if directory upload is supported
      * @type {boolean}
      */
-    this.supportDirectory = (
-        /Chrome/.test(window.navigator.userAgent) ||
-        /Firefox/.test(window.navigator.userAgent) ||
-        /Edge/.test(window.navigator.userAgent)
-    );
+    var tmpDirTestInput = document.createElement('input');
+    if ('webkitdirectory' in tmpDirTestInput 
+        || 'mozdirectory' in tmpDirTestInput 
+        || 'odirectory' in tmpDirTestInput 
+        || 'msdirectory' in tmpDirTestInput 
+        || 'directory' in tmpDirTestInput) {
+      this.supportDirectory = true;
+    } else {
+      this.supportDirectory = false;
+    }
 
     /**
      * List of FlowFile objects
