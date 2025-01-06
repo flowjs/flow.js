@@ -65,13 +65,13 @@ Most of the magic for Flow.js happens in the user's browser, but files still nee
 
 To handle the state of upload chunks, a number of extra parameters are sent along with all requests:
 
-* `flowChunkNumber`: The index of the chunk in the current upload. First chunk is `1` (no base-0 counting here).
-* `flowTotalChunks`: The total number of chunks.  
-* `flowChunkSize`: The general chunk size. Using this value and `flowTotalSize` you can calculate the total number of chunks. Please note that the size of the data received in the HTTP might be lower than `flowChunkSize` of this for the last chunk for a file.
-* `flowTotalSize`: The total file size.
-* `flowIdentifier`: A unique identifier for the file contained in the request.
-* `flowFilename`: The original file name (since a bug in Firefox results in the file name not being transmitted in chunk multipart posts).
-* `flowRelativePath`: The file's relative path when selecting a directory (defaults to file name in all browsers except Chrome).
+* `chunkNumber`: The index of the chunk in the current upload. First chunk is `1` (no base-0 counting here).
+* `totalChunks`: The total number of chunks.  
+* `chunkSize`: The general chunk size. Using this value and `totalSize` you can calculate the total number of chunks. Please note that the size of the data received in the HTTP might be lower than `chunkSize` of this for the last chunk for a file.
+* `totalSize`: The total file size.
+* `requestId`: A unique identifier for the file contained in the request.
+* `filename`: The original file name (since a bug in Firefox results in the file name not being transmitted in chunk multipart posts).
+* `relativePath`: The file's relative path when selecting a directory (defaults to file name in all browsers except Chrome).
 
 You should allow for the same chunk to be uploaded more than once; this isn't standard behaviour, but on an unstable network environment it could happen, and this case is exactly what Flow.js is designed for.
 
@@ -195,6 +195,7 @@ added.
 * `.fileRetry(file, chunk)` Something went wrong during upload of a specific file, uploading is being 
 retried.
 * `.fileError(file, message, chunk)` An error occurred during upload of a specific file.
+* `.readErrors(files, folders, event)` This event fires before fileAdded or filesAdded events only if errors occur while reading files or folders. First argument `files` is collection of files read errors, second argument `folders` is collection of folder read errors.
 * `.uploadStart()` Upload has been started on the Flow object.
 * `.complete()` Uploading completed.
 * `.progress()` Uploading progress.

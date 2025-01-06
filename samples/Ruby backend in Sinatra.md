@@ -89,19 +89,19 @@ private
   ##
   # Determine if this is the last chunk based on the chunk number.
   def last_chunk?
-    params[:flowChunkNumber].to_i == params[:flowTotalChunks].to_i
+    params[:chunkNumber].to_i == params[:totalChunks].to_i
   end
 
   ##
   # ./tmp/flow/abc-123/upload.txt.part1
   def chunk_file_path
-    File.join(chunk_file_directory, "#{params[:flowFilename]}.part#{params[:flowChunkNumber]}")
+    File.join(chunk_file_directory, "#{params[:filename]}.part#{params[:chunkNumber]}")
   end
 
   ##
   # ./tmp/flow/abc-123
   def chunk_file_directory
-    File.join "tmp", "flow", params[:flowIdentifier]
+    File.join "tmp", "flow", params[:requestId]
   end
 
   ##
@@ -123,7 +123,7 @@ private
   ##
   # /final/resting/place/upload.txt
   def final_file_path
-    File.join final_file_directory, params[:flowFilename]
+    File.join final_file_directory, params[:filename]
   end
 
   ##
