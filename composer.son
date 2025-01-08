@@ -1,0 +1,11 @@
+{
+    "name": "flowjs/flowjs",
+    "type": "library",
+    "description": "A JavaScript library providing multiple file uploads via the HTML5 File API.",
+    "keywords": [
+        "upload",
+        "js"
+    ],
+    "homepage": "https://github.com/flowjs/flow.js",
+    "license": "MIT"
+}
