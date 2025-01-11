@@ -18,6 +18,13 @@ app.use(express.static(__dirname + '/../../src'));
 app.post('/upload', multipartMiddleware, function(req, res) {
   flow.post(req, function(status, filename, original_filename, identifier) {
     console.log('POST', status, original_filename, identifier);
+    if (status == 'done') {
+      // Assemble Chunks
+      var stream = fs.createWriteStream('uploads/' + identifier);
+      flow.write(identifier, stream);
+      // Clean chunks after the file is assembled
+      flow.clean(identifier);
+    }
     if (ACCESS_CONTROLL_ALLOW_ORIGIN) {
       res.header("Access-Control-Allow-Origin", "*");
     }
@@ -67,8 +74,8 @@ app.get('/upload', function(req, res) {
   });
 });
 
-app.get('/download/:identifier', function(req, res) {
-  flow.write(req.params.identifier, res);
+app.get('/download/:identifier/:name', function(req, res) {
+   res.download('uploads/' +req.params.identifier, req.params.name);
 });
 
 app.listen(3000, function(){
