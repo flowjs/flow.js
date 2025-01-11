@@ -298,6 +298,10 @@
       if (typeof custom === 'function') {
         return custom(file);
       }
+      //To avoid same filenames that means `myfile.jpg` and `myfile().jpg`
+      if (!file.hasOwnProperty('micro_time')) {
+         file.micro_time = Date.now();
+      }
       // Some confusion in different versions of Firefox
       var relativePath = file.relativePath || file.webkitRelativePath || file.fileName || file.name;
       return file.size + '-' + relativePath.replace(/[^0-9a-zA-Z_-]/img, '');
