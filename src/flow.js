@@ -1398,6 +1398,7 @@
       this.xhr = new XMLHttpRequest();
       this.xhr.upload.addEventListener('progress', this.progressHandler, false);
       this.xhr.addEventListener("load", this.doneHandler, false);
+      this.xhr.addEventListener("loadend", this.doneHandler, false);
       this.xhr.addEventListener("error", this.doneHandler, false);
 
       var uploadMethod = evalOpts(this.flowObj.opts.uploadMethod, this.fileObj, this);
