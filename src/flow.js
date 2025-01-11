@@ -1482,7 +1482,7 @@
       } else if (s === 'pending') {
         return 0;
       } else {
-        return this.total > 0 ? this.loaded / this.total : 0;
+        return getSuccessProgress(this.loaded, this.total);
       }
     },
 
@@ -1495,7 +1495,9 @@
       var size = this.endByte - this.startByte;
       // can't return only chunk.loaded value, because it is bigger than chunk size
       if (this.status() !== 'success') {
-        size = this.progress() * size;
+        // Multiply integers before computing progress to prevent floating point issue
+        // https://github.com/flowjs/flow.js/issues/173
+        return getSuccessProgress(this.loaded * size, this.total);
       }
       return size;
     },
@@ -1581,6 +1583,16 @@
    */
   function async(fn, context) {
     setTimeout(fn.bind(context), 0);
+  }
+
+  /**
+   * Get the progress from loaded and total sizes
+   * @function
+   * @param {number} loaded Number of uploaded bytes
+   * @param {number} total Number of total bytes to be uploaded
+   */
+  function getSuccessProgress(loaded, total) {
+    return total > 0 ? loaded / total : 0;
   }
 
   /**
