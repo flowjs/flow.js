@@ -230,55 +230,109 @@
      */
     webkitReadDataTransfer: function (event) {
       var $ = this;
-      var queue = event.dataTransfer.items.length;
-      var files = [];
-      each(event.dataTransfer.items, function (item) {
-        var entry = item.webkitGetAsEntry();
-        if (!entry) {
-          decrement();
-          return ;
-        }
-        if (entry.isFile) {
-          // due to a bug in Chrome's File System API impl - #149735
-          fileReadSuccess(item.getAsFile(), entry.fullPath);
-        } else {
-          readDirectory(entry.createReader());
-        }
-      });
-      function readDirectory(reader) {
-        reader.readEntries(function (entries) {
-          if (entries.length) {
-            queue += entries.length;
-            each(entries, function(entry) {
-              if (entry.isFile) {
-                var fullPath = entry.fullPath;
-                entry.file(function (file) {
-                  fileReadSuccess(file, fullPath);
-                }, readError);
-              } else if (entry.isDirectory) {
-                readDirectory(entry.createReader());
-              }
-            });
-            readDirectory(reader);
-          } else {
-            decrement();
+      getEntries(event.dataTransfer.items).then(function (result) {
+        getFiles(result.files).then(function (entries) {
+          var files = [];
+          var errors = [];
+          each(entries, function (entry) {
+            if (entry.error) {
+              errors.push(entry);
+            } else {
+              files.push(entry);
+            }
+          });
+          if (result.errors.length || errors.length) {
+            $.fire('readErrors', errors, result.errors, event);
           }
-        }, readError);
+          if (files.length) {
+            $.addFiles(files, event);
+          }
+        });
+      });
+      function getEntries(items) {
+        var files = [];
+        var errors = [];
+        var promises = [];
+
+        function readEntry(entry, promises) {
+          if (entry.isFile) {
+            files.push(entry);
+          } else if (entry.isDirectory) {
+            promises.push(readDirectory(entry));
+          }
+        }
+
+        function readDirectory(entry) {
+          var reader = entry.createReader();
+          return new Promise(function (resolve, reject) {
+            var promises = [];
+            readEntries(entry, reader, promises, resolve);
+          });
+        }
+
+        function readEntries(entry, reader, promises, resolve) {
+          reader.readEntries(function (entries) {
+            if (entries.length) {
+              var promises2 = [];
+              each(entries, function (entry2) {
+                readEntry(entry2, promises2);
+              });
+              promises.push(Promise.all(promises2));
+              readEntries(entry, reader, promises, resolve);
+              return;
+            }
+            resolve(Promise.all(promises));
+          }, function (error) {
+            errors.push({
+              path: entry.fullPath,
+              error: error
+            });
+            resolve(promises);
+          });
+        }
+
+        each(items, function (item) {
+          var entry = item.webkitGetAsEntry();
+          if (!entry) {
+            return;
+          }
+          if (entry.isFile) {
+            // due to a bug in Chrome's File System API impl - #149735
+            files.push(getFile(item.getAsFile(), entry.fullPath));
+            return;
+          }
+          readEntry(entry, promises);
+        });
+
+        return new Promise(function (resolve, reject) {
+          return Promise.all(promises).then(function () {
+            resolve({ files: files, errors: errors });
+          });
+        });
       }
-      function fileReadSuccess(file, fullPath) {
+      function getFiles(entries) {
+        return Promise.all(entries.map(function (entry) {
+          return new Promise(function (resolve, reject) {
+            if (entry.file) {
+              var fullPath = entry.fullPath;
+              entry.file(function (file) {
+                resolve(getFile(file, fullPath));
+              }, function (file) {
+                resolve({
+                  path: entry.fullPath,
+                  error: file
+                });
+              });
+            } else {
+              resolve(entry);
+            }
+          });
+        }));
+      }
+      function getFile(file, fullPath) {
         // relative path should not start with "/"
         file.relativePath = fullPath.substring(1);
-        files.push(file);
-        decrement();
-      }
-      function readError(fileError) {
-        decrement();
-        throw fileError;
-      }
-      function decrement() {
-        if (--queue == 0) {
-          $.addFiles(files, event);
-        }
+        return file;
       }
     },
 
@@ -588,8 +642,12 @@
      * @param {Event} [event] event is optional
      */
     addFiles: function (fileList, event) {
+      var $ = this;
       var files = [];
-      each(fileList, function (file) {
+      var errors = [];
+      var promises = [];
+
+      function addFile(file) {        
         // https://github.com/flowjs/flow.js/issues/55
         if ((!ie10plus || ie10plus && file.size > 0) && !(file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
           var uniqueIdentifier = this.generateUniqueIdentifier(file);
@@ -600,16 +658,54 @@
             }
           }
         }
-      }, this);
-      if (this.fire('filesAdded', files, event)) {
-        each(files, function (file) {
-          if (this.opts.singleFile && this.files.length > 0) {
-            this.removeFile(this.files[0]);
-          }
-          this.files.push(file);
-        }, this);
-        this.fire('filesSubmitted', files, event);
       }
+      
+      /** 
+       * Chrome's FileSystem API has a bug that files from dropped folders or files from input dialog's selected folder,
+       * with read errors (has absolute paths which exceed 260 chars) will have zero file size.
+       */
+      function validateFile(file) {
+        // files with size greater than zero can upload
+        if (file.size > 0) {
+          addFile.bind($)(file);
+          return;
+        }
+        
+        // try to read from from zero size file,
+        // if error occurs than file cannot be uploaded
+        promises.push(new Promise(function (resolve, reject) {
+          var reader = new FileReader();
+          reader.onloadend = function () {
+            if (reader.error) {
+              errors.push({
+                path: file.webkitRelativePath || file.name,
+                error: reader.error
+              });
+            } else {
+              addFile.bind($)(file);
+            }
+            resolve();
+          }.bind($);
+          reader.readAsArrayBuffer(file);
+        }));
+      }
+
+      each(fileList, validateFile);
+
+      Promise.all(promises).then(function () {
+        if (errors.length) {
+          this.fire('readErrors', errors, [], event);
+        }
+        if (this.fire('filesAdded', files, event)) {
+          each(files, function (file) {
+            if (this.opts.singleFile && this.files.length > 0) {
+              this.removeFile(this.files[0]);
+            }
+            this.files.push(file);
+          }, this);
+          this.fire('filesSubmitted', files, event);
+        }
+      }.bind(this));
     },
 
 
@@ -715,12 +811,6 @@
      * @type {Flow}
      */
     this.flowObj = flowObj;
-
-    /**
-     * Used to store the bytes read
-     * @type {Blob|string}
-     */
-    this.bytes = null;
 
     /**
      * Reference to file
@@ -937,9 +1027,16 @@
      */
     bootstrap: function () {
       if (typeof this.flowObj.opts.initFileFn === "function") {
-        this.flowObj.opts.initFileFn(this);
+        var ret = this.flowObj.opts.initFileFn(this);
+        if (ret && 'then' in ret) {
+          ret.then(this._bootstrap.bind(this));
+          return;
+        }
       }
+      this._bootstrap();
+    },
 
+    _bootstrap: function () {
       this.abort(true);
       this.error = false;
       // Rebuild stack of chunks from file
@@ -1144,6 +1241,11 @@
      */
     this.readState = 0;
 
+    /**
+     * Used to store the bytes read
+     * @type {Blob|string}
+     */
+    this.bytes = undefined;
 
     /**
      * Bytes transferred from total request size
@@ -1280,14 +1382,14 @@
      */
     getParams: function () {
       return {
-        flowChunkNumber: this.offset + 1,
-        flowChunkSize: this.chunkSize,
-        flowCurrentChunkSize: this.endByte - this.startByte,
-        flowTotalSize: this.fileObj.size,
-        flowIdentifier: this.fileObj.uniqueIdentifier,
-        flowFilename: this.fileObj.name,
-        flowRelativePath: this.fileObj.relativePath,
-        flowTotalChunks: this.fileObj.chunks.length
+        chunkNumber: this.offset + 1,
+        chunkSize: this.chunkSize,
+        currentChunkSize: this.endByte - this.startByte,
+        totalSize: this.fileObj.size,
+        requestId: this.fileObj.uniqueIdentifier,
+        filename: this.fileObj.name,
+        relativePath: this.fileObj.relativePath,
+        totalChunks: this.fileObj.chunks.length
       };
     },
 

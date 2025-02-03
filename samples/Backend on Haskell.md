@@ -76,15 +76,15 @@ uploadStart = action POST (pathJSON >/> pathId </< "upload") $ \vi -> withAuth $
 chunkForm :: DeformActionM f (Upload, Int64, Word64)
 chunkForm = do
   csrfForm
-  up <- "flowIdentifier" .:> (lift . (maybeAction <=< lookupUpload) =<< deform)
+  up <- "requestId" .:> (lift . (maybeAction <=< lookupUpload) =<< deform)
   let z = uploadSize up
-  "flowFilename" .:> (deformGuard "Filename mismatch." . (uploadFilename up ==) =<< deform)
-  "flowTotalSize" .:> (deformGuard "File size mismatch." . (z ==) =<< fileSizeForm)
-  c <- "flowChunkSize" .:> (deformCheck "Chunk size too small." (256 <=) =<< deform)
-  n <- "flowTotalChunks" .:> (deformCheck "Chunk count mismatch." ((1 >=) . abs . (pred z `div` c -)) =<< deform)
-  i <- "flowChunkNumber" .:> (deformCheck "Chunk number out of range." (\i -> 0 <= i && i < n) =<< pred <$> deform)
+  "filename" .:> (deformGuard "Filename mismatch." . (uploadFilename up ==) =<< deform)
+  "totalSize" .:> (deformGuard "File size mismatch." . (z ==) =<< fileSizeForm)
+  c <- "chunkSize" .:> (deformCheck "Chunk size too small." (256 <=) =<< deform)
+  n <- "totalChunks" .:> (deformCheck "Chunk count mismatch." ((1 >=) . abs . (pred z `div` c -)) =<< deform)
+  i <- "chunkNumber" .:> (deformCheck "Chunk number out of range." (\i -> 0 <= i && i < n) =<< pred <$> deform)
   let o = c * i
-  l <- "flowCurrentChunkSize" .:> (deformCheck "Current chunk size out of range." (\l -> (c == l || i == pred n) && o + l <= z) =<< deform)
+  l <- "currentChunkSize" .:> (deformCheck "Current chunk size out of range." (\l -> (c == l || i == pred n) && o + l <= z) =<< deform)
   return (up, o, fromIntegral l)
 
 uploadChunk :: ActionRoute ()

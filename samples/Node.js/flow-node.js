@@ -64,11 +64,11 @@ module.exports = flow = function(temporaryFolder) {
     //'found', filename, original_filename, identifier
     //'not_found', null, null, null
     $.get = function(req, callback) {
-        var chunkNumber = req.param('flowChunkNumber', 0);
-        var chunkSize = req.param('flowChunkSize', 0);
-        var totalSize = req.param('flowTotalSize', 0);
-        var identifier = req.param('flowIdentifier', "");
-        var filename = req.param('flowFilename', "");
+        var chunkNumber = req.param('chunkNumber', 0);
+        var chunkSize = req.param('chunkSize', 0);
+        var totalSize = req.param('totalSize', 0);
+        var identifier = req.param('requestId', "");
+        var filename = req.param('filename', "");
 
         if (validateRequest(chunkNumber, chunkSize, totalSize, identifier, filename) == 'valid') {
             var chunkFilename = getChunkFilename(chunkNumber, identifier);
@@ -93,11 +93,11 @@ module.exports = flow = function(temporaryFolder) {
         var fields = req.body;
         var files = req.files;
 
-        var chunkNumber = fields['flowChunkNumber'];
-        var chunkSize = fields['flowChunkSize'];
-        var totalSize = fields['flowTotalSize'];
-        var identifier = cleanIdentifier(fields['flowIdentifier']);
-        var filename = fields['flowFilename'];
+        var chunkNumber = fields['chunkNumber'];
+        var chunkSize = fields['chunkSize'];
+        var totalSize = fields['totalSize'];
+        var identifier = cleanIdentifier(fields['requestId']);
+        var filename = fields['filename'];
 
         if (!files[$.fileParameterName] || !files[$.fileParameterName].size) {
             callback('invalid_flow_request', null, null, null);
