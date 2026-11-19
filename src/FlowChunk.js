@@ -1,135 +1,69 @@
-import {evalOpts, each} from './tools';
-import DeferredPromise from './DeferredPromise';
+import {abortableSleep, each, evalOpts} from './tools.js';
+import {sendRequest} from './Transport.js';
+import Deferred from './Deferred.js';
 
 /**
- * Class for storing a single chunk
- * @name FlowChunk
- * @param {Flow} flowObj
- * @param {FlowFile} fileObj
- * @param {number} offset
- * @constructor
+ * One uploaded chunk.
+ *
+ * FlowChunk owns an explicit state machine:
+ *
+ *   pending -> reading -> uploading -> success
+ *      ^          |           |
+ *      |          v           v
+ *      +------ paused      error (permanent)
+ *      |
+ *      +------ cancelled
+ *
+ * XHR listeners only resolve Transport promises. This class never schedules
+ * another chunk or another upload from an event handler.
  */
 export default class FlowChunk {
-
   constructor(flowObj, fileObj, offset) {
-
-    /**
-     * Reference to parent flow object
-     * @type {Flow}
-     */
     this.flowObj = flowObj;
-
-    /**
-     * Reference to parent FlowFile object
-     * @type {FlowFile}
-     */
     this.fileObj = fileObj;
-
-    /**
-     * File offset
-     * @type {number}
-     */
     this.offset = offset;
 
-    /**
-     * Indicates if chunk existence was checked on the server
-     * @type {boolean}
-     */
     this.tested = false;
-
-    /**
-     * Number of retries performed
-     * @type {number}
-     */
     this.retries = 0;
-
-    /**
-     * Pending retry
-     * @type {boolean}
-     */
     this.pendingRetry = false;
 
-    /**
-     * Preprocess state
-     * @type {number} 0 = unprocessed, 1 = processing, 2 = finished
-     */
     this.preprocessState = 0;
-
-    /**
-     * Read state
-     * @type {number} 0 = not read, 1 = reading, 2 = finished
-     */
     this.readState = 0;
 
     /**
-     * The payload.
-     * @type {Blob|string}
+     * undefined = not read, null = EOF/no data, anything else = payload.
+     * A zero-length Blob is a valid payload (empty file).
      */
-    this.payload = null;
-
-    /**
-     * Mostly for streams: how many bytes were actually read
-     * @type {number} -1 = not read
-     */
+    this.payload = undefined;
     this.readBytes = -1;
+    this.checksum = null;
+    this._checksumComputed = false;
 
-    /**
-     * File-level read state.
-     * When reading from a stream we can't slice a known-size buffer in chunks.
-     * These are constructed sequentially from blocking read. This list stores the
-     * respective Promise status of each chunk.
-     * @type {Promise}
-     */
-    this.readStreamState = new DeferredPromise();
-
-    /**
-     * Bytes transferred from total request size
-     * @type {number}
-     */
     this.loaded = 0;
-
-    /**
-     * Total request size
-     * @type {number}
-     */
     this.total = 0;
 
-    /**
-     * Size of a chunk
-     * @type {number}
-     */
     this.chunkSize = this.fileObj.chunkSize;
-
-    /**
-     * Chunk start byte in a file
-     * @type {number}
-     */
     this.startByte = this.offset * this.chunkSize;
-
-    /**
-     * A specific filename for this chunk which otherwise default to the main name
-     * @type {string}
-     */
     this.filename = null;
-
-    /**
-     * Chunk end byte in a file
-     * @type {number}
-     */
     this.endByte = this.computeEndByte();
-
-    /**
-     * XMLHttpRequest
-     * @type {XMLHttpRequest}
-     */
     this.xhr = null;
+
+    this.state = 'pending';
+    this.isLastChunk = false;
+    this._abortReason = null;
+    this._controller = null;
+    this._uploadPromise = null;
+    this._responseText = '';
+    this.uploadState = new Deferred();
   }
 
-  /**
-   * Compute the endbyte in a file
-   *
-   */
   computeEndByte() {
+    if (this.fileObj.streaming) {
+      if (this.fileObj.size > 0 && this.startByte < this.fileObj.size) {
+        return Math.min(this.fileObj.size, this.startByte + this.chunkSize);
+      }
+      return this.startByte + this.chunkSize;
+    }
     var endByte = Math.min(this.fileObj.size, (this.offset + 1) * this.chunkSize);
     if (this.fileObj.size - endByte < this.chunkSize && !this.flowObj.opts.forceChunkSize) {
       // The last chunk will be bigger than the chunk size,
@@ -140,80 +74,440 @@ export default class FlowChunk {
   }
 
   /**
-   * Send chunk event
-   * @param event
-   * @param {...} args arguments of a callback
+   * Send a chunk event to the parent FlowFile.
    */
-  event(event, args) {
-    args = Array.prototype.slice.call(arguments);
-    args.unshift(this);
-    this.fileObj.chunkEvent.apply(this.fileObj, args);
+  event(event, ...args) {
+    this.fileObj.chunkEvent(this, event, ...args);
   }
 
-  /**
-   * Catch progress event
-   * @param {ProgressEvent} event
-   */
   progressHandler(event) {
-    // console.log(event);
     if (event.lengthComputable) {
-      this.loaded = event.loaded ;
+      this.loaded = event.loaded;
       this.total = event.total;
     }
     this.event('progress', event);
   }
 
   /**
-   * Catch test event
-   * @param {Event} event
+   * Read this chunk once. Returns undefined=not read, null=EOF, or data.
+   * A zero-length Blob is data.
    */
-  testHandler(event) {
-    var status = this.status(true);
-    if (status === 'error') {
-      this.event(status, this.message());
-      this.flowObj.uploadNextChunk();
-    } else if (status === 'success') {
-      this.tested = true;
-      this.event(status, this.message());
-      this.flowObj.uploadNextChunk();
-    } else if (!this.fileObj.paused) {
-      // Error might be caused by file pause method
-      // Chunks does not exist on the server side
-      this.tested = true;
-      this.send();
+  async read(signal) {
+    if (this.payload !== undefined) {
+      if (this.payload !== null &&
+          !this._checksumComputed &&
+          typeof this.flowObj.opts.chunkChecksum === 'function') {
+        this.checksum = await this.flowObj.opts.chunkChecksum(this, this.payload);
+        this._checksumComputed = true;
+      }
+      return this.payload;
     }
+
+    const preprocess = this.flowObj.opts.preprocess;
+    if (typeof preprocess === 'function') {
+      this.preprocessState = 1;
+      try {
+        await preprocess(this);
+      } finally {
+        this.preprocessState = 2;
+      }
+      // Re-compute endByte after preprocess, which may change fileObj.size.
+      this.endByte = this.computeEndByte();
+    }
+
+    this.readState = 1;
+    this.state = 'reading';
+
+    // Give the reader its own cancellable signal. The session signal is
+    // linked in, so a session pause/cancel and a per-file pause/cancel both
+    // abort the read. A reader that ignores the signal is still discarded by
+    // the state checks below.
+    const controller = new AbortController();
+    this._controller = controller;
+    const onParentAbort = () => controller.abort();
+    if (signal) {
+      if (signal.aborted) {
+        controller.abort();
+      } else {
+        signal.addEventListener('abort', onParentAbort, {once: true});
+      }
+    }
+
+    if (controller.signal.aborted) {
+      if (signal) {
+        signal.removeEventListener('abort', onParentAbort);
+      }
+      if (this._controller === controller) {
+        this._controller = null;
+      }
+      this.readState = 2;
+      return null;
+    }
+
+    let data;
+    try {
+      data = await this.flowObj.opts.readFileFn(
+        this.fileObj,
+        this.startByte,
+        this.endByte,
+        this.fileObj.file.type,
+        this,
+        {signal: controller.signal}
+      );
+    } catch (error) {
+      if (controller.signal.aborted ||
+          this.fileObj.paused ||
+          this.fileObj.cancelled ||
+          this.fileObj.error) {
+        return null;
+      }
+      throw error;
+    } finally {
+      if (signal) {
+        signal.removeEventListener('abort', onParentAbort);
+      }
+      if (this._controller === controller) {
+        this._controller = null;
+      }
+      this.readState = 2;
+    }
+
+    // Cache the completed read even if pause/cancel/error raced with it. A
+    // stateful reader (stream cipher, GPG packetizer, ...) has already
+    // consumed those bytes; discarding them would corrupt the stream on
+    // resume. The session still decides whether to upload this payload.
+    if (data === null || typeof data === 'undefined') {
+      this.payload = null;
+      this.readBytes = 0;
+      this._checksumComputed = true;
+    } else {
+      if (typeof data === 'string') {
+        data = new Blob([data], {type: 'application/octet-stream'});
+      }
+      this.payload = data;
+      if (typeof data.size === 'number') {
+        this.readBytes = data.size;
+      } else if (typeof data.byteLength === 'number') {
+        this.readBytes = data.byteLength;
+      } else if (typeof data.length === 'number') {
+        this.readBytes = data.length;
+      } else {
+        this.readBytes = -1;
+      }
+      if (this.chunkSize && this.readBytes > this.chunkSize) {
+        console.warn(
+          `Chunk ${this.offset}: returned too much data. ` +
+          `Got ${this.readBytes}. Expected no more than ${this.chunkSize}.`
+        );
+      }
+    }
+
+    if (this.payload !== null &&
+        typeof this.flowObj.opts.chunkChecksum === 'function') {
+      this.checksum = await this.flowObj.opts.chunkChecksum(this, this.payload);
+      this._checksumComputed = true;
+    }
+
+    return this.payload;
   }
 
   /**
-   * Upload has stopped
-   * @param {Event} event
+   * Upload one payload. Handles test requests and retries in a loop.
+   * Resolves with 'success', 'error', 'pending' or 'cancelled'.
    */
-  doneHandler(event) {
-    var status = this.status();
-    if (status === 'success' || status === 'error') {
-      delete this.data;
-      this.event(status, this.message());
-      this.flowObj.uploadNextChunk();
-    } else if (!this.fileObj.paused) {
-      this.event('retry', this.message());
-      this.pendingRetry = true;
-      this.abort();
-      this.retries++;
-      var retryInterval = this.flowObj.opts.chunkRetryInterval;
-      if (retryInterval !== null) {
-        setTimeout(() => this.send(), retryInterval);
+  async upload(payload, signal) {
+    if (this.state === 'success' || this.state === 'error' || this.state === 'cancelled') {
+      return this.state;
+    }
+
+    this.isLastChunk = false;
+    if (this.fileObj.streaming && this.fileObj.eof &&
+        this.offset === this.fileObj.eofOffset) {
+      this.isLastChunk = true;
+    }
+    if (payload === null || typeof payload === 'undefined') {
+      if (this.fileObj.streaming) {
+        if (this.fileObj.eof && this.offset > this.fileObj.eofOffset) {
+          this.endByte = this.startByte;
+          return this._succeed('');
+        }
+        this.fileObj.eof = true;
+        this.fileObj.eofOffset = this.offset;
+        this.isLastChunk = true;
+        this.endByte = this.startByte;
+        // Pre-created estimate chunks beyond EOF are never sent.
+        for (const other of this.fileObj.chunks) {
+          if (other.offset > this.offset &&
+              !['success', 'error', 'cancelled'].includes(other.state)) {
+            other.endByte = other.startByte;
+            other.state = 'success';
+            other.uploadState.resolve({status: 'success'});
+          }
+        }
+        // Send a zero-byte final marker so a streaming server knows the end
+        // even when the last data chunk was exactly full.
+        payload = new Blob([]);
+      } else if (this.fileObj.size === 0) {
+        // An empty file still deserves exactly one zero-byte request.
+        payload = new Blob([]);
+      } else if (this.flowObj.opts.allowShortStream) {
+        // Opt-in compatibility for streams whose declared size is an upper
+        // bound. Silent truncation is otherwise treated as an error.
+        this.fileObj.eof = true;
+        return this._succeed('');
       } else {
-        this.send();
+        return this._fail({
+          responseText: `Unexpected EOF at chunk ${this.offset + 1}/` +
+            `${this.fileObj.chunks.length}; the file may be truncated`
+        });
+      }
+    } else if (this.fileObj.streaming && payload.size === 0 && this.offset > 0) {
+      // Blob-backed streaming sources signal EOF with an empty slice.
+      this.fileObj.eof = true;
+      this.fileObj.eofOffset = this.offset;
+      this.isLastChunk = true;
+      this.endByte = this.startByte;
+      for (const other of this.fileObj.chunks) {
+        if (other.offset > this.offset &&
+            !['success', 'error', 'cancelled'].includes(other.state)) {
+          other.endByte = other.startByte;
+          other.state = 'success';
+          other.uploadState.resolve({status: 'success'});
+        }
+      }
+    }
+
+    if (this.uploadState.settled) {
+      this.uploadState = new Deferred();
+    }
+
+    const controller = new AbortController();
+    this._controller = controller;
+    this._abortReason = null;
+    const onParentAbort = () => controller.abort();
+    if (signal) {
+      if (signal.aborted) {
+        controller.abort();
+      } else {
+        signal.addEventListener('abort', onParentAbort, {once: true});
+      }
+    }
+
+    const promise = (async () => {
+      while (true) {
+        if (controller.signal.aborted) {
+          return this._aborted();
+        }
+
+        const opts = this.flowObj.opts;
+
+        if (opts.testChunks && !this.tested) {
+          const testResult = await this._test(controller.signal);
+          if (controller.signal.aborted) {
+            return this._aborted();
+          }
+          if (testResult.ok) {
+            if (opts.successStatuses.includes(testResult.status)) {
+              this.tested = true;
+              return this._succeed(testResult.responseText);
+            }
+            if ((opts.testNotFoundStatuses || []).includes(testResult.status)) {
+              // The chunk is not on the server yet.
+              this.tested = true;
+            } else if (opts.permanentErrors.includes(testResult.status)) {
+              return this._fail(testResult);
+            } else {
+              if (this.retries >= opts.maxChunkRetries) {
+                return this._fail(testResult);
+              }
+              this.retries++;
+              this.state = 'pending';
+              this.pendingRetry = true;
+              this.event('retry', testResult.responseText || '');
+              await abortableSleep(opts.chunkRetryInterval, controller.signal);
+              this.pendingRetry = false;
+              continue;
+            }
+          } else if (testResult.aborted) {
+            return this._aborted();
+          } else {
+            if (this.retries >= opts.maxChunkRetries) {
+              return this._fail(testResult);
+            }
+            this.retries++;
+            this.state = 'pending';
+            this.pendingRetry = true;
+            this.event('retry', testResult.responseText || '');
+            await abortableSleep(opts.chunkRetryInterval, controller.signal);
+            this.pendingRetry = false;
+            continue;
+          }
+        }
+
+        this.state = 'uploading';
+        this.loaded = 0;
+        this.total = 0;
+        this.pendingRetry = false;
+
+        const result = await this._xhrSend(payload, controller.signal);
+        if (controller.signal.aborted) {
+          return this._aborted();
+        }
+        if (result.ok && opts.successStatuses.includes(result.status)) {
+          return this._succeed(result.responseText);
+        }
+        if (result.ok && opts.permanentErrors.includes(result.status)) {
+          return this._fail(result);
+        }
+        if (result.aborted) {
+          return this._aborted();
+        }
+        if (this.retries >= opts.maxChunkRetries) {
+          return this._fail(result);
+        }
+
+        this.retries++;
+        this.state = 'pending';
+        this.pendingRetry = true;
+        this.event('retry', result.responseText || '');
+        await abortableSleep(opts.chunkRetryInterval, controller.signal);
+        this.pendingRetry = false;
+      }
+    })();
+
+    this._uploadPromise = promise;
+    try {
+      return await promise;
+    } finally {
+      if (signal) {
+        signal.removeEventListener('abort', onParentAbort);
+      }
+      if (this._controller === controller) {
+        this._controller = null;
+      }
+      if (this._uploadPromise === promise) {
+        this._uploadPromise = null;
       }
     }
   }
 
+  _succeed(message) {
+    this.state = 'success';
+    this.pendingRetry = false;
+    const size = this.endByte - this.startByte;
+    this.loaded = size;
+    this.total = size;
+    this._responseText = message || '';
+    this.uploadState.resolve({status: 'success', message: this._responseText});
+    this.event('success', this._responseText);
+    // Free the payload after a successful upload. A later force-retry must
+    // read (and checksum) the data again.
+    this.payload = undefined;
+    this.checksum = null;
+    this._checksumComputed = false;
+    return 'success';
+  }
+
+  _fail(result) {
+    this.state = 'error';
+    this.pendingRetry = false;
+    this._responseText = (result && result.responseText) || '';
+    this.uploadState.resolve({status: 'error', message: this._responseText});
+    this.event('error', this._responseText);
+    return 'error';
+  }
+
+  _aborted() {
+    const reason = this._abortReason || 'pending';
+    this.state = reason === 'cancelled' || reason === 'error' ? reason : 'pending';
+    this.pendingRetry = false;
+    this.uploadState.resolve({status: this.state});
+    return this.state;
+  }
+
   /**
-   * Get params for a request
-   * @function
+   * Abort the active read/request. `reason` is the state to return to.
    */
-  getParams () {
-    return {
+  abort(reason = 'pending') {
+    this._abortReason = reason;
+    if (this._controller) {
+      this._controller.abort();
+    }
+    // A read cannot be interrupted synchronously. Leave it in 'reading'
+    // until the reader settles; the session discards the result if the file
+    // was paused or cancelled meanwhile.
+    if (this.state === 'uploading' || this.state === 'retrying') {
+      this.state = reason === 'cancelled' || reason === 'error' ? reason : 'pending';
+    }
+  }
+
+  /**
+   * Low-level convenience used by tests: read then upload this chunk.
+   * Resolves when the attempt reaches a terminal state (or pause/cancel).
+   */
+  async send(signal) {
+    if (this.state === 'success' || this.state === 'error' || this.state === 'cancelled') {
+      return this.state;
+    }
+    if (this.uploadState.settled) {
+      this.uploadState = new Deferred();
+    }
+    const payload = await this.read(signal);
+    if (this.fileObj.cancelled) {
+      this.state = 'cancelled';
+      this.uploadState.resolve({status: 'cancelled'});
+      return 'cancelled';
+    }
+    if (this.fileObj.error) {
+      this.state = 'error';
+      this.uploadState.resolve({status: 'error', message: this.fileObj.errorMessage || ''});
+      return 'error';
+    }
+    if (this.fileObj.paused) {
+      this.state = 'pending';
+      this.uploadState.resolve({status: 'pending'});
+      return 'pending';
+    }
+    this.upload(payload, signal);
+    return this.uploadState.promise;
+  }
+
+  async _test(signal) {
+    const opts = this.flowObj.opts;
+    const method = evalOpts(opts.testMethod, this.fileObj, this, true);
+    const request = await this.buildRequest(method, true);
+    return sendRequest(Object.assign(request, {
+      withCredentials: opts.withCredentials,
+      timeout: opts.xhrTimeout || 0,
+      signal
+    }));
+  }
+
+  async _xhrSend(payload, signal) {
+    const opts = this.flowObj.opts;
+    const method = evalOpts(opts.uploadMethod, this.fileObj, this, false);
+    const request = await this.buildRequest(method, false, opts.method, payload);
+    if (typeof opts.changeRawDataBeforeSend === 'function') {
+      const changed = await opts.changeRawDataBeforeSend(this, request.body);
+      if (typeof changed !== 'undefined') {
+        request.body = changed;
+      }
+    }
+    return sendRequest(Object.assign(request, {
+      withCredentials: opts.withCredentials,
+      timeout: opts.xhrTimeout || 0,
+      onProgress: event => this.progressHandler(event),
+      signal
+    }));
+  }
+
+  /**
+   * Bookkeeping parameters describing this chunk, for the receiving server.
+   *
+   * Not sent when `sendFlowParams` is false: see buildRequest().
+   */
+  getParams() {
+    var params = {
       flowChunkNumber: this.offset + 1,
       flowChunkSize: this.chunkSize,
       flowCurrentChunkSize: this.endByte - this.startByte,
@@ -223,20 +517,22 @@ export default class FlowChunk {
       flowRelativePath: this.fileObj.relativePath,
       flowTotalChunks: this.fileObj.chunks.length
     };
+    if (this.fileObj.streaming) {
+      params.flowTotalSize = -1;
+      params.flowIsStreaming = 'true';
+      params.flowChunkIsLast = this.isLastChunk ? 'true' : 'false';
+    }
+    if (this.checksum !== null && typeof this.checksum !== 'undefined') {
+      params.flowChunkHash = this.checksum;
+    }
+    return params;
   }
 
-  /**
-   * Get target option with query params
-   * @function
-   * @param params
-   * @returns {string}
-   */
-  getTarget(target, params){
-    if (params.length == 0) {
+  getTarget(target, params) {
+    if (params.length === 0) {
       return target;
     }
-
-    if(target.indexOf('?') < 0) {
+    if (target.indexOf('?') < 0) {
       target += '?';
     } else {
       target += '&';
@@ -245,327 +541,89 @@ export default class FlowChunk {
   }
 
   /**
-   * Makes a GET request without any data to see if the chunk has already
-   * been uploaded in a previous session
-   * @function
+   * Build a transport request without opening or sending it.
    */
-  test() {
-    // Set up request and listen for event
-    this.xhr = new XMLHttpRequest();
-    this.xhr.addEventListener("load", this.testHandler.bind(this), false);
-    this.xhr.addEventListener("error", this.testHandler.bind(this), false);
-    var testMethod = evalOpts(this.flowObj.opts.testMethod, this.fileObj, this);
-    var data = this.prepareXhrRequest(testMethod, true);
-    this.xhr.send(data);
-  }
-
   /**
-   * Finish preprocess state
-   * @function
-   */
-  async preprocessFinished() {
-    // Re-compute the endByte after the preprocess function to allow an
-    // implementer of preprocess to set the fileObj size
-    this.endByte = this.computeEndByte();
-
-    this.preprocessState = 2;
-    await this.send();
-  }
-
-  /**
-   * Finish read state
-   * @function
-   */
-  readFinished(payload) {
-    this.readState = 2;
-    this.payload = payload;
-    this.send();
-  }
-
-  /**
-   * asyncReadFileFn() helper provides the ability of asynchronous read()
-   * Eg: When reading from a ReadableStream.getReader().
+   * Resolve the request for this chunk.
    *
-   * But:
-   * - FlowChunk.send() can be called up to {simultaneousUploads} times.
-   * - Concurrent or misordered read() would result in a corrupted payload.
-   *
-   * This function guards from this: As soon a previous chunk exists and as long as
-   *  this previous chunk is not fully read(), we assume corresponding reader is unavailable
-   *  and wait for it.
-   * @function
+   * `target`, `query` and `headers` may return a promise. They are evaluated
+   * here, after the payload has been read and `chunk.checksum` computed, so a
+   * consumer can negotiate the destination or the integrity headers using the
+   * digest of the exact bytes about to be sent. That is what endpoints with
+   * per-chunk integrity checks require: an S3 pre-signed UploadPart URL, for
+   * instance, is signed over the checksum it commits to, so it cannot be
+   * produced before the chunk exists.
    */
-  async readStreamGuard() {
-    var map = this.fileObj.chunks.map(e => e.readStreamState).slice(0, this.offset);
-    try {
-      await Promise.all(map);
-    } catch(err) {
-      console.error(`Chunk ${this.offset}: Error while waiting for ${map.length} previous chunks being read.`);
-      throw(err);
-    }
-  }
-
-  async readStreamChunk() {
-    if (this.readStreamState.resolved) {
-      // Requiring to read the same chunk twice is unlikely but may happen (in case of retry a failed upload)
-      // If the bytes are still here (this.payload), then retry the upload...
-      if (this.payload && this.pendingRetry) {
-        console.info(`Retrying chunk ${this.offset} upload`);
-        return this.uploadStreamChunk(this.payload);
-      }
-
-      console.warn(`Chunk ${this.offset} already read. xhr initialized = ${this.xhr ? 1 : 0}. payload size = ${this.payload ? this.payload.size : null}. readState = ${this.readState}. retry = ${this.pendingRetry}`);
-      // ... but never try to read that same chunk from the (non-rewindable) stream again or we'd risk
-      // not only misordered chunks but a corrupted file.
-      return null;
-    }
-
-    this.readState = 1;
-    await this.readStreamGuard();
-    var data, asyncRead = this.flowObj.opts.asyncReadFileFn;
-
-    data = await asyncRead(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
-    this.readStreamState.resolve();
-
-    // Equivalent to readFinished()
-    this.readState = 2;
-
-    if (data) {
-      this.readBytes = data.size || data.size === 0 ? data.size : -1;
-    }
-
-    return this.uploadStreamChunk(data);
-  }
-
-  async uploadStreamChunk(data) {
-    if (data && data.size > 0) {
-      if (this.fileObj.chunkSize && data.size > this.fileObj.chunkSize) {
-        // This may imply a miscalculation of the total chunk numbers.
-        console.warn(`Chunk ${this.offset}: returned too much data. Got ${data.size}. Expected not more than ${this.flowObj.chunkSize}.`);
-      }
-      this.payload = data;
-      this.xhrSend(data);
-      return;
-    }
-
-    if (this.offset > 0) {
-      // last size of the buffer read for the previous chunk
-      var lastReadBytes = this.fileObj.chunks[this.offset - 1].readBytes;
-      if (lastReadBytes < parseInt(this.chunkSize)) {
-        console.warn(`Chunk ${this.offset} seems superfluous. No byte read() meanwhile previous chunk was only ${lastReadBytes} bytes instead of ${this.chunkSize}`);
-        // The last chunk's buffer wasn't even full. That means the number of chunk may
-        // have been miscomputed and this chunk is superfluous.
-        // We make a fake request so that overall status is "complete" and we can move on
-        // on this FlowFile.
-        this.pendingRetry = false;
-        this.xhr = {readyState: 4, status: 200, abort: e => null };
-        this.doneHandler(null);
-        return;
-      }
-    }
-
-    console.warn(`Chunk ${this.offset}: no byte to read()`);
-    this.pendingRetry = false;
-  }
-
-  /**
-   * Prepare data (preprocess/read) data then call xhrSend()
-   * @function
-   */
-  async send() {
-    var preprocess = this.flowObj.opts.preprocess;
-    var read = this.flowObj.opts.readFileFn;
-    var asyncRead = this.flowObj.opts.asyncReadFileFn;
-
-    if (typeof preprocess === 'function') {
-      switch (this.preprocessState) {
-        case 0:
-          this.preprocessState = 1;
-          preprocess(this);
-          return;
-        case 1:
-          return;
-      }
-    }
-
-    if (asyncRead) {
-      await this.readStreamChunk();
-      return;
-    }
-
-    switch (this.readState) {
-      case 0:
-        this.readState = 1;
-        const data = read(this.fileObj, this.startByte, this.endByte, this.fileObj.file.type, this);
-        this.readFinished(data);
-        return;
-      case 1:
-        return;
-    }
-
-    this.xhrSend(this.payload);
-  }
-
-  /**
-   * Actually uploads data in a POST call
-   * @function
-   */
-  xhrSend(payload) {
-    if (this.flowObj.opts.testChunks && !this.tested) {
-      this.test();
-      return;
-    }
-
-    this.loaded = 0;
-    this.total = 0;
-    this.pendingRetry = false;
-
-    // Set up request and listen for event
-    this.xhr = new XMLHttpRequest();
-    this.xhr.upload.addEventListener('progress', this.progressHandler.bind(this), false);
-    this.xhr.addEventListener('load', this.doneHandler.bind(this), false);
-    this.xhr.addEventListener('error', this.doneHandler.bind(this), false);
-
-    var uploadMethod = evalOpts(this.flowObj.opts.uploadMethod, this.fileObj, this);
-    var xhrPayload = this.prepareXhrRequest(uploadMethod, false, this.flowObj.opts.method, payload);
-    var changeRawDataBeforeSend = this.flowObj.opts.changeRawDataBeforeSend;
-    if (typeof changeRawDataBeforeSend === 'function') {
-      xhrPayload = changeRawDataBeforeSend(this, xhrPayload);
-    }
-    this.xhr.send(xhrPayload);
-  }
-
-  /**
-   * Abort current xhr request
-   * @function
-   */
-  abort() {
-    if (this.xhr) {
-      this.xhr.abort();
-    }
-    this.xhr = null;
-  }
-
-  /**
-   * Retrieve current chunk upload status
-   * @function
-   * @returns {string} 'pending', 'uploading', 'success', 'error'
-   */
-  status(isTest) {
-    if (this.readState === 1) {
-      return 'reading';
-    } else if (this.preprocessState === 1) {
-      // if pending retry then that's effectively the same as actively uploading,
-      // there might just be a slight delay before the retry starts
-      return 'uploading';
-    } else if (!this.xhr || this.pendingRetry) {
-      return 'pending';
-    } else if (this.xhr.readyState < 4) {
-      // Status is really 'OPENED', 'HEADERS_RECEIVED'
-      // or 'LOADING' - meaning that stuff is happening
-      return 'uploading';
+  async buildRequest(method, isTest, paramsMethod, blob) {
+    const opts = this.flowObj.opts;
+    var query = await evalOpts(opts.query, this.fileObj, this, isTest);
+    // `sendFlowParams: false` keeps the request byte-exact: no flow.js
+    // bookkeeping is appended to the URL (octet) or to the body (multipart).
+    // Required by endpoints whose URL is signed, such as an S3 pre-signed
+    // UploadPart URL, where any extra query parameter invalidates the
+    // signature. Incompatible with `testChunks`, which needs those parameters
+    // to let the server recognise an already-uploaded chunk.
+    if (opts.sendFlowParams !== false) {
+      query = Object.assign({}, query || {}, this.getParams());
     } else {
-      if (this.flowObj.opts.successStatuses.indexOf(this.xhr.status) > -1) {
-        // HTTP 200, perfect
-        // HTTP 202 Accepted - The request has been accepted for processing, but the processing has not been completed.
-        return 'success';
-      } else if (this.flowObj.opts.permanentErrors.indexOf(this.xhr.status) > -1 ||
-                 !isTest && this.retries >= this.flowObj.opts.maxChunkRetries) {
-        // HTTP 413/415/500/501, permanent error
-        return 'error';
-      } else {
-        // this should never happen, but we'll reset and queue a retry
-        // a likely case for this would be 503 service unavailable
-        this.abort();
-        return 'pending';
+      query = Object.assign({}, query || {});
+    }
+
+    var target = await evalOpts(opts.target, this.fileObj, this, isTest);
+    var body = null;
+    if (method === 'GET' || paramsMethod === 'octet') {
+      var params = [];
+      each(query, (value, key) => {
+        params.push([encodeURIComponent(key), encodeURIComponent(value)].join('='));
+      });
+      target = this.getTarget(target, params);
+      body = blob || null;
+    } else {
+      body = new FormData();
+      each(query, (value, key) => {
+        body.append(key, value);
+      });
+      if (typeof blob !== 'undefined' && blob !== null) {
+        body.append(opts.fileParameterName, blob, this.filename || this.fileObj.file.name);
       }
     }
+
+    return {
+      method,
+      url: target,
+      body,
+      headers: (await evalOpts(opts.headers, this.fileObj, this, isTest)) || {}
+    };
   }
 
-  /**
-   * Get response from xhr request
-   * @function
-   * @returns {String}
-   */
+  status() {
+    return this.state;
+  }
+
   message() {
-    return this.xhr ? this.xhr.responseText : '';
+    return this._responseText;
   }
 
-  /**
-   * Get upload progress
-   * @function
-   * @returns {number}
-   */
+  getState() {
+    return `#${this.offset} state:${this.state} read:${this.readState} ` +
+      `up:${this.loaded}/${this.total} size:${this.payload && this.payload.size}`;
+  }
+
   progress() {
-    if (this.pendingRetry) {
-      return 0;
-    }
-    var s = this.status();
-    if (s === 'success' || s === 'error') {
+    if (this.state === 'success' || this.state === 'error') {
       return 1;
-    } else if (s === 'pending') {
-      return 0;
-    } else {
-      return this.total > 0 ? this.loaded / this.total : 0;
     }
+    if (this.state === 'pending' || this.state === 'cancelled') {
+      return 0;
+    }
+    return this.total > 0 ? this.loaded / this.total : 0;
   }
 
-  /**
-   * Count total size uploaded
-   * @function
-   * @returns {number}
-   */
   sizeUploaded() {
     var size = this.endByte - this.startByte;
-    // can't return only chunk.loaded value, because it is bigger than chunk size
-    if (this.status() !== 'success') {
+    if (this.state !== 'success') {
       size = this.progress() * size;
     }
     return size;
-  }
-
-  /**
-   * Prepare Xhr request. Set query, headers and data
-   * @param {string} method GET or POST
-   * @param {bool} isTest is this a test request
-   * @param {string} [paramsMethod] octet or form
-   * @param {Blob} [blob] to send
-   * @returns {FormData|Blob|Null} data to send
-   */
-  prepareXhrRequest(method, isTest, paramsMethod, blob) {
-    // Add data from the query options
-    var query = evalOpts(this.flowObj.opts.query, this.fileObj, this, isTest);
-    query = Object.assign({}, query || {}, this.getParams());
-
-    var target = evalOpts(this.flowObj.opts.target, this.fileObj, this, isTest);
-    var data = null;
-    if (method === 'GET' || paramsMethod === 'octet') {
-      // Add data from the query options
-      var params = [];
-      each(query, function (v, k) {
-        params.push([encodeURIComponent(k), encodeURIComponent(v)].join('='));
-      });
-      target = this.getTarget(target, params);
-      data = blob || null;
-    } else {
-      // Add data from the query options
-      data = new FormData();
-      each(query, function (v, k) {
-        data.append(k, v);
-      });
-      if (typeof blob !== "undefined") {
-        data.append(this.flowObj.opts.fileParameterName, blob, this.filename || this.fileObj.file.name);
-      }
-    }
-
-    this.xhr.open(method, target, true);
-    this.xhr.withCredentials = this.flowObj.opts.withCredentials;
-
-    // Add data from header options
-    each(evalOpts(this.flowObj.opts.headers, this.fileObj, this, isTest), function (v, k) {
-      this.xhr.setRequestHeader(k, v);
-    }, this);
-
-    return data;
   }
 }

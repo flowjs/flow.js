@@ -1,295 +1,417 @@
-# Flow.js [![Build Status](https://travis-ci.org/flowjs/flow.js.svg)](https://travis-ci.org/flowjs/flow.js) [![Test Coverage](https://codeclimate.com/github/flowjs/flow.js/badges/coverage.svg)](https://codeclimate.com/github/flowjs/flow.js/coverage) [![Saucelabs Test Status](https://saucelabs.com/browser-matrix/flowjs.svg)](https://saucelabs.com/u/flowjs) [![Inline docs](http://inch-ci.org/github/flowjs/flow.js.svg?branch=master)](http://inch-ci.org/github/flowjs/flow.js)
+# Flow.js
 
-<a href="https://www.buymeacoffee.com/aidas" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" style="height: 51px !important;width: 217px !important;" ></a>
+Flow.js provides multiple simultaneous, stable, fault-tolerant and resumable
+chunked uploads using the HTML5 File API.
 
-Flow.js is a JavaScript library providing multiple simultaneous, stable and resumable uploads via the HTML5 File API. 
+Each file is split into chunks. A failed chunk can be retried without losing
+the rest of the upload; an upload can be paused, resumed or cancelled while
+preserving the chunks that already succeeded.
 
-The library is designed to introduce fault-tolerance into the upload of large files through HTTP. This is done by splitting each file into small chunks. Then, whenever the upload of a chunk fails, uploading is retried until the procedure completes. This allows uploads to automatically resume uploading after a network connection is lost either locally or to the server. Additionally, it allows for users to pause, resume and even recover uploads without losing state because only the currently uploading chunks will be aborted, not the entire upload.
+This is the v3 line. It is async-first, has **zero runtime dependencies**, and
+requires a modern browser with native `async/await`, `EventTarget`,
+`CustomEvent`, `Blob`, `File`, `FormData` and `XMLHttpRequest`.
 
-Flow.js does not have any external dependencies other than the `HTML5 File API`. This is relied on for the ability to chunk files into smaller pieces. Currently, this means that support is limited to Firefox 4+, Chrome 11+, Safari 6+ and Internet Explorer 10+.
+The v2 line remains available for legacy applications. See
+[MIGRATION.md](MIGRATION.md) when upgrading.
 
-Samples and examples are available in the `samples/` folder. Please push your own as Markdown to help document the project.
+## Install
 
-## Can I see a demo?
-[Flow.js + angular.js file upload demo](http://flowjs.github.io/ng-flow/) - ng-flow extension page https://github.com/flowjs/ng-flow
-
-JQuery and node.js backend demo https://github.com/flowjs/flow.js/tree/master/samples/Node.js
-
-## How can I install it?
-
-Download a latest build from https://github.com/flowjs/flow.js/releases
-it contains development and minified production files in `dist/` folder.
-
-or use npm:
 ```console
 npm install @flowjs/flow.js
 ```
 
-or use bower:
-```console
-bower install flow.js#~2
-```                
-or use git clone
-```console
-git clone https://github.com/flowjs/flow.js
-```
-## How can I use it?
+The npm package exposes:
 
-A new `Flow` object is created with information of what and where to post:
-```javascript
-var flow = new Flow({
-  target:'/api/photo/redeem-upload-token', 
-  query:{upload_token:'my_token'}
+- `src/Flow.js` for bundlers (ESM, tree-shakeable),
+- `dist/flow.esm.js` (ESM bundle),
+- `dist/flow.js` (UMD browser bundle),
+- `dist/flow.min.js` (minified UMD),
+- `dist/flow.cjs` (CommonJS).
+
+You can also clone the repository and serve `dist/flow.js` directly.
+
+## Quick start
+
+```html
+<script src="dist/flow.js"></script>
+<script>
+  const flow = new Flow({
+    target: '/upload',
+    chunkSize: 1024 * 1024,
+    testChunks: true,
+    hooks: {
+      filterFile(file) {
+        return file.size <= 5 * 1024 * 1024 * 1024;
+      },
+      filesSubmitted(files) {
+        // Files are now in flow.files; start the session when ready.
+        flow.upload();
+      }
+    }
+  });
+
+  flow.assignBrowse(document.getElementById('browse'));
+  flow.assignDrop(document.getElementById('drop'));
+
+  flow.addEventListener('file-progress', ({detail: {file, progress}}) => {
+    console.log(file.name, progress);
+  });
+
+  flow.addEventListener('file-success', ({detail: {file, message}}) => {
+    console.log('uploaded', file.name, message);
+  });
+
+  flow.addEventListener('file-error', ({detail: {file, message}}) => {
+    console.error('failed', file.name, message);
+  });
+</script>
+```
+
+### Upload lifecycle
+
+`upload()` is **completion-oriented**:
+
+```js
+await flow.addFiles(fileList);
+const summary = await flow.upload();
+console.log(summary.status, summary.uploadedBytes, summary.totalBytes);
+```
+
+- `upload()` starts the session immediately and returns a promise.
+- The promise resolves when the session is settled (complete or cancelled).
+- While a session is active, calling `upload()` again returns the same promise.
+- If you only want fire-and-forget behaviour, do not await it.
+- `pause()` aborts active reads/requests and returns when they are stopped.
+- `resume()` continues the same session and returns its promise.
+- `cancel()` aborts the session and removes all files.
+
+There is exactly one upload session per `Flow` instance. `FlowFile.resume()`
+never creates a second scheduler.
+
+## Server setup
+
+Chunks are sent with these parameters:
+
+- `flowChunkNumber`: index of the chunk, starting at 1.
+- `flowTotalChunks`: total number of chunks.
+- `flowChunkSize`: configured chunk size.
+- `flowCurrentChunkSize`: size of this chunk.
+- `flowTotalSize`: total file size.
+- `flowIdentifier`: unique file identifier.
+- `flowFilename`: original file name.
+- `flowRelativePath`: relative path when selecting a directory.
+
+With `method: 'multipart'` (the default) these are form fields and the payload
+is the multipart file field named by `fileParameterName`. With
+`method: 'octet'` the payload is the raw request body and the parameters are in
+the query string.
+
+With `streaming: true` the client does not know the final size up front:
+
+- `flowTotalSize` is `-1`.
+- `flowIsStreaming` is `true`.
+- `flowChunkIsLast` is `false` on data chunks and `true` on a final zero-byte
+  marker chunk.
+- `flowTotalChunks` grows as chunks are appended.
+
+A streaming-aware server must reassemble by `flowChunkNumber` and treat the
+zero-byte `flowChunkIsLast` chunk as EOF. It must not require the first
+request's total size/chunk count to be final.
+
+Servers must tolerate the same chunk being uploaded more than once (for example
+after a retry).
+
+Status handling:
+
+- `successStatuses` (default `[200, 201, 202]`): chunk accepted.
+- `permanentErrors` (default `[404, 413, 415, 500, 501]`): stop the file.
+- Any other status: temporary; retry according to `maxChunkRetries`.
+
+### Chunk testing
+
+When `testChunks` is enabled, a `GET` request with the same parameters is sent
+before uploading a chunk:
+
+- success status: the chunk already exists; skip the upload,
+- `testNotFoundStatuses` (default `[404]`): the chunk is missing; upload it,
+- permanent error: fail the file,
+- anything else: temporary failure, retry.
+
+## Configuration
+
+```js
+new Flow({
+  target: '/upload',
+  chunkSize: 1024 * 1024,
+  forceChunkSize: false,
+  simultaneousUploads: 3,
+  singleFile: false,
+  fileParameterName: 'file',
+  method: 'multipart',           // 'multipart' or 'octet'
+  testMethod: 'GET',
+  uploadMethod: 'POST',
+  testChunks: true,
+  testNotFoundStatuses: [404],
+  successStatuses: [200, 201, 202],
+  permanentErrors: [404, 413, 415, 500, 501],
+  maxChunkRetries: 0,
+  chunkRetryInterval: null,      // milliseconds; null = immediate
+  chunkChecksum: null,           // async (chunk, payload) => string
+  allowShortStream: false,       // opt-in for overestimated stream sizes
+  streaming: false,              // dynamic chunks for unknown/estimated sizes
+  xhrTimeout: 0,                 // milliseconds; 0 = no timeout
+  withCredentials: false,
+  query: {},
+  headers: {},
+  prioritizeFirstAndLastChunk: false,
+  allowDuplicateUploads: false,
+  progressCallbacksInterval: 500,
+  speedSmoothingFactor: 0.1,
+  onDropStopPropagation: false,
+  generateUniqueIdentifier(file) { /* optional, synchronous */ },
+  initFileFn(file, context) { /* optional, may be async */ },
+  readFileFn(file, startByte, endByte, fileType, chunk, {signal}) {
+    return file.slice(startByte, endByte, fileType);
+  },
+  preprocess(chunk) { /* optional, awaited before reading */ },
+  changeRawDataBeforeSend(chunk, data) { /* optional, may be async */ },
+  hooks: {
+    filterFile(file, context) {},
+    fileAdded(file, context) {},
+    filesAdded(files, context) {},
+    filesSubmitted(files, context) {}
+  }
 });
-// Flow.js isn't supported, fall back on a different method
-if(!flow.support) location.href = '/some-old-crappy-uploader';
 ```
-To allow files to be either selected and drag-dropped, you'll assign drop target and a DOM item to be clicked for browsing:
-```javascript
-flow.assignBrowse(document.getElementById('browseButton'));
-flow.assignDrop(document.getElementById('dropTarget'));
-```
-After this, interaction with Flow.js is done by listening to events:
-```javascript
-flow.on('fileAdded', function(file, event){
-    console.log(file, event);
+
+### Async readers and streams
+
+`readFileFn` may return a `Blob`, `ArrayBuffer`, string, or `null` (EOF), and
+may return a promise. It receives an `AbortSignal` as the last argument. Reads
+are issued sequentially in chunk order, so stream-based readers do not need
+their own locking. Uploads run concurrently.
+
+`prioritizeFirstAndLastChunk` is intended for readers that can seek to an
+arbitrary chunk (for example `Blob.slice`). A purely sequential stream reader
+cannot honor a request for the last chunk before the middle chunks.
+
+```js
+const reader = file.stream().getReader();
+const flow = new Flow({
+  target: '/upload',
+  readFileFn: async (flowFile, start, end, type, chunk, {signal}) => {
+    const {value} = await reader.read();
+    return value ? new Blob([value]) : null;
+  }
 });
-flow.on('fileSuccess', function(file,message){
-    console.log(file,message);
+```
+
+A zero-length `Blob` is a valid payload. `null` means “no data / EOF”. This is
+what allows empty files to be uploaded correctly (#375).
+
+For a non-empty file, a `null`/`undefined` result before the final chunk is
+treated as a truncation error by default. Set `allowShortStream: true` only if
+the declared size is an intentional upper bound. This prevents silently short
+uploads.
+
+If a non-rewindable stream fails on read and there is no cached payload,
+`file.retry()` re-runs `initFileFn` and rebuilds the chunk list instead of
+reading a partially consumed stream. `initFileFn` must provide a fresh source
+in that case. Cached payloads are reused for upload retries.
+
+For truly unknown or estimated sizes, set `streaming: true`. `flowObj.size`
+may be `0` (unknown) or an estimate used only for pre-created chunks/progress;
+chunks are appended dynamically until the reader returns `null`/undefined or
+an empty slice after the first chunk. Only active chunks are buffered: initial
+chunks use `simultaneousUploads`; after an estimate is exhausted, probe chunks
+are created one at a time. A GB-scale encrypted stream therefore keeps only a
+few chunks' payloads in memory, never the whole input.
+
+`streaming` disables `prioritizeFirstAndLastChunk` (a sequential stream cannot
+seek). `testChunks` is usually not useful for one-shot streams; use `false`.
+Progress with `size === 0` is `0` until completion, then `1`; with an estimate,
+the estimate is the denominator until EOF.
+
+A read that completes while pause/cancel/error is racing is cached, not
+discarded, because a stateful reader (GPG packetizer, stream cipher, ...) has
+already consumed those bytes. If a stateful reader honors the abort signal and
+aborts after consuming bytes, those bytes cannot be recovered; either ignore
+the signal on pause (the completed buffer is cached) or provide a replayable
+source via `initFileFn`.
+
+### Integrity checks
+
+`chunkChecksum(chunk, payload)` may return a string or promise. It is computed
+once per payload and sent as `flowChunkHash`; the value is cached and reused on
+retries, so a stateful reader/encryptor is never re-run for the same chunk.
+The server should verify the hash against the exact received chunk body.
+
+```js
+new Flow({
+  target: '/upload',
+  chunkChecksum: async (chunk, payload) => {
+    const buffer = payload instanceof Blob
+      ? await payload.arrayBuffer()
+      : payload;
+    const digest = await crypto.subtle.digest('SHA-256', buffer);
+    return 'sha256-' + Array.from(new Uint8Array(digest))
+      .map(byte => byte.toString(16).padStart(2, '0'))
+      .join('');
+  }
 });
-flow.on('fileError', function(file, message){
-    console.log(file, message);
+```
+
+For a whole-file checksum, compute it in `initFileFn` (which may be async) and
+add it to the request via `query` or `headers`; the server verifies it after
+reassembly. This is the recommended pattern for on-the-fly encryption: hash the
+ciphertext exactly as uploaded, or hash the plaintext in `initFileFn` and
+verify after decryption.
+
+## Events
+
+Events are native `CustomEvent`s. Register with `addEventListener` and read the
+object in `event.detail`.
+
+| Event | Detail |
+| --- | --- |
+| `upload-start` | `{flow, files}` |
+| `upload-resume` | `{flow, files}` |
+| `file-progress` | `{flow, file, chunk, progress}` |
+| `progress` | `{flow, file, chunk, progress}` |
+| `file-success` | `{flow, file, message, chunk}` |
+| `file-error` | `{flow, file, message, chunk}` |
+| `error` | `{flow, message, file?, chunk?}` |
+| `file-retry` | `{flow, file, chunk}` |
+| `file-removed` | `{flow, file}` |
+| `complete` | `{flow, files, summary}` |
+| `catch-all` | `{type, hook, detail}` |
+
+```js
+flow.addEventListener('complete', ({detail: {summary}}) => {
+  console.log(summary.status, summary.files);
+});
+
+flow.addEventListener('catch-all', ({detail: {type, hook, detail}}) => {
+  console.log(hook ? 'hook' : 'event', type, detail);
 });
 ```
-## How do I set it up with my server?
 
-Most of the magic for Flow.js happens in the user's browser, but files still need to be reassembled from chunks on the server side. This should be a fairly simple task and can be achieved in any web framework or language, which is able to receive file uploads.
+Event names are case-sensitive. `catch-all` is dispatched after each event and
+after each hook.
 
-To handle the state of upload chunks, a number of extra parameters are sent along with all requests:
+## Hooks
 
-* `flowChunkNumber`: The index of the chunk in the current upload. First chunk is `1` (no base-0 counting here).
-* `flowTotalChunks`: The total number of chunks.  
-* `flowChunkSize`: The general chunk size. Using this value and `flowTotalSize` you can calculate the total number of chunks. Please note that the size of the data received in the HTTP might be lower than `flowChunkSize` of this for the last chunk for a file.
-* `flowTotalSize`: The total file size.
-* `flowIdentifier`: A unique identifier for the file contained in the request.
-* `flowFilename`: The original file name (since a bug in Firefox results in the file name not being transmitted in chunk multipart posts).
-* `flowRelativePath`: The file's relative path when selecting a directory (defaults to file name in all browsers except Chrome).
+Hooks are explicit options, not event names. Each hook accepts a function or an
+array of functions. They may be async and are awaited in order.
 
-You should allow for the same chunk to be uploaded more than once; this isn't standard behaviour, but on an unstable network environment it could happen, and this case is exactly what Flow.js is designed for.
+| Hook | Arguments | Purpose |
+| --- | --- | --- |
+| `filterFile` | `(file, {event, flow})` | Return `false` to skip the file. All filters are AND-ed. |
+| `fileAdded` | `(flowFile, {event, flow})` | Runs after bootstrap, before the file is queued. Delete `flowFile.file` to reject it. |
+| `filesAdded` | `(flowFiles, {event, flow})` | May reorder or mutate the array before queuing. |
+| `filesSubmitted` | `(flow.files, {event, flow})` | Runs after the files are queued. A good place to call `flow.upload()`. |
 
-For every request, you can confirm reception in HTTP status codes (can be change through the `permanentErrors` option):
+Hook errors are reported through the `error` event and do not corrupt the add
+pipeline.
 
-* `200`, `201`, `202`: The chunk was accepted and correct. No need to re-upload.
-* `404`, `415`. `500`, `501`: The file for which the chunk was uploaded is not supported, cancel the entire upload.
-* _Anything else_: Something went wrong, but try reuploading the file.
+## Methods
 
-## Handling GET (or `test()` requests)
+- `assignBrowse(domNodes, isDirectory, singleFile, attributes)`
+- `assignDrop(domNodes)`
+- `unAssignDrop(domNodes)`
+- `addFile(file, {event, initFileFn})` → `Promise<FlowFile>`
+- `addFiles(files, {event, initFileFn})` → `Promise<FlowFile[]>`
+- `upload()` → `Promise<UploadSummary>`
+- `pause()` → `Promise<void>`
+- `resume()` → `Promise<UploadSummary>`
+- `cancel()` → `Promise<void>`
+- `removeFile(file)` → `Promise<void>`
+- `getFromUniqueIdentifier(identifier)`
+- `getSize()`
+- `sizeUploaded()`
+- `timeRemaining()`
+- `progress()`
+- `isUploading()`
 
-Enabling the `testChunks` option will allow uploads to be resumed after browser restarts and even across browsers (in theory you could even run the same file upload across multiple tabs or different browsers).  The `POST` data requests listed are required to use Flow.js to receive data, but you can extend support by implementing a corresponding `GET` request with the same parameters:
+## FlowFile
 
-* If this request returns a `200`, `201` or `202` HTTP code, the chunks is assumed to have been completed.
-* If request returns a permanent error status, upload is stopped.
-* If request returns anything else, the chunk will be uploaded in the standard fashion.
+Properties:
 
-After this is done and `testChunks` enabled, an upload can quickly catch up even after a browser restart by simply verifying already uploaded chunks that do not need to be uploaded again.
+- `flowObj`, `file`, `name`, `relativePath`, `size`, `uniqueIdentifier`
+- `chunks`, `paused`, `cancelled`, `error`, `errorMessage`
+- `averageSpeed`, `currentSpeed`
 
-## Full documentation
+Methods:
 
-### Flow
-#### Configuration
+- `pause()`, `resume()`, `cancel()`, `retry()`
+- `progress()`, `sizeUploaded()`, `timeRemaining()`
+- `isUploading()`, `isReading()`, `isComplete()`, `isSuccessful()`
+- `getExtension()`, `getType()`
 
-The object is loaded with a configuration options:
-```javascript
-var r = new Flow({opt1:'val', ...});
-```
-Available configuration options are:
+`isComplete()` means every chunk reached a terminal state. A file with a
+permanent error is complete but not successful; use `isSuccessful()` to
+distinguish the two.
 
-* `target` The target URL for the multipart POST request. This can be a string or a function. If a
-function, it will be passed a FlowFile, a FlowChunk and isTest boolean (Default: `/`)
-* `singleFile` Enable single file upload. Once one file is uploaded, second file will overtake existing one, first one will be canceled. (Default: false)
-* `chunkSize` The size in bytes of each uploaded chunk of data. This can be a number or a function. If a function, it will be passed a FlowFile. The last uploaded chunk will be at least this size and up to two the size, see [Issue #51](https://github.com/23/resumable.js/issues/51) for details and reasons. (Default: `1*1024*1024`, 1MB)
-* `forceChunkSize` Force all chunks to be less or equal than chunkSize. Otherwise, the last chunk will be greater than or equal to `chunkSize`. (Default: `false`)
-* `simultaneousUploads` Number of simultaneous uploads (Default: `3`)
-* `fileParameterName` The name of the multipart POST parameter to use for the file chunk  (Default: `file`)
-* `query` Extra parameters to include in the multipart POST with data. This can be an object or a
- function. If a function, it will be passed a FlowFile, a FlowChunk object and a isTest boolean
- (Default: `{}`)
-* `headers` Extra headers to include in the multipart POST with data. If a function, it will be passed a FlowFile, a FlowChunk object and a isTest boolean (Default: `{}`)
-* `withCredentials` Standard CORS requests do not send or set any cookies by default. In order to
- include cookies as part of the request, you need to set the `withCredentials` property to true.
-(Default: `false`)
-* `method` Method to use when POSTing chunks to the server (`multipart` or `octet`) (Default: `multipart`)
-* `testMethod` HTTP method to use when chunks are being tested. If set to a function, it will be passed a FlowFile and a FlowChunk arguments. (Default: `GET`)
-* `uploadMethod` HTTP method to use when chunks are being uploaded. If set to a function, it will be passed a FlowFile and a FlowChunk arguments. (Default: `POST`)
-* `allowDuplicateUploads ` Once a file is uploaded, allow reupload of the same file. By default, if a file is already uploaded, it will be skipped unless the file is removed from the existing Flow object. (Default: `false`)
-* `prioritizeFirstAndLastChunk` Prioritize first and last chunks of all files. This can be handy if you can determine if a file is valid for your service from only the first or last chunk. For example, photo or video meta data is usually located in the first part of a file, making it easy to test support from only the first chunk. (Default: `false`)
-* `testChunks` Make a GET request to the server for each chunks to see if it already exists. If implemented on the server-side, this will allow for upload resumes even after a browser crash or even a computer restart. (Default: `true`)
-* `preprocess` Optional function to process each chunk before testing & sending. To the function it will be passed the chunk as parameter, and should call the `preprocessFinished` method on the chunk when finished. (Default: `null`)
-* `changeRawDataBeforeSend` Optional function to change Raw Data just before the XHR Request can be sent for each chunk. To the function, it will be passed the chunk and the data as a Parameter. Return the data which will be then sent to the XHR request without further modification. (Default: `null`). This is helpful when using FlowJS with [Google Cloud Storage](https://cloud.google.com/storage/docs/json_api/v1/how-tos/multipart-upload). Usage example can be seen [#276](https://github.com/flowjs/flow.js/pull/276). (For more, check issue [#170](https://github.com/flowjs/flow.js/issues/170)).
-* `initFileFn` Optional (asynchronous) function to initialize the fileObject. To the function it will be passed a FlowFile and a FlowChunk arguments.
-* `readFileFn` Optional function wrapping reading operation from the original file. To the function it will be passed the FlowFile, the startByte and endByte, the fileType and the FlowChunk.
-* `generateUniqueIdentifier` Override the function that generates unique identifiers for each file. (Default: `null`)
-* `maxChunkRetries` The maximum number of retries for a chunk before the upload is failed. Valid values are any positive integer and `undefined` for no limit. (Default: `0`)
-* `chunkRetryInterval` The number of milliseconds to wait before retrying a chunk on a non-permanent error.  Valid values are any positive integer and `undefined` for immediate retry. (Default: `undefined`)
-* `progressCallbacksInterval` The time interval in milliseconds between progress reports. Set it
-to 0 to handle each progress callback. (Default: `500`)
-* `speedSmoothingFactor` Used for calculating average upload speed. Number from 1 to 0. Set to 1
-and average upload speed wil be equal to current upload speed. For longer file uploads it is
-better set this number to 0.02, because time remaining estimation will be more accurate. This
-parameter must be adjusted together with `progressCallbacksInterval` parameter. (Default 0.1)
-* `successStatuses` Response is success if response status is in this list (Default: `[200,201,
-202]`)
-* `permanentErrors` Response fails if response status is in this list (Default: `[404, 415, 500, 501]`)
+## Development
 
+Requirements: Node.js >= 18 and Playwright's browser binaries.
 
-#### Properties
-
-* `.support` A boolean value indicator whether or not Flow.js is supported by the current browser.
-* `.supportDirectory` A boolean value, which indicates if browser supports directory uploads.
-* `.opts` A hash object of the configuration of the Flow.js instance.
-* `.files` An array of `FlowFile` file objects added by the user (see full docs for this object type below).
-
-#### Methods
-
-* `.assignBrowse(domNodes, isDirectory, singleFile, attributes)` Assign a browse action to one or more DOM nodes.
-  * `domNodes` array of dom nodes or a single node.
-  * `isDirectory` Pass in `true` to allow directories to be selected (Chrome only, support can be checked with `supportDirectory` property).
-  * `singleFile` To prevent multiple file uploads set this to true. Also look at config parameter `singleFile`.
-  * `attributes` Pass object of keys and values to set custom attributes on input fields.
-   For example, you can set `accept` attribute to `image/*`. This means that user will be able to select only images.
-   Full list of attributes: https://www.w3.org/wiki/HTML/Elements/input/file
-
-   Note: avoid using `a` and `button` tags as file upload buttons, use span instead.
-* `.assignDrop(domNodes)` Assign one or more DOM nodes as a drop target.
-* `.unAssignDrop(domNodes)` Unassign one or more DOM nodes as a drop target.
-* `.on(event, callback)` Listen for event from Flow.js (see below)
-* `.off([event, [callback]])`:
-    * `.off()` All events are removed.
-    * `.off(event)` Remove all callbacks of specific event.
-    * `.off(event, callback)` Remove specific callback of event. `callback` should be a `Function`.
-* `.upload()` [async] Start or resume uploading.
-* `.pause()` [async] Pause uploading.
-* `.resume()` [async] Resume uploading.
-* `.cancel()` [asyc] Cancel upload of all `FlowFile` objects and remove them from the list.
-* `.progress()` Returns a float between 0 and 1 indicating the current upload progress of all files.
-* `.isUploading()` Returns a boolean indicating whether or not the instance is currently uploading anything.
-* `.addFile(file, event = null, initFileFn = undefined)` [async] Add a HTML5 File object to the list of files.
-    * Accept the same `event` and `initFileFn` parameters thant `addFiles` which is used under the hood.
-* `.addFiles([files], event = null, initFileFn = undefined)` [async] Add multiple File objects to the list of files and returns the promise of the corresponding FlowFiles.
-    * `event` The optional event that trigger the addition (for internal purposes)
-    * `initFileFn` An [async] override of Flow.initFileFn
-* `.removeFile(file)` [asyc] Cancel upload of a specific `FlowFile` object on the list from the list.
-* `.getFromUniqueIdentifier(uniqueIdentifier)` Look up a `FlowFile` object by its unique identifier.
-* `.getSize()` Returns the total size of the upload in bytes.
-* `.sizeUploaded()` Returns the total size uploaded of all files in bytes.
-* `.timeRemaining()` Returns remaining time to upload all files in seconds. Accuracy is based on average speed. If speed is zero, time remaining will be equal to positive infinity `Number.POSITIVE_INFINITY`
-
-#### Events
-
-Events are native, synchronous and provide information about the internal state of the application without being given a chance to alter it.
-
-* `file-success(<FlowFile> file, <string> message, <FlowChunk> chunk)` A specific file was completed (`message` comes from `xhr.responseText`, `chunk` is instance of `FlowChunk` representing the last chunk for this file. You can get response status by accessing xhr object `chunk.xhr.status`).
-* `file-progress(<FlowFile> file, <FlowChunk> chunk)` Upload progressed for a specific file.
-* `file-removed(<FlowFile> file)` The specific file was removed from the upload queue. Combined with the `files-submitted` hook, it can be used to notify UI to update its state to match the upload queue.
-* `file-retry(<FlowFile> file, <FlowChunk> chunk)` Something went wrong during upload of a specific file, uploading is being retried.
-* `file-error(<FlowFile> file, <string> message, <FlowChunk> chunk)` An error occurred during upload of a specific file. `message` comes from `xhr.responseText`.
-* `upload-start()` Upload started on the Flow object.
-* `complete()` Upload completed.
-* `progress()` Upload progress.
-* `error(<string> message, <FlowFile> file, <FlowChunk> chunk)` An error, including fileError, occurred.
-* `catch-all(<string> event-name, ...)` Receive all above events listed above and their corresponding parameters.
-
-#### Processing hooks
-
-Hooks allows for either (possibly asynchronous) operations and allow altering the regular processing of the file(s) from addition to upload completion.
-* `file-added(<FlowFile> file, event) : null` This event is also called before file is added to upload queue and after it's been fully initialized. `event` is the browser `event` object from when the file was added.
-* `files-added([<FlowFile> files], event) : null` Same as `file-added`, but used for multiple file validation.
-* `files-submitted([<FlowFile> files], event) : null` Same as `files-added`, but happens after the file is added to upload queue. Can be used to start upload of currently added files.
-* `filter-file(<FlowFile> file, event) : boolean` The boolean return value decide whether this particular file must be processed or ignored.
-
-### Hooks and events format
-- Events and hooks name are case-sensitive, snake-cased.
-- In the case of events, a CustomEvent passed straight to callback passed to `Flow.on()`.
-- Sample use `flow.on('file-removed', ({detail: [file]}) => { ... });`
-
-### FlowFile
-FlowFile constructor can be accessed in `Flow.FlowFile`.
-
-#### Properties
-
-* `.flowObj` A back-reference to the parent `Flow` object.
-* `.file` The correlating HTML5 `File` object.
-* `.name` The name of the file.
-* `.relativePath` The relative path to the file (defaults to file name if relative path doesn't exist)
-* `.size` Size in bytes of the file.
-* `.uniqueIdentifier` A unique identifier assigned to this file object. This value is included in uploads to the server for reference, but can also be used in CSS classes etc when building your upload UI.
-* `.averageSpeed` Average upload speed, bytes per second.
-* `.currentSpeed` Current upload speed, bytes per second.
-* `.chunks` An array of `FlowChunk` items. You shouldn't need to dig into these.
-* `.paused` Indicated if file is paused.
-* `.error` Indicated if file has encountered an error.
-
-#### Methods
-
-* `.progress(relative)` Returns a float between 0 and 1 indicating the current upload progress of the file. If `relative` is `true`, the value is returned relative to all files in the Flow.js instance.
-* `.pause()` Pause uploading the file.
-* `.resume()` [async] Resume uploading the file.
-* `.cancel()` [async] Abort uploading the file and delete it from the list of files to upload.
-* `.retry()` [async] Retry uploading the file.
-* `.bootstrap()` [async / internal use only] Rebuild the state of a `FlowFile` object, including reassigning chunks and XMLHttpRequest instances.
-* `.isUploading()` Returns a boolean indicating whether file chunks is uploading.
-* `.isReading()` Returns a boolean indicating whether the file/stream is being read.
-* `.isComplete()` Returns a boolean indicating whether the file has completed uploading and received a server response.
-* `.sizeUploaded()` Returns size uploaded in bytes.
-* `.timeRemaining()` Returns remaining time to finish upload file in seconds. Accuracy is based on average speed. If speed is zero, time remaining will be equal to positive infinity `Number.POSITIVE_INFINITY`
-* `.getExtension()` Returns file extension in lowercase.
-* `.getType()` Returns file type.
-
-## Contribution
-
-To ensure consistency throughout the source code, keep these rules in mind as you are working:
-
-* All features or bug fixes must be tested by one or more specs.
-
-* We follow the rules contained in [Google's JavaScript Style Guide](https://google.github.io/styleguide/jsguide.html) with an exception we wrap all code at 100 characters.
-
-
-## Installation Dependencies
-1. To clone your Github repository, run:
-```console
-git clone git@github.com:<github username>/flow.js.git
-```
-2. To go to the Flow.js directory, run:
-```console
-cd flow.js
-```
-3. To add node.js dependencies
 ```console
 npm install
+npx playwright install --with-deps chromium firefox webkit
+npm run build          # dist/flow.esm.js, flow.js, flow.min.js, flow.cjs
+npm run build:test     # dist/flow.test.js
 ```
-## Testing
 
-Our unit and integration tests are written with Jasmine and executed with Karma. To run all of the
-tests on Chrome run:
+The browser suite is driven by [Playwright](https://playwright.dev/), so it
+runs in Chromium, Firefox and WebKit rather than only the local Chromium:
+
 ```console
-grunt karma:watch
+npm test                    # build + run Chromium, Firefox and WebKit
+npm run test:local          # build + attach to an existing Chromium CDP
+npm run test:coverage       # build instrumented + run all browsers + report
+npm run test:coverage:local # same, attached to an existing Chromium
 ```
-Or choose other browser
+
+`test:local` and `test:coverage:local` expect Chromium to already be running
+with remote debugging enabled:
+
 ```console
-grunt karma:watch --browsers=Firefox,Chrome
+chromium --headless=new --no-sandbox \
+  --remote-debugging-address=127.0.0.1 \
+  --remote-debugging-port=9223 about:blank &
 ```
-Browsers should be comma separated and case sensitive.
 
-To re-run tests just change any source or test file.
+That mode uses Playwright's `connectOverCDP`; it creates and closes only its own
+tab/context and never closes your browser. The default `npm test` mode launches
+Playwright-managed Chromium, Firefox and WebKit and is what CI uses.
 
-Automated tests is running after every commit at travis-ci.
+Useful runner options:
 
-### Running test on sauceLabs
+```console
+node scripts/run-browser-tests.mjs --browser chromium-cdp --cdp http://127.0.0.1:9223
+node scripts/run-browser-tests.mjs --browser firefox
+node scripts/run-browser-tests.mjs --spec "scheduler stress"
+node scripts/run-browser-tests.mjs --exclude "real HTTP upload"
+```
 
-1. Connect to sauce labs https://saucelabs.com/docs/connect
-2. `grunt  test --sauce-local=true --sauce-username=**** --sauce-access-key=***`
+Coverage is collected with Istanbul instrumentation and merged across browsers:
 
-other browsers can be used with `--browsers` flag, available browsers: sl_opera,sl_iphone,sl_safari,sl_ie10,sl_chrome,sl_firefox
+```console
+FLOW_COVERAGE=1 npm run build:test
+node scripts/run-browser-tests.mjs --browser all --coverage
+node scripts/coverage-report.mjs
+```
 
-## Origin
-Flow.js was inspired by and evolved from https://github.com/23/resumable.js. Library has been supplemented with tests and features, such as drag and drop for folders, upload speed, time remaining estimation, separate files pause, resume and more.
+Current Chromium coverage: **97.4% statements, 86.7% branches, 98.0%
+functions, 97.6% lines** over 145 specs. The suite covers the adapted v3 tests,
+targeted #368/#375 regressions, transport error/timeout/abort paths, test-request
+success/404/retry paths, empty/EOF/ArrayBuffer/string readers, retries, pause,
+cancel, priority scheduling, hooks, seeded randomized stress/invariants, and
+real-network upload/retry tests. The remaining uncovered branches are mostly
+abort races during an in-flight read and one unreachable multi-chunk zero-byte
+progress branch.
+
+## License
+
+MIT

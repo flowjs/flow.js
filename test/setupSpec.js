@@ -17,11 +17,12 @@ describe('setup', function() {
     expect(flow.files.length).toBe(0);
   });
 
-  it('events should be empty', function() {
-    expect(flow._events).toBeDefined();
-    expect(flow._hooks).toBeDefined();
-    expect(Object.keys(flow._events).length).toBe(0);
-    expect(Object.keys(flow._hooks).length).toBe(0);
+  it('should be an EventTarget', function() {
+    expect(flow instanceof EventTarget).toBe(true);
+    var called = false;
+    flow.addEventListener('probe', function() { called = true; });
+    flow._emit('probe');
+    expect(called).toBe(true);
   });
 
   it('set opts', function() {
@@ -33,8 +34,6 @@ describe('setup', function() {
   });
 
   it('should show methods initial state', async function() {
-    await expectAsync(flow.uploadNextChunk()).toBeResolvedTo(false);
-
     expect(flow.progress()).toBe(0);
     expect(flow.isUploading()).toBe(false);
     expect(flow.timeRemaining()).toBe(0);
@@ -55,19 +54,19 @@ describe('setup', function() {
     expect(flow.getFromUniqueIdentifier(4)).toBe(flow.files[0]);
   });
 
-  it("consider events set in constructor's second parameter", function() {
-    var customEventHandler = () => console.log("_custom event fired"),
-        customEvent = jasmine.createSpy('customEventHandler'),
-        f = new Flow({}, {_custom: [customEvent]});
-    f.emit('_custom');
+  it('dispatches events registered with addEventListener', function() {
+    var customEvent = jasmine.createSpy('customEventHandler');
+    var f = new Flow();
+    f.addEventListener('_custom', customEvent);
+    f._emit('_custom');
     expect(customEvent).toHaveBeenCalledTimes(1);
   });
 
-  it("events are not lowercased", function() {
-    var customEventHandler = () => console.log("_custom event fired"),
-        customEvent = jasmine.createSpy('customEventHandler'),
-        f = new Flow({}, {_CusTom: [customEvent]});
-    f.emit('_custom');
+  it('event names are case-sensitive', function() {
+    var customEvent = jasmine.createSpy('customEventHandler');
+    var f = new Flow();
+    f.addEventListener('_CusTom', customEvent);
+    f._emit('_custom');
     expect(customEvent).not.toHaveBeenCalled();
   });
 
@@ -132,4 +131,15 @@ describe('setup', function() {
       expect(flow.onDrop).toHaveBeenCalledTimes(1);
     });
   });
+
+  it('detects directory support from the input element', function() {
+    var input = document.createElement('input');
+    var expected = 'webkitdirectory' in input ||
+      'mozdirectory' in input ||
+      'odirectory' in input ||
+      'msdirectory' in input ||
+      'directory' in input;
+    expect(flow.supportDirectory).toBe(expected);
+  });
+
 });

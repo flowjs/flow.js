@@ -1,30 +1,41 @@
-describe('fileAdd event', function() {
-  /**
-   * @type {Flow}
-   */
+describe('fileAdd hooks', function() {
   var flow;
 
-  beforeEach(function () {
+  function addHook(name, callback) {
+    flow.opts.hooks = flow.opts.hooks || {};
+    var current = flow.opts.hooks[name];
+    if (current === undefined) {
+      flow.opts.hooks[name] = [callback];
+    } else if (Array.isArray(current)) {
+      current.push(callback);
+    } else {
+      flow.opts.hooks[name] = [current, callback];
+    }
+  }
+
+  beforeEach(function() {
     flow = new Flow({
-      generateUniqueIdentifier: function (file) {
-        return file.size;
+      hooks: {},
+      generateUniqueIdentifier: function(file) {
+        return (file.name || 'blob') + '-' + file.size;
       }
     });
   });
 
-  it('should call file-added event', async function() {
+  it('should call fileAdded hook', async function() {
     var valid = false;
-    flow.on('file-added', (file) => {
+    addHook('fileAdded', function(file, context) {
       expect(file.file instanceof Blob).toBeTruthy();
+      expect(context.flow).toBe(flow);
       valid = true;
     });
     await flow.addFile(new Blob(['file part']));
     expect(valid).toBeTruthy();
   });
 
-  it('should call files-added event', async function() {
+  it('should call filesAdded hook', async function() {
     var count = 0;
-    flow.on('files-added', (files) => {
+    addHook('filesAdded', function(files) {
       count = files.length;
     });
     await flow.addFiles([
@@ -35,31 +46,30 @@ describe('fileAdd event', function() {
     expect(flow.files.length).toBe(2);
   });
 
-  it('should call file-added only when bound', async function() {
+  it('should call fileAdded only when configured', async function() {
     var event = jasmine.createSpy('event');
-
-    flow.on('file-added', event);
+    addHook('fileAdded', event);
     await flow.addFile(new File(['file part'], 'a.bin'));
     expect(event).toHaveBeenCalledTimes(1);
 
-    flow.off('file-added');
+    delete flow.opts.hooks.fileAdded;
     await flow.addFile(new File(['file part'], 'b.bin'));
     expect(event).toHaveBeenCalledTimes(1);
   });
 
-  it('file-added can be removed specifying the callback', async function() {
+  it('fileAdded can be replaced', async function() {
     var event = jasmine.createSpy('event');
-    flow.on('file-added', event);
+    flow.opts.hooks.fileAdded = event;
     await flow.addFile(new File(['file part'], 'c.bin'));
     expect(event).toHaveBeenCalledTimes(1);
 
-    flow.off('file-added', event);
+    flow.opts.hooks.fileAdded = null;
     await flow.addFile(new File(['file part'], 'd.bin'));
     expect(event).toHaveBeenCalledTimes(1);
   });
 
-  it('should validate file-added', async function() {
-    flow.on('file-added', (file) => {
+  it('should validate fileAdded', async function() {
+    addHook('fileAdded', function(file) {
       delete file.file;
       return false;
     });
@@ -67,8 +77,8 @@ describe('fileAdd event', function() {
     expect(flow.files.length).toBe(0);
   });
 
-  it('should validate async file-added', async function() {
-    flow.on('file-added', async (file) => {
+  it('should validate async fileAdded', async function() {
+    addHook('fileAdded', async function(file) {
       await sleep(200);
       delete file.file;
       return false;
@@ -77,40 +87,40 @@ describe('fileAdd event', function() {
     expect(flow.files.length).toBe(0);
   });
 
-  it('should keeps file from being queued', async function() {
+  it('should keep a file from being queued', async function() {
     spyOn(console, 'warn');
-    flow.on('filter-file', () => false);
+    addHook('filterFile', function() { return false; });
     await flow.addFile(new Blob(['file part']));
     expect(flow.files.length).toBe(0);
     expect(console.warn).not.toHaveBeenCalled();
   });
 
-  it('should validate filter-file and files-added', async function() {
-    flow.on('filter-file', () => false);
+  it('should validate filterFile and filesAdded', async function() {
+    addHook('filterFile', function() { return false; });
     var valid = false;
-    flow.on('files-added', (files) => {
+    addHook('filesAdded', function(files) {
       valid = files.length === 0;
     });
     await flow.addFile(new Blob(['file part']));
     expect(valid).toBeTruthy();
   });
 
-  it('should validate multiple filter-file hooks', async function() {
-    const customFunction = jasmine.createSpy('fn');
-    flow.on('filter-file', async () => {
+  it('should run multiple filterFile hooks and AND their result', async function() {
+    var customFunction = jasmine.createSpy('fn');
+    addHook('filterFile', async function() {
       customFunction();
       return true;
     });
-    flow.on('filter-file', async () => {
+    addHook('filterFile', async function() {
       customFunction();
-      return false; // a single hook returning false should prevail
+      return false;
     });
-    flow.on('filter-file', async () => {
+    addHook('filterFile', async function() {
       customFunction();
       return true;
     });
-    let valid = false;
-    flow.on('files-added', (files) => {
+    var valid = false;
+    addHook('filesAdded', function(files) {
       valid = files.length === 0;
     });
     await flow.addFile(new Blob(['file part']));
@@ -118,100 +128,113 @@ describe('fileAdd event', function() {
     expect(customFunction).toHaveBeenCalledTimes(3);
   });
 
-  it('should validate catch-all emitting after hooks', async function() {
-    let valid = false;
-    flow.on('catch-all', () => {
-      valid = true;
+  it('should emit catch-all after hooks', async function() {
+    var valid = false;
+    flow.addEventListener('catch-all', function(event) {
+      if (event.detail.type === 'filesSubmitted') {
+        valid = true;
+      }
     });
-    flow.on('files-submitted', () => {
+    addHook('filesSubmitted', function() {
       valid = false;
     });
     await flow.addFile(new Blob(['file part']));
     expect(valid).toBeTruthy();
   });
 
-  describe('async/sync hooks', function () {
+  it('should report hook errors without breaking addFile', async function() {
+    var error = jasmine.createSpy('error');
+    flow.addEventListener('error', function(event) {
+      error(event.detail);
+    });
+    addHook('fileAdded', function() {
+      throw new Error('hook failed');
+    });
+    await flow.addFile(new File(['file part'], 'hook-error.bin'));
+    expect(flow.files.length).toBe(1);
+    expect(error).toHaveBeenCalledWith(jasmine.objectContaining({
+      message: 'hook failed',
+      hook: 'fileAdded'
+    }));
+  });
+
+  describe('async/sync hooks', function() {
     beforeAll(function() {
       jasmine.getEnv().addReporter({
-        specStarted: result => (jasmine.currentTest = result),
-        specDone: result => (jasmine.currentTest = result),
+        specStarted: function(result) { jasmine.currentTest = result; },
+        specDone: function(result) { jasmine.currentTest = result; }
       });
     });
 
-    it('An async files-added hook', async function() {
-      var flowfiles,
-          content = gen_file(4, 512),
-          sample_file = new File([content], `foobar-asyncInitFileFn-${jasmine.currentTest.id}.bin`),
-          customFunction1 = jasmine.createSpy('fn'),
-          customFunction2 = jasmine.createSpy('fn');
-      flow.on('files-added', (files) => {
+    it('An async filesAdded hook', async function() {
+      var customFunction1 = jasmine.createSpy('fn');
+      var customFunction2 = jasmine.createSpy('fn');
+      addHook('filesAdded', function() {
         customFunction1();
       });
-      flow.on('files-added', async (files) => {
+      addHook('filesAdded', async function() {
         await sleep(250);
         customFunction2();
       });
 
-      flowfiles = await flow.addFiles([sample_file]);
+      var sampleFile = new File(['abc'], 'hooks-async-' + jasmine.currentTest.id + '.bin');
+      await flow.addFiles([sampleFile]);
       expect(customFunction1).toHaveBeenCalledTimes(1);
       expect(customFunction2).toHaveBeenCalledTimes(1);
     });
 
-    it('file-added hook can actually change one file', async () => {
-      flow.on('file-added', (flowfile) => {
-        // Synchronous hook changes the filename of the first file
+    it('fileAdded hook can change one file', async function() {
+      addHook('fileAdded', function(flowfile) {
         if (flowfile.name.includes('aaa')) {
           flowfile.name = 'bbb.bin';
         }
       });
-      flow.on('file-added', async (flowfile) => {
+      addHook('fileAdded', async function(flowfile) {
         await sleep(250);
-        // Asynchronous hook replace the content
         var text = (await flowfile.file.text()).replace(/a/g, 'x');
         flowfile.file = new File([text], flowfile.name);
       });
 
       var flowfiles = await flow.addFiles([
         new File(['aaa'], 'aaa.bin'),
-        new File(['GGG'], 'GGG.bin'),
+        new File(['GGG'], 'GGG.bin')
       ]);
       expect(flowfiles[0].name).toBe('bbb.bin');
       await expectAsync(flowfiles[0].file.text()).toBeResolvedTo('xxx');
     });
 
-    it('A files-added hook can actually change files', async function() {
-      var flowfiles,
-          customFunction = jasmine.createSpy('fn'),
-          files = [
-            new File(['abc'], `foobar-abc-${jasmine.currentTest.id}.bin`),
-            new File(['def'], `foobar-def-${jasmine.currentTest.id}.bin`)
-          ];
+    it('A filesAdded hook can change files', async function() {
+      var customFunction = jasmine.createSpy('fn');
+      var files = [
+        new File(['abc'], 'hooks-abc-' + jasmine.currentTest.id + '.bin'),
+        new File(['def'], 'hooks-def-' + jasmine.currentTest.id + '.bin')
+      ];
 
-      flow.on('files-added', (files, event) => {
+      addHook('filesAdded', function(addedFiles) {
         customFunction();
-        expect(files.length).toEqual(2);
-        files.reverse();
+        expect(addedFiles.length).toEqual(2);
+        addedFiles.reverse();
       });
 
-      flowfiles = await flow.addFiles(files);
+      var flowfiles = await flow.addFiles(files);
       expect(customFunction).toHaveBeenCalledTimes(1);
       expect(flowfiles.length).toEqual(2);
-      // The files have been inverted by the hook
-      expect(flowfiles[0].name).toEqual(`foobar-def-${jasmine.currentTest.id}.bin`);
+      expect(flowfiles[0].name).toEqual('hooks-def-' + jasmine.currentTest.id + '.bin');
     });
 
-    it('A files-added hook can actually change files', async function() {
-      var flowfiles,
-          customFunction = jasmine.createSpy('fn'),
-          files = ['abc', 'def', 'ghi', 'jkl', 'mno', 'pqr', 'stu']
-          .map(e => new File([e], `foobar-${e}-${jasmine.currentTest.id}.bin`));
+    it('filterFile can select files', async function() {
+      var customFunction = jasmine.createSpy('fn');
+      var files = ['abc', 'def', 'ghi', 'jkl', 'mno', 'pqr', 'stu']
+        .map(function(value) {
+          return new File([value], 'hooks-' + value + '-' + jasmine.currentTest.id + '.bin');
+        });
 
-      flow.on('filter-file', (flowFile, event) => {
+      addHook('filterFile', function(flowFile) {
         customFunction();
         return /\b(abc|def)\b/.test(flowFile.name);
       });
 
-      flowfiles = await flow.addFiles(files);
+      var flowfiles = await flow.addFiles(files);
       expect(customFunction).toHaveBeenCalledTimes(7);
       expect(flowfiles.length).toEqual(2);
     });

@@ -1,12 +1,9 @@
 describe('file-removed event', function() {
-  /**
-   * @type {Flow}
-   */
   var flow;
 
-  beforeEach(function () {
+  beforeEach(function() {
     flow = new Flow({
-      generateUniqueIdentifier: function (file) {
+      generateUniqueIdentifier: function(file) {
         return file.size;
       }
     });
@@ -15,7 +12,8 @@ describe('file-removed event', function() {
   it('should call file-removed event on Flow.removeFile', async function() {
     var valid = false;
     var removedFile = null;
-    flow.on('file-removed', ({detail: [file]}) => {
+    flow.addEventListener('file-removed', function(event) {
+      var file = event.detail.file;
       expect(file.file instanceof Blob).toBeTruthy();
       removedFile = file;
       valid = true;
@@ -30,7 +28,8 @@ describe('file-removed event', function() {
   it('should call file-removed event FlowFile.cancel', async function() {
     var valid = false;
     var removedFile = null;
-    flow.on('file-removed', ({detail: [file]}) => {
+    flow.addEventListener('file-removed', function(event) {
+      var file = event.detail.file;
       expect(file.file instanceof Blob).toBeTruthy();
       removedFile = file;
       valid = true;

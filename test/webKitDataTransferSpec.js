@@ -35,7 +35,7 @@ describe('webKitDataTransfer', function () {
     };
     spyOn(flow, 'addFiles');
     flow.webkitReadDataTransfer(event);
-    expect(flow.addFiles).toHaveBeenCalledWith([], event);
+    expect(flow.addFiles).toHaveBeenCalledWith([], {event});
   });
 
   it('should return one file', function() {
@@ -59,7 +59,7 @@ describe('webKitDataTransfer', function () {
     flow.webkitReadDataTransfer(event);
     expect(flow.addFiles).toHaveBeenCalledWith(
       [{relativePath: 'home/user/foo/111.txt'}],
-      event
+      {event}
     );
   });
 
@@ -98,7 +98,7 @@ describe('webKitDataTransfer', function () {
     flow.webkitReadDataTransfer(event);
     expect(flow.addFiles).toHaveBeenCalledWith(
       [{relativePath: 'home/user/foo/111.txt'}],
-      event
+      {event}
     );
   });
 
@@ -141,7 +141,82 @@ describe('webKitDataTransfer', function () {
         {relativePath: 'home/user/foo/111.txt'},
         {relativePath: 'home/user/foo/222.txt'}
       ],
-      event
+      {event}
     );
   });
+
+  it('should return one file from a nested subdirectory', function() {
+    var innerReader = {
+      calls: 0,
+      readEntries: function(success) {
+        if (this.calls++ === 0) {
+          success([getWebKitFile('111.txt')]);
+        } else {
+          success([]);
+        }
+      }
+    };
+    var outerReader = {
+      calls: 0,
+      readEntries: function(success) {
+        if (this.calls++ === 0) {
+          success([{
+            isFile: false,
+            isDirectory: true,
+            createReader: function() { return innerReader; }
+          }]);
+        } else {
+          success([]);
+        }
+      }
+    };
+    var event = {
+      dataTransfer: {
+        items: [{
+          webkitGetAsEntry: function() {
+            return {
+              isFile: false,
+              isDirectory: true,
+              createReader: function() { return outerReader; }
+            };
+          }
+        }]
+      }
+    };
+    spyOn(flow, 'addFiles');
+    flow.webkitReadDataTransfer(event);
+    expect(flow.addFiles).toHaveBeenCalledWith(
+      [{relativePath: 'home/user/foo/111.txt'}],
+      {event}
+    );
+  });
+
+  it('should propagate a directory read error', function() {
+    var error = new Error('read failed');
+    var event = {
+      dataTransfer: {
+        items: [{
+          webkitGetAsEntry: function() {
+            return {
+              isFile: false,
+              isDirectory: true,
+              createReader: function() {
+                return {
+                  readEntries: function(success, failure) {
+                    failure(error);
+                  }
+                };
+              }
+            };
+          }
+        }]
+      }
+    };
+    spyOn(flow, 'addFiles');
+    expect(function() {
+      flow.webkitReadDataTransfer(event);
+    }).toThrow(error);
+    expect(flow.addFiles).toHaveBeenCalledWith([], {event});
+  });
+
 });

@@ -1,45 +1,43 @@
 describe('add single file', function() {
-  /**
-   * @type {Flow}
-   */
   var flow;
 
-  beforeEach(function () {
+  beforeEach(function() {
     flow = new Flow({
-      generateUniqueIdentifier: function (file) {
-        return file.size;
+      generateUniqueIdentifier: function(file) {
+        return (file.name || 'blob') + '-' + file.size;
       },
       singleFile: true
     });
   });
 
-  it('should add single file', async function() {
-    await flow.addFile(new Blob(['file part']));
+  it('should keep only the latest file', async function() {
+    await flow.addFile(new File(['file part'], 'first.bin'));
     expect(flow.files.length).toBe(1);
-    var file = flow.files[0];
-    await flow.upload();
-    expect(file.isUploading()).toBeTruthy();
-    await flow.addFile(new Blob(['file part 2']));
+    var first = flow.files[0];
+
+    await flow.addFile(new File(['file part 2'], 'second.bin'));
     expect(flow.files.length).toBe(1);
-    expect(file.isUploading()).toBeFalsy();
+    expect(flow.files[0]).not.toBe(first);
+    expect(flow.files[0].name).toBe('second.bin');
   });
 
-  it('should emit remove event after adding another file', async function(){
+  it('should emit remove event after adding another file', async function() {
     var events = [];
-    flow.on('catch-all', ({detail: [event_name]}) => {
-      events.push(event_name);
+    flow.addEventListener('catch-all', function(event) {
+      events.push(event.detail.type);
     });
-    await flow.addFile(new Blob(['file part']));
+    await flow.addFile(new File(['file part'], 'first.bin'));
     expect(flow.files.length).toBe(1);
-    expect(events).toEqual(['filter-file', 'file-added', 'files-added', 'files-submitted']);
+    expect(events).toEqual(['filterFile', 'fileAdded', 'filesAdded', 'filesSubmitted']);
 
     var removedFile = flow.files[0];
-    flow.on('file-removed', ({detail: [file]}) => {
-        expect(file).toBe(removedFile);
+    flow.addEventListener('file-removed', function(event) {
+      expect(event.detail.file).toBe(removedFile);
     });
-    await flow.addFile(new Blob(['file part 2']));
+    await flow.addFile(new File(['file part 2'], 'second.bin'));
     expect(flow.files.length).toBe(1);
-    expect(events.length).toBe(9);
-    expect(events.slice(-5)).toEqual(['filter-file', 'file-added', 'files-added', 'file-removed', 'files-submitted']);
+    expect(events.slice(-5)).toEqual([
+      'filterFile', 'fileAdded', 'filesAdded', 'file-removed', 'filesSubmitted'
+    ]);
   });
 });

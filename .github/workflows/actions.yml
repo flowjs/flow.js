@@ -1,127 +1,50 @@
-name: "CI"
+name: CI
 
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened]
   push:
     branches:
       - 'v3'
       - 'feature/*'
       - 'fix/*'
+  pull_request:
   workflow_dispatch:
 
 permissions:
-  actions: read
-  checks: write
   contents: read
-  deployments: read
-  issues: read
-  packages: read
-  pull-requests: write
-  repository-projects: read
-  security-events: read
-  statuses: write
-
-env:
-  SAUCE_USERNAME: ${{secrets.SAUCE_USERNAME}}
-  SAUCE_ACCESS_KEY: ${{secrets.SAUCE_ACCESS_KEY}}
-  CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
-  DISPLAY: ':99.0'
 
 jobs:
-  approve:
+  test:
     runs-on: ubuntu-latest
-    steps:
-    - name: Approve
-      run: echo For security reasons, all pull requests need to be approved first before running any automated CI.
-
-  prepare:
-    runs-on: ubuntu-latest
-    needs: [approve]
-    environment: open-env
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 2
-          persist-credentials: false
-
-      - name: Is environment ok
-        run: |
-          echo $SAUCE_USERNAME
-          echo ${{ github.event.pull_request.base.sha }}  ${{ github.sha }} ${{ github.event.pull_request.head.sha }}
-
-      - name: Get specific changed files
-        id: source-changed
-        uses: tj-actions/changed-files@v1.1.3
-        with:
-          base_sha: ${{ github.sha }}
-          sha: ${{ github.event.pull_request.head.sha }}
-          files: |
-            src
-            test
-            karma.conf.js
-            Gruntfile.js
-            rollup.config.js
-
-      - name: Install node.js
-        if: steps.source-changed.outputs.any_changed == 'true'
-        uses: actions/setup-node@v1
-        with:
-          node-version: 14.x
-
-      - name: Install xvfb
-        if: steps.source-changed.outputs.any_changed == 'true'
-        run: |
-          sudo apt-get install xvfb
-          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          node-version: 22
 
       - name: Install dependencies
-        if: steps.source-changed.outputs.any_changed == 'true'
+        run: npm install
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Build production bundles
+        run: npm run build
+
+      - name: Build instrumented test bundle
         run: |
-          npm install
-          npm install -g grunt-cli
-          node_modules/.bin/rollup -c
+          FLOW_COVERAGE=1 npm run build:test
 
-      - name: Install saucectl
-        if: steps.source-changed.outputs.any_changed == 'true'
-        uses: saucelabs/saucectl-run-action@v1
+      - name: Run browser suite with coverage
+        run: node scripts/run-browser-tests.mjs --browser all --coverage
+
+      - name: Coverage report
+        run: node scripts/coverage-report.mjs
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
         with:
-          skip-run: true
-          testing-environment: ""
-          concurrency: 10
-
-      - name: Grunt test
-        if: steps.source-changed.outputs.any_changed == 'true'
-        run: |
-          grunt --version
-          sed -i '/log.info(`Check out job at/a\\ console.log(`::set-output name=urls-${sessionId}::${getSauceEndpoint(browserData.region)}${sessionId}`);' node_modules/karma-sauce-launcher/dist/reporter/reporter.js || true
-
-      - name: Run tests
-        if: steps.source-changed.outputs.any_changed == 'true'
-        run: grunt karma:saucelabs
-        id: test
-
-      - name: Run code coverage
-        if: steps.source-changed.outputs.any_changed == 'true'
-        uses: paambaati/codeclimate-action@v2.7.5
-        with:
-          coverageCommand: grunt karma:coverage
-          debug: true
-          prefix: .
-          coverageLocations: |
-            ${{github.workspace}}/coverage/lcov/result.lcov:lcov
-        id: coverage
-
-      - name: debug
-        run: ls -lhR coverage || true
-
-      - uses: LouisBrunner/checks-action@v1.1.1
-        if: steps.source-changed.outputs.any_changed == 'true'
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          name: Testsuite passed
-          conclusion: ${{ job.status }}
-          output: |
-            {"summary":"${{join(steps.test.outputs.*, ', ')}}"}
+          name: coverage
+          path: coverage/

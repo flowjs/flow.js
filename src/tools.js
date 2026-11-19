@@ -50,8 +50,50 @@ var g = typeof window !== 'undefined' ? window
     : typeof global !== 'undefined' ? global
     : typeof self !== 'undefined' ? self : {};
 g.evalOpts = evalOpts;
+g.FlowTools = {abortableSleep, each, evalOpts, sleep};
+
+
+/**
+ * Resolve after `milliseconds`, or as soon as `signal` aborts.
+ * @param {number} milliseconds
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<void>}
+ */
+function abortableSleep(milliseconds, signal) {
+  if (!milliseconds || milliseconds <= 0) {
+    return Promise.resolve();
+  }
+  return new Promise(resolve => {
+    let timer = setTimeout(finish, milliseconds);
+    function finish() {
+      clearTimeout(timer);
+      if (signal) {
+        signal.removeEventListener('abort', finish);
+      }
+      resolve();
+    }
+    if (signal) {
+      if (signal.aborted) {
+        finish();
+        return;
+      }
+      signal.addEventListener('abort', finish, {once: true});
+    }
+  });
+}
+
+/**
+ * Plain delay, mostly useful for tests and custom readers.
+ * @param {number} milliseconds
+ * @returns {Promise<void>}
+ */
+function sleep(milliseconds) {
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
 
 export {
+  abortableSleep,
   each,
-  evalOpts
+  evalOpts,
+  sleep
 };

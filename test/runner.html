@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>flow.js browser test runner</title>
+</head>
+<body>
+  <pre id="status">loading</pre>
+  <script>
+    (function() {
+      window.__results = {specs: [], done: false, overall: null, error: null};
+      const params = new URLSearchParams(location.search);
+      const version = params.get('v') || String(Date.now());
+      const specFilter = params.get('spec') || '';
+      const specExclude = params.get('exclude') || '';
+
+      function load(src) {
+        return new Promise(function(resolve, reject) {
+          const script = document.createElement('script');
+          script.src = src + '?v=' + encodeURIComponent(version);
+          script.onload = resolve;
+          script.onerror = function() {
+            reject(new Error('failed to load ' + src));
+          };
+          document.head.appendChild(script);
+        });
+      }
+
+      function setupJasmine() {
+        const jasmineRequire = window.jasmineRequire;
+        const jasmine = jasmineRequire.core(jasmineRequire);
+        const env = jasmine.getEnv();
+        const iface = jasmineRequire.interface(jasmine, env);
+        for (const name in iface) {
+          window[name] = iface[name];
+        }
+        env.configure({
+          random: false,
+          specFilter: function(spec) {
+            const name = spec.getFullName();
+            return (!specFilter || name.indexOf(specFilter) !== -1) &&
+              (!specExclude || name.indexOf(specExclude) === -1);
+          }
+        });
+        env.addReporter({
+          specDone: function(result) {
+            window.__results.specs.push({
+              fullName: result.fullName,
+              status: result.status,
+              duration: result.duration,
+              failedExpectations: (result.failedExpectations || []).map(function(f) {
+                return {message: f.message, stack: f.stack};
+              })
+            });
+            document.getElementById('status').textContent =
+              window.__results.specs.length + ' specs run';
+          },
+          jasmineDone: function(result) {
+            window.__results.done = true;
+            window.__results.overall = result.overallStatus;
+            window.__results.failures = window.__results.specs.filter(function(spec) {
+              return spec.status === 'failed';
+            });
+            document.getElementById('status').textContent =
+              'DONE ' + result.overallStatus + ' | ' +
+              window.__results.specs.length + ' specs';
+          }
+        });
+        window.__env = env;
+      }
+
+      (async function() {
+        try {
+          await load('/node_modules/jasmine-core/lib/jasmine-core/jasmine.js');
+          await load('/node_modules/sinon/pkg/sinon.js');
+          setupJasmine();
+          await load('/dist/flow.test.js');
+          await load('/test/helpers.js');
+          const specFiles = await (await fetch('/_specs?v=' + encodeURIComponent(version))).json();
+          for (const file of specFiles) {
+            await load('/test/' + file);
+          }
+          window.__env.execute();
+        } catch (error) {
+          window.__results.error = String(error && error.stack || error);
+          document.getElementById('status').textContent =
+            'THROW ' + window.__results.error;
+        }
+      })();
+    })();
+  </script>
+</body>
+</html>

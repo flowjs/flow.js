@@ -22,9 +22,16 @@ function hex(buff) {
 }
 
 async function waitFor(condition, milliseconds = 10, step = 1) {
-  while(!condition() && milliseconds) {
+  // Keep the old iteration budget as a rough guide, but enforce a real
+  // wall-clock deadline and fail loudly. A silent timeout previously let a
+  // caller continue into an unrelated hang.
+  var timeout = Math.max(milliseconds * step, 5000);
+  var deadline = Date.now() + timeout;
+  while (!condition()) {
+    if (Date.now() >= deadline) {
+      throw new Error('waitFor timed out after ' + timeout + 'ms');
+    }
     await sleep(step);
-    milliseconds--;
   }
 }
 

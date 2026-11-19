@@ -1,17 +1,64 @@
-# 3.0.0
+# 3.0.0-alpha.1
 
-## Breaking Changes
+This release replaces the recursive XHR/event-handler upload design with one
+async upload session.
 
-### Events
- - Events are distincts from hooks.
- - Recognized events and hooks are now lower-snake-case (case-sensitive).
- - Hooks are "file-added", "files-added", "files-submitted". "filter-file" is a filtering hook.
- - Events are passed a native CustomEvent. IE:
-    v2: `flow.on('fileRemoved',  (file) => { ... });`
-    v3: `flow.on('file-removed', ({detail: [file]}) => { ... });`
+## Highlights
 
-### Other
- - FlowFile does not run bootstrap() upon instanciation. This must be done manually (or rely on *addFile* functions).
+ - One `UploadSession` per Flow instance. XHR listeners only resolve request
+   promises; they never schedule another chunk.
+ - Async-generator read queue plus a bounded worker pool. Reads stay in chunk
+   order; uploads run concurrently up to `simultaneousUploads`.
+ - `upload()` is completion-oriented and idempotent while a session is active.
+   `pause()`, `resume()`, `cancel()` and `removeFile()` settle deterministically.
+ - Explicit chunk state machine: `pending`, `reading`, `uploading`, `success`,
+   `error`, `cancelled`.
+ - One awaited `readFileFn` replaces the `readFileFn` / `asyncReadFileFn` split.
+   It receives an `AbortSignal`; pause/cancel during a read no longer uploads
+   the stale result (#368).
+ - Empty files send exactly one zero-byte request (#375).
+ - Optional per-chunk checksums (`chunkChecksum`), sent as `flowChunkHash` and
+   cached across retries; server verification is documented.
+ - Premature EOF on a non-empty file is a truncation error by default
+   (`allowShortStream` is the explicit opt-in).
+ - Duplicate identifiers within one `addFiles` batch are filtered.
+ - A retry after an uncached read failure reinitializes via `initFileFn` and
+   rebuilds chunks instead of reading a partially consumed stream.
+ - A completed read is cached even when pause/cancel/error races with it, so a
+   stateful reader/encryptor does not lose consumed stream bytes.
+ - Add `streaming: true` for unknown/estimated-size inputs: dynamic chunk
+   creation until EOF, a zero-byte `flowChunkIsLast` marker, bounded buffering,
+   and pause/resume/retry/read-error handling. This removes the need for a
+   fragile ciphertext-size estimate.
+ - Retries are loops with abortable delays, not recursive `send()` calls.
+ - Native `EventTarget` + `CustomEvent`; no global `EventTarget.prototype`
+   patching.
+ - Explicit `hooks` option (`filterFile`, `fileAdded`, `filesAdded`,
+   `filesSubmitted`); no name-based hook/event dispatch.
+ - Zero runtime dependencies. No Babel/core-js/regenerator in the distributed
+   build.
+ - Browser test suite expanded to 145 specs: adapted v3 tests, targeted
+   regressions, transport/error edge cases, streaming/dynamic-size tests,
+   seeded randomized stress/invariant checks, and real-network upload/retry
+   tests. Chromium coverage: 97.4% statements / 86.7% branches; CI runs
+   Chromium, Firefox and WebKit.
+
+## Breaking changes
+
+ - `flow.on/off/once` are removed. Use `addEventListener`,
+   `removeEventListener` and `{once: true}`.
+ - Event details are objects (`event.detail.file`, `event.detail.message`, ...)
+   instead of arrays.
+ - Hooks are configured through `hooks: { ... }` instead of `on('file-added')`.
+ - `asyncReadFileFn` is removed. `readFileFn` is always awaited.
+ - `FlowChunk.readFinished()` and `preprocessFinished()` are removed.
+ - `Flow.uploadNextChunk()` is removed.
+ - `addFile(s)` take `{event, initFileFn}` options instead of positional
+   arguments.
+ - `await flow.upload()` now waits for the session to settle.
+ - A permanently failed file keeps its chunks instead of clearing them.
+
+See [MIGRATION.md](MIGRATION.md) for the full mapping and examples.
 
 # 2.0.0
 

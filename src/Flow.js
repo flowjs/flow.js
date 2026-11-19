@@ -2,13 +2,14 @@
  * @license MIT
  */
 
-import Eventizer from './Eventizer';
-import FlowFile from './FlowFile';
-import {each} from './tools';
+import FlowFile from './FlowFile.js';
+import UploadSession from './UploadSession.js';
+import {each} from './tools.js';
 
 /**
  * Flow.js is a library providing multiple simultaneous, stable and
  * resumable uploads via the HTML5 File API.
+ *
  * @param [opts]
  * @param {number|Function} [opts.chunkSize]
  * @param {bool} [opts.forceChunkSize]
@@ -18,6 +19,7 @@ import {each} from './tools';
  * @param {number} [opts.progressCallbacksInterval]
  * @param {number} [opts.speedSmoothingFactor]
  * @param {Object|Function} [opts.query]
+ * @param {bool} [opts.sendFlowParams]
  * @param {Object|Function} [opts.headers]
  * @param {bool} [opts.withCredentials]
  * @param {Function} [opts.preprocess]
@@ -26,53 +28,37 @@ import {each} from './tools';
  * @param {string|Function} [opts.uploadMethod]
  * @param {bool} [opts.prioritizeFirstAndLastChunk]
  * @param {bool} [opts.allowDuplicateUploads]
- * @param {string|Function} [opts.target]
+ * @param {string|Function} [opts.target] May return a promise: resolved per
+ *   chunk, after its payload and checksum are known.
  * @param {number} [opts.maxChunkRetries]
  * @param {number} [opts.chunkRetryInterval]
+ * @param {number} [opts.xhrTimeout]
  * @param {Array.<number>} [opts.permanentErrors]
+ * @param {Array.<number>} [opts.testNotFoundStatuses]
  * @param {Array.<number>} [opts.successStatuses]
  * @param {Function} [opts.initFileFn]
  * @param {Function} [opts.readFileFn]
  * @param {Function} [opts.generateUniqueIdentifier]
  * @constructor
  */
-export default class Flow extends Eventizer {
+export default class Flow extends EventTarget {
+  constructor(opts) {
+    super();
 
-  /**
-   * For the events object:
-   *  - keys: stands for event name
-   *  - values: array list of callbacks
-   * All keys are lowercased as on() would do.
-   */
-  constructor(opts, events) {
-    super(events);
+    this.supportDirectory = (() => {
+      if (typeof document === 'undefined') {
+        return false;
+      }
+      const input = document.createElement('input');
+      return 'webkitdirectory' in input ||
+        'mozdirectory' in input ||
+        'odirectory' in input ||
+        'msdirectory' in input ||
+        'directory' in input;
+    })();
 
-    /**
-     * Library version
-     * @type {string}
-     */
-    Flow.version = '<%= version %>';
-
-    /**
-     * Check if directory upload is supported
-     * @type {boolean}
-     */
-    this.supportDirectory = (
-      /Chrome/.test(window.navigator.userAgent) ||
-      /Firefox/.test(window.navigator.userAgent) ||
-      /Edge/.test(window.navigator.userAgent)
-    );
-
-    /**
-     * List of FlowFile objects
-     * @type {Array.<FlowFile>}
-     */
     this.files = [];
 
-    /**
-     * Default options for flow.js
-     * @type {Object}
-     */
     this.defaults = {
       chunkSize: 1024 * 1024,
       forceChunkSize: false,
@@ -82,6 +68,7 @@ export default class Flow extends Eventizer {
       progressCallbacksInterval: 500,
       speedSmoothingFactor: 0.1,
       query: {},
+      sendFlowParams: true,
       headers: {},
       withCredentials: false,
       preprocess: null,
@@ -96,36 +83,78 @@ export default class Flow extends Eventizer {
       generateUniqueIdentifier: null,
       maxChunkRetries: 0,
       chunkRetryInterval: null,
+      chunkChecksum: null,
+      allowShortStream: false,
+      streaming: false,
+      xhrTimeout: 0,
       permanentErrors: [404, 413, 415, 500, 501],
+      testNotFoundStatuses: [404],
       successStatuses: [200, 201, 202],
       onDropStopPropagation: false,
+      hooks: {},
       initFileFn: null,
-      readFileFn: (fileObj, startByte, endByte, fileType, chunk) => fileObj.file.slice(startByte, endByte, fileType),
-      asyncReadFileFn: null
+      readFileFn: (fileObj, startByte, endByte, fileType) =>
+        fileObj.file.slice(startByte, endByte, fileType)
     };
 
-    /**
-     * Current options
-     * @type {Object}
-     */
-    this.opts = {};
-
-    /**
-     * Current options
-     * @type {Object}
-     */
     this.opts = Object.assign({}, this.defaults, opts || {});
 
-    // A workaround for using this.method.bind(this) as a (removable) event handler.
-    // https://stackoverflow.com/questions/11565471
     this._onDropBound = null;
+    this._session = null;
   }
 
   /**
-   * On drop event
-   * @function
-   * @param {MouseEvent} event
+   * Dispatch a native CustomEvent and then the catch-all event.
+   * The detail always contains the event type and the flow instance.
    */
+  _emit(type, detail = {}) {
+    const payload = Object.assign({type, flow: this}, detail);
+    this.dispatchEvent(new CustomEvent(type, {detail: payload}));
+    this._emitCatchAll(type, payload, false);
+    return payload;
+  }
+
+  _emitCatchAll(type, detail, hook) {
+    this.dispatchEvent(new CustomEvent('catch-all', {
+      detail: {type, hook, detail}
+    }));
+  }
+
+  /**
+   * Run all callbacks for a named hook. Filters are AND-ed; actions run in
+   * order and may mutate their arguments. Hook errors are reported through
+   * the `error` event and do not break the add pipeline.
+   */
+  async _runHook(name, ...args) {
+    const configured = (this.opts.hooks || {})[name];
+    const callbacks = configured === undefined
+      ? []
+      : (Array.isArray(configured) ? configured : [configured]);
+    let result = true;
+    for (const callback of callbacks) {
+      if (typeof callback !== 'function') {
+        continue;
+      }
+      try {
+        const value = await callback(...args);
+        if (name === 'filterFile' && value === false) {
+          result = false;
+        }
+      } catch (error) {
+        this._emit('error', {
+          message: error && error.message || String(error),
+          error,
+          hook: name
+        });
+        if (name === 'filterFile') {
+          result = false;
+        }
+      }
+    }
+    this._emitCatchAll(name, {name, args}, true);
+    return result;
+  }
+
   async onDrop(event) {
     if (this.opts.onDropStopPropagation) {
       event.stopPropagation();
@@ -136,28 +165,19 @@ export default class Flow extends Eventizer {
         dataTransfer.items[0].webkitGetAsEntry) {
       this.webkitReadDataTransfer(event);
     } else {
-      await this.addFiles(dataTransfer.files, event);
+      await this.addFiles(dataTransfer.files, {event});
     }
   }
 
-  /**
-   * Prevent default
-   * @function
-   * @param {MouseEvent} event
-   */
   preventEvent(event) {
     event.preventDefault();
   }
 
-  /**
-   * Read webkit dataTransfer object
-   * @param event
-   */
   webkitReadDataTransfer(event) {
     var queue = event.dataTransfer.items.length;
     var decrement = () => {
-      if (--queue == 0) {
-        this.addFiles(files, event);
+      if (--queue === 0) {
+        this.addFiles(files, {event});
       }
     };
 
@@ -166,7 +186,7 @@ export default class Flow extends Eventizer {
       var entry = item.webkitGetAsEntry();
       if (!entry) {
         decrement();
-        return ;
+        return;
       }
       if (entry.isFile) {
         // due to a bug in Chrome's File System API impl - #149735
@@ -196,7 +216,6 @@ export default class Flow extends Eventizer {
       }, readError);
     }
     function fileReadSuccess(file, fullPath) {
-      // relative path should not start with "/"
       file.relativePath = fullPath.substring(1);
       files.push(file);
       decrement();
@@ -207,124 +226,34 @@ export default class Flow extends Eventizer {
     }
   }
 
-  /**
-   * Generate unique identifier for a file
-   * @function
-   * @param {FlowFile} file
-   * @returns {string}
-   */
   generateUniqueIdentifier(file) {
     var custom = this.opts.generateUniqueIdentifier;
     if (typeof custom === 'function') {
       return custom(file);
     }
-    // Some confusion in different versions of Firefox
     var relativePath = file.relativePath || file.webkitRelativePath || file.fileName || file.name;
     return file.size + '-' + relativePath.replace(/[^0-9a-zA-Z_-]/img, '');
   }
 
-  /**
-   * Upload next chunk from the queue
-   * @function
-   * @returns {boolean}
-   * @private
-   */
-  async uploadNextChunk(preventEvents) {
-    // In some cases (such as videos) it's really handy to upload the first
-    // and last chunk of a file quickly; this let's the server check the file's
-    // metadata and determine if there's even a point in continuing.
-    var found = false;
-    if (this.opts.prioritizeFirstAndLastChunk) {
-      for (let file of this.files) {
-        if (!file.paused && file.chunks.length &&
-            file.chunks[0].status() === 'pending') {
-          await file.chunks[0].send();
-          found = true;
-          break;
-        }
-        if (!file.paused && file.chunks.length > 1 &&
-            file.chunks[file.chunks.length - 1].status() === 'pending') {
-          await file.chunks[file.chunks.length - 1].send();
-          found = true;
-          break;
-        }
-      }
-      if (found) {
-        return found;
-      }
-    }
-
-    // Now, simply look for the next, best thing to upload
-    outer_loop:
-    for (let file of this.files) {
-      if (file.paused) {
-        continue;
-      }
-      for (let chunk of file.chunks) {
-        if (chunk.status() === 'pending') {
-          await chunk.send();
-          found = true;
-          break outer_loop;
-        }
-      }
-    }
-    if (found) {
-      return true;
-    }
-
-    // The are no more outstanding chunks to upload, check if everything is done
-    var outstanding = false;
-    for (let file of this.files) {
-      if (!file.isComplete()) {
-        outstanding = true;
-        break;
-      }
-    }
-
-    if (!outstanding && !preventEvents) {
-      // All chunks have been uploaded, complete
-      this.emit('complete');
-    }
-    return false;
-  }
-
-
-  /**
-   * Assign a browse action to one or more DOM nodes.
-   * @function
-   * @param {Element|Array.<Element>} domNodes
-   * @param {boolean} isDirectory Pass in true to allow directories to
-   * @param {boolean} singleFile prevent multi file upload
-   * @param {Object} attributes set custom attributes:
-   *  http://www.w3.org/TR/html-markup/input.file.html#input.file-attributes
-   *  eg: accept: 'image/*'
-   * be selected (Chrome only).
-   */
   assignBrowse(domNodes, isDirectory, singleFile, attributes) {
     if (domNodes instanceof Element) {
       domNodes = [domNodes];
     }
 
-    each(domNodes, function (domNode) {
+    each(domNodes, function(domNode) {
       var input;
       if (domNode.tagName === 'INPUT' && domNode.type === 'file') {
         input = domNode;
       } else {
         input = document.createElement('input');
         input.setAttribute('type', 'file');
-        // display:none - not working in opera 12
         Object.assign(input.style, {
           visibility: 'hidden',
           position: 'absolute',
           width: '1px',
           height: '1px'
         });
-        // for opera 12 browser, input must be assigned to a document
         domNode.appendChild(input);
-        // https://developer.mozilla.org/en/using_files_from_web_applications)
-        // event listener is executed two times
-        // first one - original mouse click event
-        // second - input.click(), input is inside domNode
         domNode.addEventListener('click', function() {
           input.click();
         }, false);
@@ -335,26 +264,23 @@ export default class Flow extends Eventizer {
       if (isDirectory) {
         input.setAttribute('webkitdirectory', 'webkitdirectory');
       }
-      each(attributes, function (value, key) {
+      each(attributes, function(value, key) {
         input.setAttribute(key, value);
       });
-      // When new files are added, simply append them to the overall list
       input.addEventListener('change', async e => {
-        if (e.target.value) {
+        // Capture the node before awaiting: event.target may be cleared once
+        // the synchronous dispatch ends.
+        const target = e.target || input;
+        if (target.value) {
           input.setAttribute('readonly', 'readonly');
-          await this.addFiles(e.target.files, e);
-          e.target.value = '';
+          await this.addFiles(target.files, {event: e});
+          target.value = '';
           input.removeAttribute('readonly');
         }
       }, false);
     }, this);
   }
 
-  /**
-   * Assign one or more DOM nodes as a drop target.
-   * @function
-   * @param {Element|Array.<Element>} domNodes
-   */
   assignDrop(domNodes) {
     if (typeof domNodes.length === 'undefined') {
       domNodes = [domNodes];
@@ -368,11 +294,6 @@ export default class Flow extends Eventizer {
     }
   }
 
-  /**
-   * Un-assign drop event from DOM nodes
-   * @function
-   * @param domNodes
-   */
   unAssignDrop(domNodes) {
     if (typeof domNodes.length === 'undefined') {
       domNodes = [domNodes];
@@ -385,15 +306,9 @@ export default class Flow extends Eventizer {
     }
   }
 
-  /**
-   * Returns a boolean indicating whether or not the instance is currently
-   * uploading anything.
-   * @function
-   * @returns {boolean}
-   */
   isUploading() {
     var uploading = false;
-    each(this.files, function (file) {
+    each(this.files, function(file) {
       if (file.isUploading()) {
         uploading = true;
         return false;
@@ -403,202 +318,182 @@ export default class Flow extends Eventizer {
   }
 
   /**
-   * should upload next chunk
-   * @function
-   * @returns {boolean|number}
+   * Start an upload session. While a session is active this returns the same
+   * promise. The promise resolves with an upload summary when the session is
+   * settled (complete or cancelled).
    */
-  _shouldUploadNext() {
-    var num = 0;
-    var should = true;
-    var simultaneousUploads = this.opts.simultaneousUploads;
-    each(this.files, function (file) {
-      each(file.chunks, function(chunk) {
-        if (chunk.status() === 'uploading') {
-          num++;
-          if (num >= simultaneousUploads) {
-            should = false;
-            return false;
-          }
-        }
-      });
-    });
-    // if should is true then return uploading chunks's length
-    return should && num;
+  upload() {
+    if (!this._session || this._session.finished) {
+      this._session = new UploadSession(this);
+    }
+    return this._session.start();
   }
 
   /**
-   * Start or resume uploading.
-   * @function
-   */
-  async upload() {
-    // Make sure we don't start too many uploads at once
-    var ret = this._shouldUploadNext();
-    if (ret === false) {
-      return;
-    }
-    // Kick off the queue
-    this.emit('upload-start');
-    var started = false;
-    for (var num = 1; num <= this.opts.simultaneousUploads - ret; num++) {
-      started = await this.uploadNextChunk(true) || started;
-    }
-    if (!started) {
-      this.emit('complete');
-    }
-  }
-
-  /**
-   * Resume uploading.
-   * @return [<Promise>]
-   * @function
+   * Resume the current session, or start one if none is active.
    */
   resume() {
-    return Promise.all(this.files.filter(file => !file.isComplete()).map(file => file.resume()));
+    for (const file of this.files) {
+      if (!file.isComplete()) {
+        file.paused = false;
+      }
+    }
+    if (this._session && !this._session.finished) {
+      return this._session.resume();
+    }
+    return this.upload();
+  }
+
+  _resumeFiles(files) {
+    for (const file of files) {
+      file.paused = false;
+    }
+    if (this._session && !this._session.finished) {
+      this._session.wake();
+      return this._session.promise;
+    }
+    return this.upload();
   }
 
   /**
-   * Pause uploading.
-   * @return [<Promise>]
-   * @function
+   * Pause every file. Active reads/requests are aborted; the session remains
+   * alive and continues when resume() is called.
    */
   pause() {
     return Promise.all(this.files.map(file => file.pause()));
   }
 
   /**
-   * Cancel upload of all FlowFile objects and remove them from the list.
-   * @return [<Promise>]
-   * @function
+   * Cancel the session and remove every file.
    */
-  cancel() {
-    return Promise.all(this.files.reverse().map(file => file.cancel()));
+  async cancel() {
+    const files = this.files.slice();
+    const session = this._session;
+    this.files = [];
+    if (session) {
+      session.cancel();
+    }
+    await Promise.all(files.map(file => file.abort('cancelled')));
+    for (const file of files) {
+      this._emit('file-removed', {file});
+    }
+    if (session) {
+      await session.promise.catch(() => {});
+    }
   }
 
-  /**
-   * Returns a number between 0 and 1 indicating the current upload progress
-   * of all files.
-   * @function
-   * @returns {number}
-   */
   progress() {
     var totalDone = 0;
     var totalSize = 0;
-    // Resume all chunks currently being uploaded
-    each(this.files, function (file) {
+    each(this.files, function(file) {
       totalDone += file.progress() * file.size;
       totalSize += file.size;
     });
-    return totalSize > 0 ? totalDone / totalSize : 0;
+    if (totalSize > 0) {
+      return totalDone / totalSize;
+    }
+    return this.files.length > 0 &&
+      this.files.every(function(file) { return file.isComplete(); }) ? 1 : 0;
   }
 
   /**
-   * A generator to yield files and factor the sync part of the filtering logic used in addFiles
+   * Yield files and factor the synchronous part of addFiles filtering.
    */
   *filterFileList(fileList, event) {
-    // ie10+
     var ie10plus = window.navigator.msPointerEnabled;
+    const batchIdentifiers = new Set();
 
     for (let file of fileList) {
       // https://github.com/flowjs/flow.js/issues/55
-      if ((ie10plus && file.size === 0) || (file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
-        // console.log(`file ${file.name} empty. skipping`);
+      if ((ie10plus && file.size === 0) ||
+          (file.size % 4096 === 0 && (file.name === '.' || file.fileName === '.'))) {
         continue;
       }
 
       var uniqueIdentifier = this.generateUniqueIdentifier(file);
-      if (!this.opts.allowDuplicateUploads && this.getFromUniqueIdentifier(uniqueIdentifier)) {
-        // console.log(`file ${file.name} non-unique. skipping`);
+      if (!this.opts.allowDuplicateUploads &&
+          (batchIdentifiers.has(uniqueIdentifier) ||
+           this.getFromUniqueIdentifier(uniqueIdentifier))) {
         continue;
       }
+      batchIdentifiers.add(uniqueIdentifier);
 
       yield [file, uniqueIdentifier];
     }
   }
 
-  /**
-   * Add a HTML5 File object to the list of files.
-   * @function
-   * @param {File} file
-   * @param Any other parameters supported by addFiles.
-   *
-   * @return (async) An initialized <FlowFile>.
-   */
-  async addFile(file, ...args) {
-    return (await this.addFiles([file], ...args))[0];
+  async addFile(file, options = {}) {
+    return (await this.addFiles([file], options))[0];
   }
 
   /**
-   * Add a HTML5 File object to the list of files.
-   * @function
+   * Add files.
    * @param {FileList|Array} fileList
-   * @param {Event} [event] event is optional
-   *
-   * @return Promise{[<FlowFile>,...]} The promise of getting an array of FlowFile.
+   * @param {Object} [options] {event, initFileFn}
+   * @returns {Promise<FlowFile[]>}
    */
-  async addFiles(fileList, event = null, initFileFn = this.opts.initFileFn) {
-    let item, file, flowfile, uniqueIdentifier, states = [];
+  async addFiles(fileList, options = {}) {
+    options = options || {};
+    const event = options.event || null;
+    const initFileFn = Object.prototype.hasOwnProperty.call(options, 'initFileFn')
+      ? options.initFileFn
+      : this.opts.initFileFn;
+    const context = {event, flow: this};
+    let item, file, uniqueIdentifier, states = [];
     const iterator = this.filterFileList(fileList, event);
 
     while ((item = iterator.next()) && !item.done) {
       [file, uniqueIdentifier] = item.value;
-      if (! await this.hook('filter-file', file, event)) {
-        // console.log(`file ${file.name} filtered-out. skipping`);
+      if (!await this._runHook('filterFile', file, context)) {
         continue;
       }
 
-      // ToDo: parallelizable ?
-      var flowFile = new FlowFile(this, file, uniqueIdentifier),
-          state = flowFile.bootstrap(event, initFileFn);
-      states.push(state);
+      var flowFile = new FlowFile(this, file, uniqueIdentifier);
+      states.push(flowFile.bootstrap(context, initFileFn));
     }
 
     var flowfiles = await Promise.all(states);
-    for (let ff of flowfiles) {
-      await this.hook('file-added', ff, event);
+    for (let flowfile of flowfiles) {
+      await this._runHook('fileAdded', flowfile, context);
     }
 
-    await this.hook('files-added', flowfiles, event);
+    await this._runHook('filesAdded', flowfiles, context);
 
-    flowfiles = flowfiles.filter(e => e && e.file);
-    for (let file of flowfiles) {
+    flowfiles = flowfiles.filter(entry => entry && entry.file);
+    for (let flowfile of flowfiles) {
       if (this.opts.singleFile && this.files.length > 0) {
         await this.removeFile(this.files[0]);
       }
-      this.files.push(file);
+      this.files.push(flowfile);
     }
-    await this.hook('files-submitted', this.files, event);
+    await this._runHook('filesSubmitted', this.files, context);
+
+    if (this._session && !this._session.finished) {
+      this._session.wake();
+    }
 
     return flowfiles;
   }
 
   /**
-   * Cancel upload of a specific FlowFile object from the list.
-   * @function
-   * @param {FlowFile} file
+   * Remove a file, aborting its active work.
    */
   async removeFile(file) {
-    for (var i = this.files.length - 1; i >= 0; i--) {
-      if (this.files[i] === file) {
-        this.files.splice(i, 1);
-        await file.abort();
-        this.emit('file-removed', file);
-
-        if (!this.opts.allowDuplicateUploads) {
-          break;
-        }
-      }
+    const index = this.files.indexOf(file);
+    if (index === -1) {
+      return;
+    }
+    this.files.splice(index, 1);
+    await file.abort('cancelled');
+    this._emit('file-removed', {file});
+    if (this._session && !this._session.finished) {
+      this._session.wake();
     }
   }
 
-  /**
-   * Look up a FlowFile object by its unique identifier.
-   * @function
-   * @param {string} uniqueIdentifier
-   * @returns {boolean|FlowFile} false if file was not found
-   */
   getFromUniqueIdentifier(uniqueIdentifier) {
     var ret = false;
-    each(this.files, function (file) {
+    each(this.files, function(file) {
       if (file.uniqueIdentifier === uniqueIdentifier) {
         ret = file;
       }
@@ -606,42 +501,26 @@ export default class Flow extends Eventizer {
     return ret;
   }
 
-  /**
-   * Returns the total size of all files in bytes.
-   * @function
-   * @returns {number}
-   */
   getSize() {
     var totalSize = 0;
-    each(this.files, function (file) {
+    each(this.files, function(file) {
       totalSize += file.size;
     });
     return totalSize;
   }
 
-  /**
-   * Returns the total size uploaded of all files in bytes.
-   * @function
-   * @returns {number}
-   */
   sizeUploaded() {
     var size = 0;
-    each(this.files, function (file) {
+    each(this.files, function(file) {
       size += file.sizeUploaded();
     });
     return size;
   }
 
-  /**
-   * Returns remaining time to upload all files in seconds. Accuracy is based on average speed.
-   * If speed is zero, time remaining will be equal to positive infinity `Number.POSITIVE_INFINITY`
-   * @function
-   * @returns {number}
-   */
   timeRemaining() {
     var sizeDelta = 0;
     var averageSpeed = 0;
-    each(this.files, function (file) {
+    each(this.files, function(file) {
       if (!file.paused && !file.error) {
         sizeDelta += file.size - file.sizeUploaded();
         averageSpeed += file.averageSpeed;
@@ -655,4 +534,6 @@ export default class Flow extends Eventizer {
     }
     return Math.floor(sizeDelta / averageSpeed);
   }
-};
+}
+
+Flow.version = typeof __FLOW_VERSION__ === 'string' ? __FLOW_VERSION__ : 'dev';

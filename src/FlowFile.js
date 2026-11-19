@@ -1,358 +1,302 @@
-import FlowChunk from './FlowChunk';
-import {evalOpts, each} from './tools';
+import FlowChunk from './FlowChunk.js';
+import {each, evalOpts} from './tools.js';
 
 /**
- * FlowFile class
- * @name FlowFile
- * @param {Flow} flowObj
- * @param {File} file
- * @param {string} uniqueIdentifier
- * @constructor
+ * A file being uploaded by Flow.
  */
 export default class FlowFile {
-
   constructor(flowObj, file, uniqueIdentifier) {
-
-    /**
-     * Reference to parent Flow instance
-     * @type {Flow}
-     */
     this.flowObj = flowObj;
-
-    /**
-     * Reference to file
-     * @type {File}
-     */
     this.file = file;
-
-    /**
-     * File name. Some confusion in different versions of Firefox
-     * @type {string}
-     */
     this.name = file.fileName || file.name;
-
-    /**
-     * File size
-     * @type {number}
-     */
     this.size = file.size;
-
-    /**
-     * Relative file path
-     * @type {string}
-     */
     this.relativePath = file.relativePath || file.webkitRelativePath || this.name;
+    this.uniqueIdentifier = (
+      uniqueIdentifier === undefined
+        ? flowObj.generateUniqueIdentifier(file)
+        : uniqueIdentifier
+    );
 
-    /**
-     * File unique identifier
-     * @type {string}
-     */
-    this.uniqueIdentifier = (uniqueIdentifier === undefined ? flowObj.generateUniqueIdentifier(file) : uniqueIdentifier);
-
-    /**
-     * Size of Each Chunk
-     * @type {number}
-     */
     this.chunkSize = 0;
-
-    /**
-     * List of chunks
-     * @type {Array.<FlowChunk>}
-     */
     this.chunks = [];
 
-    /**
-     * Indicated if file is paused
-     * @type {boolean}
-     */
     this.paused = false;
-
-    /**
-     * Indicated if file has encountered an error
-     * @type {boolean}
-     */
+    this.cancelled = false;
     this.error = false;
+    this.errorMessage = null;
+    this.streaming = !!flowObj.opts.streaming;
+    this.eof = false;
+    this.eofOffset = null;
 
-    /**
-     * Average upload speed
-     * @type {number}
-     */
     this.averageSpeed = 0;
-
-    /**
-     * Current upload speed
-     * @type {number}
-     */
     this.currentSpeed = 0;
-
-    /**
-     * Date then progress was called last time
-     * @type {number}
-     * @private
-     */
     this._lastProgressCallback = Date.now();
-
-    /**
-     * Previously uploaded file size
-     * @type {number}
-     * @private
-     */
     this._prevUploadedSize = 0;
-
-    /**
-     * Holds previous progress
-     * @type {number}
-     * @private
-     */
     this._prevProgress = 0;
+    this._successEmitted = false;
   }
 
-  /**
-   * Update speed parameters
-   * @link http://stackoverflow.com/questions/2779600/how-to-estimate-download-time-remaining-accurately
-   * @function
-   */
   measureSpeed() {
     var timeSpan = Date.now() - this._lastProgressCallback;
     if (!timeSpan) {
-      return ;
+      return;
     }
     var smoothingFactor = this.flowObj.opts.speedSmoothingFactor;
     var uploaded = this.sizeUploaded();
-    // Prevent negative upload speed after file upload resume
     this.currentSpeed = Math.max((uploaded - this._prevUploadedSize) / timeSpan * 1000, 0);
     this.averageSpeed = smoothingFactor * this.currentSpeed + (1 - smoothingFactor) * this.averageSpeed;
     this._prevUploadedSize = uploaded;
   }
 
   /**
-   * For internal usage only.
-   * Callback when something happens within the chunk.
-   * @function
-   * @param {FlowChunk} chunk
-   * @param {string} event can be 'progress', 'success', 'error' or 'retry'
-   * @param {string} [message]
+   * Called by FlowChunk on progress/success/error/retry.
    */
   chunkEvent(chunk, event, message) {
     switch (event) {
       case 'progress':
-        if (Date.now() - this._lastProgressCallback <
-            this.flowObj.opts.progressCallbacksInterval) {
+        if (Date.now() - this._lastProgressCallback < this.flowObj.opts.progressCallbacksInterval) {
           break;
         }
         this.measureSpeed();
-        this.flowObj.emit('file-progress', this, chunk);
-        this.flowObj.emit('progress');
+        this.flowObj._emit('file-progress', {
+          file: this,
+          chunk,
+          progress: this.progress()
+        });
+        this.flowObj._emit('progress', {
+          file: this,
+          chunk,
+          progress: this.flowObj.progress()
+        });
         this._lastProgressCallback = Date.now();
         break;
+
       case 'error':
+        if (this.error) {
+          return;
+        }
         this.error = true;
-        this.abort(true);
-        this.flowObj.emit('file-error', this, message, chunk);
-        this.flowObj.emit('error', message, this, chunk);
+        this.errorMessage = message || '';
+        this.currentSpeed = 0;
+        this.averageSpeed = 0;
+        // A permanent error terminates the file. Other outstanding chunks are
+        // stopped and marked as errors so the session can settle.
+        for (const other of this.chunks) {
+          if (other === chunk || ['success', 'error', 'cancelled'].includes(other.state)) {
+            continue;
+          }
+          other.abort('error');
+          other.state = 'error';
+          other.uploadState.resolve({status: 'error', message: this.errorMessage});
+        }
+        this.flowObj._emit('file-error', {file: this, message, chunk});
+        this.flowObj._emit('error', {message, file: this, chunk});
         break;
+
       case 'success':
         if (this.error) {
           return;
         }
         this.measureSpeed();
-        this.flowObj.emit('file-progress', this, chunk);
-        this.flowObj.emit('progress');
+        this.flowObj._emit('file-progress', {
+          file: this,
+          chunk,
+          progress: this.progress()
+        });
+        this.flowObj._emit('progress', {
+          file: this,
+          chunk,
+          progress: this.flowObj.progress()
+        });
         this._lastProgressCallback = Date.now();
-        if (this.isComplete()) {
+        if (this.isComplete() && !this._successEmitted) {
+          this._successEmitted = true;
           this.currentSpeed = 0;
           this.averageSpeed = 0;
-          this.flowObj.emit('file-success', this, message, chunk);
+          this.flowObj._emit('file-success', {file: this, message, chunk});
         }
         break;
+
       case 'retry':
-        this.flowObj.emit('file-retry', this, chunk);
+        this.flowObj._emit('file-retry', {file: this, chunk});
         break;
     }
   }
 
-  /**
-   * Pause file upload
-   * @return Promise
-   * @function
-   */
   pause() {
     this.paused = true;
-    return this.abort();
+    return this.abort('pending');
   }
 
-  /**
-   * Resume file upload
-   * @return Promise
-   * @function
-   */
   resume() {
     this.paused = false;
-    return this.flowObj.upload();
+    return this.flowObj._resumeFiles([this]);
   }
 
   /**
-   * Abort current upload
-   * @function
+   * Abort active chunks.
+   * @param {string} reason 'pending' (pause), 'cancelled', or 'error'
+   * @param {boolean} reset also drop the chunk list
    */
-  async abort(reset) {
+  abort(reason = 'pending', reset = false) {
     this.currentSpeed = 0;
     this.averageSpeed = 0;
+    if (reason === 'cancelled') {
+      this.cancelled = true;
+    }
+    const active = [];
+    for (const chunk of this.chunks) {
+      if (['reading', 'uploading', 'retrying'].includes(chunk.state)) {
+        chunk.abort(reason);
+        if (chunk._uploadPromise) {
+          active.push(chunk._uploadPromise.catch(() => {}));
+        }
+      } else if (reason === 'cancelled' && !['success', 'error', 'cancelled'].includes(chunk.state)) {
+        chunk.state = 'cancelled';
+      } else if (reason === 'error' && !['success', 'error', 'cancelled'].includes(chunk.state)) {
+        chunk.state = 'error';
+      }
+    }
     if (reset) {
       this.chunks = [];
     }
-    for (let c of this.chunks) {
-      if (c.status() === 'uploading') {
-        c.abort();
-        c.pendingRetry = true;
-        await this.flowObj.uploadNextChunk();
-      }
-    }
+    return Promise.all(active);
   }
 
-  /**
-   * Cancel current upload and remove from a list
-   * @return Promise
-   * @function
-   */
   cancel() {
     return this.flowObj.removeFile(this);
   }
 
-  /**
-   * Retry aborted file upload
-   * @return Promise
-   * @function
-   */
   async retry() {
-    await this.bootstrap('retry');
-    return this.flowObj.upload();
+    if (this.chunks.length === 0) {
+      await this.bootstrap({event: null, flow: this.flowObj});
+    }
+    this.error = false;
+    this.errorMessage = null;
+    this._successEmitted = false;
+    this._prevProgress = 0;
+    this._prevUploadedSize = 0;
+    this._lastProgressCallback = Date.now();
+    this.cancelled = false;
+    this.paused = false;
+    const hasFailure = this.chunks.some(chunk =>
+      chunk.state === 'error' || chunk.state === 'cancelled'
+    );
+    const needsReset = this.chunks.some(chunk =>
+      (chunk.state === 'error' || chunk.state === 'cancelled') &&
+      typeof chunk.payload === 'undefined'
+    );
+    if (needsReset) {
+      // A read failure has no cached payload. The source position is unknown
+      // (especially for a stream), so reinitialize via initFileFn and rebuild
+      // all chunks instead of reading a partially consumed stream.
+      await this.bootstrap({event: null, flow: this.flowObj});
+    } else {
+      for (const chunk of this.chunks) {
+        // Retry failed chunks after an error. If the file was fully uploaded,
+        // retry() re-uploads the whole file (useful to re-run with new options).
+        if (hasFailure && chunk.state !== 'error' && chunk.state !== 'cancelled') {
+          continue;
+        }
+        chunk.state = 'pending';
+        chunk.retries = 0;
+        chunk.pendingRetry = false;
+        chunk.tested = false;
+        chunk._abortReason = null;
+        // Keep a cached payload if the reader already produced one. For
+        // non-rewindable streams this is what makes retry safe.
+      }
+    }
+    return this.flowObj._resumeFiles([this]);
   }
 
-  async bootstrap(event = null, initFileFn = this.flowObj.opts.initFileFn) {
-    /**
-     * Asynchronous initialization function, if defined, is run
-     * Then _bootstrap follow-up occurs
-     * And, optionally (in case of initial FlowFile creation), the `file-added` event is fired.
-     */
+  async bootstrap(context = {}, initFileFn = this.flowObj.opts.initFileFn) {
     if (typeof initFileFn === 'function') {
-      await initFileFn(this, event);
+      await initFileFn(this, context);
     }
-
     this._bootstrap();
-
-    // console.log("Flowfile returns [async]", this._bootstrapped);
     return this;
   }
 
   _bootstrap() {
-    this.abort(true);
+    this.chunks = [];
+    this.eof = false;
+    this.eofOffset = null;
     this.error = false;
-    // Rebuild stack of chunks from file
+    this.errorMessage = null;
+    this._successEmitted = false;
     this._prevProgress = 0;
+    this._prevUploadedSize = 0;
+    this._lastProgressCallback = Date.now();
+    this.cancelled = false;
+
     var round = this.flowObj.opts.forceChunkSize ? Math.ceil : Math.floor;
     this.chunkSize = evalOpts(this.flowObj.opts.chunkSize, this);
-    var chunks = Math.max(
-      round(this.size / this.chunkSize), 1
-    );
+    var chunks = Math.max(round(this.size / this.chunkSize), 1);
     for (var offset = 0; offset < chunks; offset++) {
-      this.chunks.push(
-        new FlowChunk(this.flowObj, this, offset)
-      );
+      this.chunks.push(new FlowChunk(this.flowObj, this, offset));
     }
   }
 
-  /**
-   * Get current upload progress status
-   * @function
-   * @returns {number} from 0 to 1
-   */
   progress() {
     if (this.error) {
       return 1;
+    }
+    if (this.chunks.length === 0) {
+      return 0;
     }
     if (this.chunks.length === 1) {
       this._prevProgress = Math.max(this._prevProgress, this.chunks[0].progress());
       return this._prevProgress;
     }
-    // Sum up progress across everything
+    if (this.size === 0 || (this.streaming && this.size <= 0)) {
+      return this.isComplete() ? 1 : 0;
+    }
     var bytesLoaded = 0;
-    each(this.chunks, function (c) {
-      // get chunk progress relative to entire file
-      bytesLoaded += c.progress() * (c.endByte - c.startByte);
+    each(this.chunks, function(chunk) {
+      bytesLoaded += chunk.progress() * (chunk.endByte - chunk.startByte);
     });
     var percent = bytesLoaded / this.size;
-    // We don't want to lose percentages when an upload is paused
+    if (this.streaming) {
+      if (this.eof && this.isComplete()) {
+        return 1;
+      }
+      percent = Math.min(percent, 0.9999);
+    }
     this._prevProgress = Math.max(this._prevProgress, percent > 0.9999 ? 1 : percent);
     return this._prevProgress;
   }
 
-  /**
-   * Indicates if file is being uploaded at the moment
-   * @function
-   * @returns {boolean}
-   */
   isUploading() {
-    var uploading = false;
-    each(this.chunks, function (chunk) {
-      if (chunk.status() === 'uploading') {
-        uploading = true;
-        return false;
-      }
-    });
-    return uploading;
+    return this.chunks.some(chunk => chunk.state === 'uploading');
   }
 
-  /**
-   * Indicates if string is being read at the moment
-   * @function
-   * @returns {boolean}
-   */
   isReading() {
-    for (let chunk of this.chunks) {
-      if (chunk.status() === 'reading') {
-        return true;
-      }
-    }
-    return false;
+    return this.chunks.some(chunk => chunk.state === 'reading');
   }
 
   /**
-   * Indicates if file is has finished uploading and received a response
-   * @function
-   * @returns {boolean}
+   * All work has reached a terminal state. A file with a permanent error is
+   * complete but not successful.
    */
   isComplete() {
-    var outstanding = false;
-    each(this.chunks, function (chunk) {
-      var status = chunk.status();
-      if (status === 'pending' || status === 'uploading' || status === 'reading' || chunk.preprocessState === 1 || chunk.readState === 1) {
-        outstanding = true;
-        return false;
-      }
-    });
-    return !outstanding;
+    return (this.error || !this.streaming || this.eof) &&
+      this.chunks.every(chunk =>
+        ['success', 'error', 'cancelled'].includes(chunk.state)
+      );
   }
 
-  /**
-   * Count total size uploaded
-   * @function
-   * @returns {number}
-   */
+  isSuccessful() {
+    return !this.error &&
+      (!this.streaming || this.eof) &&
+      this.chunks.length > 0 &&
+      this.chunks.every(chunk => chunk.state === 'success');
+  }
+
   sizeUploaded() {
-    var size = 0;
-    each(this.chunks, function (chunk) {
-      size += chunk.sizeUploaded();
-    });
-    return size;
+    return this.chunks.reduce((total, chunk) => total + chunk.sizeUploaded(), 0);
   }
 
-  /**
-   * Returns remaining time to finish upload file in seconds. Accuracy is based on average speed.
-   * If speed is zero, time remaining will be equal to positive infinity `Number.POSITIVE_INFINITY`
-   * @function
-   * @returns {number}
-   */
   timeRemaining() {
     if (this.paused || this.error) {
       return 0;
@@ -367,28 +311,18 @@ export default class FlowFile {
     return Math.floor(delta / this.averageSpeed);
   }
 
-  /**
-   * Get file type
-   * @function
-   * @returns {string}
-   */
   getType() {
     return this.file.type && this.file.type.split('/')[1];
   }
 
-  /**
-   * Get file extension
-   * @function
-   * @returns {string}
-   */
   getExtension() {
-    return this.name.substr((~-this.name.lastIndexOf(".") >>> 0) + 2).toLowerCase();
+    return this.name.substr((~-this.name.lastIndexOf('.') >>> 0) + 2).toLowerCase();
   }
 }
 
 /**
  * Exclusively for test purposes
- * (Until Grunt+Karma+Jasmine can allow test to use (ES) `import` of tools.js)
+ * (Until Grunt+Karma+Jasmine can allow tests to use ES imports).
  */
 var g = typeof window !== 'undefined' ? window
     : typeof global !== 'undefined' ? global

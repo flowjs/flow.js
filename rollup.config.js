@@ -1,51 +1,52 @@
-import babel from '@rollup/plugin-babel';
-import commonjs from '@rollup/plugin-commonjs';
-import istanbul from 'rollup-plugin-istanbul';
-import pkg from './package.json';
-import replace from '@rollup/plugin-replace';
-import resolve from '@rollup/plugin-node-resolve';
-import strip from '@rollup/plugin-strip';
-import { terser } from "rollup-plugin-terser";
+import { terser } from 'rollup-plugin-terser';
+import { versionIntro } from './scripts/build-helpers.mjs';
 
-const plugins = [
-  resolve(),
-  commonjs(),
-  replace({
-    "<%= version %>": `'${pkg.version}'`,
-    delimiters: ["'", "'"]
-  }),
-  babel({
-    babelHelpers: 'bundled'
-  })
+const input = 'src/Flow.js';
+const outDir = process.env.FLOW_DIST || 'dist';
+
+export default [
+  {
+    input,
+    
+    output: {
+      file: `${outDir}/flow.esm.js`,
+      format: 'es',
+      sourcemap: true,
+      intro: versionIntro
+    }
+  },
+  {
+    input,
+    
+    output: {
+      file: `${outDir}/flow.js`,
+      format: 'umd',
+      name: 'Flow',
+      exports: 'default',
+      sourcemap: true,
+      intro: versionIntro
+    }
+  },
+  {
+    input,
+    plugins: [terser()],
+    output: {
+      file: `${outDir}/flow.min.js`,
+      format: 'umd',
+      name: 'Flow',
+      exports: 'default',
+      sourcemap: true,
+      intro: versionIntro
+    }
+  },
+  {
+    input,
+    
+    output: {
+      file: `${outDir}/flow.cjs`,
+      format: 'cjs',
+      exports: 'default',
+      intro: versionIntro
+    }
+  }
 ];
-
-export default [{
-  input: 'src/Flow.js',
-  plugins,
-  output: {
-    name: 'Flow',
-    file: pkg.browser,
-    sourcemap: true,
-    format: 'umd'
-  }
-}, {
-  input: 'src/Flow.js',
-  plugins: plugins.concat(strip({ functions: ['console.(log|debug)', 'debug', 'alert'] }), terser()),
-  output: {
-    name: 'Flow',
-    banner: `/*! ${pkg.name} ${pkg.version} */\n`,
-    file: pkg.browser.replace(/js$/, 'min.js'),
-    sourcemap: true,
-    format: 'esm'
-  }
-}, {
-  input: 'src/Flow.js',
-  plugins: plugins.concat(istanbul({ exclude: ['node_modules/**/*.js'] })),
-  output: {
-    name: 'Flow',
-    banner: `/*! ${pkg.name} ${pkg.version} */\n`,
-    file: pkg.browser.replace(/js$/, 'cov.js'),
-    sourcemap: true,
-    format: 'umd'
-  }
-}];

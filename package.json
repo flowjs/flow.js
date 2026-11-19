@@ -1,11 +1,42 @@
 {
   "name": "@flowjs/flow.js",
-  "version": "3.0.0-alpha.0",
-  "description": "Flow.js library implements html5 file upload and provides multiple simultaneous, stable, fault tolerant and resumable uploads.",
-  "main": "src/Flow.js",
+  "version": "3.0.0-alpha.1",
+  "description": "Flow.js implements multiple simultaneous, stable, fault tolerant and resumable chunked uploads using the HTML5 File API.",
+  "type": "module",
+  "main": "dist/flow.cjs",
+  "module": "src/Flow.js",
   "browser": "dist/flow.js",
+  "exports": {
+    ".": {
+      "browser": "./dist/flow.js",
+      "import": "./src/Flow.js",
+      "require": "./dist/flow.cjs",
+      "default": "./dist/flow.esm.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "MIGRATION.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "test": "grunt test"
+    "build": "rollup -c",
+    "build:test": "rollup -c rollup.test.mjs",
+    "test": "npm run build:test && node scripts/run-browser-tests.mjs --browser all",
+    "test:local": "npm run build:test && node scripts/run-browser-tests.mjs --browser chromium-cdp",
+    "test:no-build": "node scripts/run-browser-tests.mjs --browser all",
+    "test:coverage": "FLOW_COVERAGE=1 npm run build:test && node scripts/run-browser-tests.mjs --browser all --coverage && node scripts/coverage-report.mjs",
+    "test:coverage:local": "FLOW_COVERAGE=1 npm run build:test && node scripts/run-browser-tests.mjs --browser chromium-cdp --coverage && node scripts/coverage-report.mjs",
+    "coverage:report": "node scripts/coverage-report.mjs",
+    "playwright:install": "playwright install --with-deps chromium firefox webkit",
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -24,7 +55,7 @@
   ],
   "author": "Aidas Klimas",
   "contributors": [
-    "Raphaël Droz drzraf@github"
+    "Rapha\u00ebl Droz drzraf@github"
   ],
   "license": "MIT",
   "readmeFilename": "README.md",
@@ -32,38 +63,18 @@
     "url": "https://github.com/flowjs/flow.js/issues"
   },
   "browserslist": [
-    "> 1%",
-    "IE 10"
+    "defaults",
+    "not IE 11"
   ],
   "devDependencies": {
-    "@babel/preset-env": "^7.12.11",
-    "@babel/runtime-corejs3": "^7.12.5",
-    "@rollup/plugin-babel": "^5.2.2",
-    "@rollup/plugin-commonjs": "^17.0.0",
-    "@rollup/plugin-node-resolve": "^11.1.0",
-    "@rollup/plugin-replace": "^2.3.4",
-    "core-js": "^3.8.3",
-    "grunt": ">=1.3.0",
-    "grunt-bump": "0.8.0",
-    "grunt-contrib-clean": "2.0.0",
-    "grunt-contrib-copy": "1.0.0",
-    "grunt-exec": "^3.0.0",
-    "grunt-karma": "4.0.0",
-    "jasmine-core": "^3.6.0",
-    "karma": "^6.0.1",
-    "karma-chrome-launcher": "^3.1.0",
-    "karma-coverage": "^2.0.3",
-    "karma-firefox-launcher": "^2.1.0",
-    "karma-jasmine": "4.0",
-    "karma-sauce-launcher": "4.3.4",
-    "npm-check-updates": "^11.0.2",
-    "rollup": "^2.37.1",
+    "istanbul-lib-coverage": "^3.2.0",
+    "istanbul-lib-report": "^3.0.0",
+    "istanbul-reports": "^3.1.5",
+    "jasmine-core": "^4.6.0",
+    "playwright": "^1.64.1",
+    "rollup": "^3.20.2",
     "rollup-plugin-istanbul": "^3.0.0",
-    "@rollup/plugin-strip": "^2.1.0",
     "rollup-plugin-terser": "^7.0.2",
-    "sinon": "^9.2.3"
-  },
-  "dependencies": {
-    "@babel/runtime": "^7.12.5"
+    "sinon": "^15.0.3"
   }
 }

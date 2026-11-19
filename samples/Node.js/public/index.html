@@ -50,7 +50,13 @@
           var r = new Flow({
             target: '/upload',
             chunkSize: 1024*1024,
-            testChunks: false
+            testChunks: false,
+            hooks: {
+              fileAdded: onFileAdded,
+              filesSubmitted: function() {
+                r.upload();
+              }
+            }
           });
           // Flow.js isn't supported, fall back on a different method
           if (false) {
@@ -65,7 +71,7 @@
           r.assignBrowse($('.flow-browse-image')[0], false, false, {accept: 'image/*'});
 
           // Handle file add event
-          r.on('fileAdded', function(file){
+          function onFileAdded(file) {
             // Show progress bar
             $('.flow-progress, .flow-list').show();
             // Add the file to the list
@@ -105,26 +111,26 @@
               file.cancel();
               $self.remove();
             });
-          });
-          r.on('filesSubmitted', function(file) {
-            r.upload();
-          });
-          r.on('complete', function(){
+          }
+          r.addEventListener('complete', function(){
             // Hide pause/resume when the upload has completed
             $('.flow-progress .progress-resume-link, .flow-progress .progress-pause-link').hide();
           });
-          r.on('fileSuccess', function(file,message){
+          r.addEventListener('file-success', function(event){
+            var file = event.detail.file, message = event.detail.message;
             var $self = $('.flow-file-'+file.uniqueIdentifier);
             // Reflect that the file upload has completed
             $self.find('.flow-file-progress').text('(completed)');
             $self.find('.flow-file-pause, .flow-file-resume').remove();
             $self.find('.flow-file-download').attr('href', '/download/' + file.uniqueIdentifier).show();
           });
-          r.on('fileError', function(file, message){
+          r.addEventListener('file-error', function(event){
+            var file = event.detail.file, message = event.detail.message;
             // Reflect that the file upload has resulted in error
             $('.flow-file-'+file.uniqueIdentifier+' .flow-file-progress').html('(file could not be uploaded: '+message+')');
           });
-          r.on('fileProgress', function(file){
+          r.addEventListener('file-progress', function(event){
+            var file = event.detail.file;
             // Handle progress for both the file and the overall upload
             $('.flow-file-'+file.uniqueIdentifier+' .flow-file-progress')
               .html(Math.floor(file.progress()*100) + '% '
@@ -132,13 +138,13 @@
                 + secondsToStr(file.timeRemaining()) + ' remaining') ;
             $('.progress-bar').css({width:Math.floor(r.progress()*100) + '%'});
           });
-          r.on('uploadStart', function(){
+          r.addEventListener('upload-start', function(){
             // Show pause, hide resume
             $('.flow-progress .progress-resume-link').hide();
             $('.flow-progress .progress-pause-link').show();
           });
-          r.on('catchAll', function() {
-            console.log.apply(console, arguments);
+          r.addEventListener('catch-all', function(event) {
+            console.log(event.detail);
           });
           window.r = {
             pause: function () {
