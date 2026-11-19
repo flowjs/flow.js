@@ -28,7 +28,8 @@ import {each} from './tools.js';
  * @param {string|Function} [opts.uploadMethod]
  * @param {bool} [opts.prioritizeFirstAndLastChunk]
  * @param {bool} [opts.allowDuplicateUploads]
- * @param {string|Function} [opts.target]
+ * @param {string|Function} [opts.target] May return a promise: resolved per
+ *   chunk, after its payload and checksum are known.
  * @param {number} [opts.maxChunkRetries]
  * @param {number} [opts.chunkRetryInterval]
  * @param {number} [opts.xhrTimeout]

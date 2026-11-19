@@ -79,6 +79,78 @@ describe('upload file', function() {
     xhr.restore();
   });
 
+  describe('asynchronous per-chunk options', function() {
+
+    it('awaits a target resolved from the chunk checksum', async function() {
+      // What an endpoint with per-chunk integrity checks needs: the
+      // destination is negotiated using the digest of the exact bytes about to
+      // be sent, so it cannot be known before the chunk exists.
+      const seen = [];
+      flow.opts.testChunks = false;
+      flow.opts.method = 'octet';
+      flow.opts.chunkChecksum = async (chunk, payload) => 'sum-' + chunk.offset;
+      flow.opts.target = async (file, chunk) => {
+        await Promise.resolve();
+        seen.push(chunk.checksum);
+        return '/signed/' + chunk.checksum;
+      };
+
+      await flow.addFile(new Blob(['123']));
+      const done = flow.upload();
+      await waitForRequests(1);
+
+      expect(xhr.requests[0].url).toContain('/signed/sum-0');
+      expect(seen).toEqual(['sum-0']);
+      xhr.requests[0].respond(200);
+      await done;
+    });
+
+    it('awaits asynchronous headers', async function() {
+      flow.opts.testChunks = false;
+      flow.opts.method = 'octet';
+      flow.opts.target = 'file';
+      flow.opts.chunkChecksum = async () => 'abc';
+      flow.opts.headers = async (file, chunk) => ({'x-digest': chunk.checksum});
+
+      await flow.addFile(new Blob(['123']));
+      const done = flow.upload();
+      await waitForRequests(1);
+
+      expect(xhr.requests[0].requestHeaders['x-digest']).toBe('abc');
+      xhr.requests[0].respond(200);
+      await done;
+    });
+
+    it('still accepts plain values', async function() {
+      flow.opts.testChunks = false;
+      flow.opts.method = 'octet';
+      flow.opts.target = 'plain-target';
+
+      await flow.addFile(new Blob(['123']));
+      const done = flow.upload();
+      await waitForRequests(1);
+
+      expect(xhr.requests[0].url).toContain('plain-target');
+      xhr.requests[0].respond(200);
+      await done;
+    });
+
+    it('fails the chunk when the target cannot be resolved', async function() {
+      flow.opts.testChunks = false;
+      flow.opts.method = 'octet';
+      flow.opts.maxChunkRetries = 0;
+      flow.opts.target = async () => { throw new Error('negotiation failed'); };
+
+      await flow.addFile(new Blob(['123']));
+      const summary = await flow.upload();
+
+      // summary.status is the session's; per-file outcomes are in files[].
+      expect(summary.files[0].status).toBe('error');
+      expect(summary.files[0].error).toContain('negotiation failed');
+      expect(flow.files[0].error).toBe(true);
+    });
+  });
+
   describe('sendFlowParams: false', function() {
 
     it('leaves a signed octet URL byte-exact', async function() {

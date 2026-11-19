@@ -475,7 +475,7 @@ export default class FlowChunk {
   async _test(signal) {
     const opts = this.flowObj.opts;
     const method = evalOpts(opts.testMethod, this.fileObj, this, true);
-    const request = this.buildRequest(method, true);
+    const request = await this.buildRequest(method, true);
     return sendRequest(Object.assign(request, {
       withCredentials: opts.withCredentials,
       timeout: opts.xhrTimeout || 0,
@@ -486,7 +486,7 @@ export default class FlowChunk {
   async _xhrSend(payload, signal) {
     const opts = this.flowObj.opts;
     const method = evalOpts(opts.uploadMethod, this.fileObj, this, false);
-    const request = this.buildRequest(method, false, opts.method, payload);
+    const request = await this.buildRequest(method, false, opts.method, payload);
     if (typeof opts.changeRawDataBeforeSend === 'function') {
       const changed = await opts.changeRawDataBeforeSend(this, request.body);
       if (typeof changed !== 'undefined') {
@@ -543,9 +543,20 @@ export default class FlowChunk {
   /**
    * Build a transport request without opening or sending it.
    */
-  buildRequest(method, isTest, paramsMethod, blob) {
+  /**
+   * Resolve the request for this chunk.
+   *
+   * `target`, `query` and `headers` may return a promise. They are evaluated
+   * here, after the payload has been read and `chunk.checksum` computed, so a
+   * consumer can negotiate the destination or the integrity headers using the
+   * digest of the exact bytes about to be sent. That is what endpoints with
+   * per-chunk integrity checks require: an S3 pre-signed UploadPart URL, for
+   * instance, is signed over the checksum it commits to, so it cannot be
+   * produced before the chunk exists.
+   */
+  async buildRequest(method, isTest, paramsMethod, blob) {
     const opts = this.flowObj.opts;
-    var query = evalOpts(opts.query, this.fileObj, this, isTest);
+    var query = await evalOpts(opts.query, this.fileObj, this, isTest);
     // `sendFlowParams: false` keeps the request byte-exact: no flow.js
     // bookkeeping is appended to the URL (octet) or to the body (multipart).
     // Required by endpoints whose URL is signed, such as an S3 pre-signed
@@ -558,7 +569,7 @@ export default class FlowChunk {
       query = Object.assign({}, query || {});
     }
 
-    var target = evalOpts(opts.target, this.fileObj, this, isTest);
+    var target = await evalOpts(opts.target, this.fileObj, this, isTest);
     var body = null;
     if (method === 'GET' || paramsMethod === 'octet') {
       var params = [];
@@ -581,7 +592,7 @@ export default class FlowChunk {
       method,
       url: target,
       body,
-      headers: evalOpts(opts.headers, this.fileObj, this, isTest) || {}
+      headers: (await evalOpts(opts.headers, this.fileObj, this, isTest)) || {}
     };
   }
 
