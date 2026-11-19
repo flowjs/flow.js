@@ -19,6 +19,7 @@ import {each} from './tools.js';
  * @param {number} [opts.progressCallbacksInterval]
  * @param {number} [opts.speedSmoothingFactor]
  * @param {Object|Function} [opts.query]
+ * @param {bool} [opts.sendFlowParams]
  * @param {Object|Function} [opts.headers]
  * @param {bool} [opts.withCredentials]
  * @param {Function} [opts.preprocess]
@@ -66,6 +67,7 @@ export default class Flow extends EventTarget {
       progressCallbacksInterval: 500,
       speedSmoothingFactor: 0.1,
       query: {},
+      sendFlowParams: true,
       headers: {},
       withCredentials: false,
       preprocess: null,

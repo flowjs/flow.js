@@ -79,6 +79,79 @@ describe('upload file', function() {
     xhr.restore();
   });
 
+  describe('sendFlowParams: false', function() {
+
+    it('leaves a signed octet URL byte-exact', async function() {
+      // An S3 pre-signed UploadPart URL: any extra query parameter makes the
+      // computed signature differ from X-Amz-Signature and S3 answers 403.
+      var signed = 'https://bucket.s3.amazonaws.com/key?partNumber=1&uploadId=abc' +
+                   '&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=deadbeef';
+      flow.opts.testChunks = false;
+      flow.opts.method = 'octet';
+      flow.opts.uploadMethod = 'PUT';
+      flow.opts.sendFlowParams = false;
+      flow.opts.target = signed;
+
+      await flow.addFile(new Blob(['123']));
+      var done = flow.upload();
+      await waitForRequests(1);
+
+      expect(xhr.requests[0].url).toBe(signed);
+      expect(xhr.requests[0].method).toBe('PUT');
+      xhr.requests[0].respond(200);
+      await done;
+    });
+
+    it('still honours an explicit query option', async function() {
+      flow.opts.testChunks = false;
+      flow.opts.method = 'octet';
+      flow.opts.sendFlowParams = false;
+      flow.opts.target = 'file';
+      flow.opts.query = {a: 1};
+
+      await flow.addFile(new Blob(['123']));
+      var done = flow.upload();
+      await waitForRequests(1);
+
+      expect(xhr.requests[0].url).toContain('a=1');
+      expect(xhr.requests[0].url).not.toContain('flowChunkNumber');
+      xhr.requests[0].respond(200);
+      await done;
+    });
+
+    it('omits the parameters from a multipart body too', async function() {
+      flow.opts.testChunks = false;
+      flow.opts.method = 'multipart';
+      flow.opts.sendFlowParams = false;
+      flow.opts.target = 'file';
+
+      await flow.addFile(new Blob(['123']));
+      var done = flow.upload();
+      await waitForRequests(1);
+
+      var body = xhr.requests[0].requestBody;
+      expect(body.get('flowChunkNumber')).toBeNull();
+      expect(body.get('flowFilename')).toBeNull();
+      expect(body.get(flow.opts.fileParameterName)).not.toBeNull();
+      xhr.requests[0].respond(200);
+      await done;
+    });
+
+    it('sends the parameters by default', async function() {
+      flow.opts.testChunks = false;
+      flow.opts.method = 'octet';
+      flow.opts.target = 'file';
+
+      await flow.addFile(new Blob(['123']));
+      var done = flow.upload();
+      await waitForRequests(1);
+
+      expect(xhr.requests[0].url).toContain('flowChunkNumber=1');
+      xhr.requests[0].respond(200);
+      await done;
+    });
+  });
+
   it('should pass query params', async function() {
     flow.opts.testChunks = false;
     flow.opts.method = 'octet';

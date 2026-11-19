@@ -501,6 +501,11 @@ export default class FlowChunk {
     }));
   }
 
+  /**
+   * Bookkeeping parameters describing this chunk, for the receiving server.
+   *
+   * Not sent when `sendFlowParams` is false: see buildRequest().
+   */
   getParams() {
     var params = {
       flowChunkNumber: this.offset + 1,
@@ -541,7 +546,17 @@ export default class FlowChunk {
   buildRequest(method, isTest, paramsMethod, blob) {
     const opts = this.flowObj.opts;
     var query = evalOpts(opts.query, this.fileObj, this, isTest);
-    query = Object.assign({}, query || {}, this.getParams());
+    // `sendFlowParams: false` keeps the request byte-exact: no flow.js
+    // bookkeeping is appended to the URL (octet) or to the body (multipart).
+    // Required by endpoints whose URL is signed, such as an S3 pre-signed
+    // UploadPart URL, where any extra query parameter invalidates the
+    // signature. Incompatible with `testChunks`, which needs those parameters
+    // to let the server recognise an already-uploaded chunk.
+    if (opts.sendFlowParams !== false) {
+      query = Object.assign({}, query || {}, this.getParams());
+    } else {
+      query = Object.assign({}, query || {});
+    }
 
     var target = evalOpts(opts.target, this.fileObj, this, isTest);
     var body = null;
